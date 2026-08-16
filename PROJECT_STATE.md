@@ -16,8 +16,8 @@ Create an autonomous professional-grade trading system that can analyze markets,
 - The owner wants a real trading engine, not a decorative AI signal generator.
 - Cross-chat continuity is mandatory; repo state must preserve decisions and next work.
 - Avoid unnecessary paid infrastructure during bootstrap.
-- **Bootstrap infrastructure budget is locked to $0 until a strategy edge is demonstrated.** Do not rent a permanent VPS/server merely to validate plumbing or unproven strategies.
-- Minimize integration work: BestCode integration is **not required for V1** and is deferred unless it later provides a clear operational benefit.
+- **Bootstrap infrastructure budget is locked to $0 until a strategy edge is demonstrated.**
+- BestCode integration is deferred; EBA Trader remains standalone for V1.
 
 ## Frozen V1 decisions
 
@@ -29,10 +29,9 @@ Create an autonomous professional-grade trading system that can analyze markets,
 - Existing KuCoin account: not the V1 backend
 - Engine target: `nautilus_trader==1.230.0`
 - Python: 3.12-3.14 compatibility target
-- Runtime shape: standalone EBA Trader process in a normal networked Linux/Python environment; no BestCode dependency
-- Permanent 24/7 paid server: **deferred until evidence of edge exists**
-- Temporary runtime validation: use only a free/ephemeral Linux session when needed
-- UI: deferred until the trading engine and paper workflow are validated; when added, keep it minimal
+- Runtime shape: standalone networked Linux/Python process
+- Permanent paid 24/7 server: deferred until edge evidence exists
+- UI: deferred until paper workflow is validated
 - Timeframes: 5m execution, 15m signal, 1h regime
 - Strategies: Trend Following, Mean Reversion, Breakout, Momentum, NO_TRADE
 - AI role: research / analysis / critique only
@@ -43,70 +42,88 @@ Create an autonomous professional-grade trading system that can analyze markets,
 ## Completed
 
 - [x] Repository created as private
-- [x] README initialized
-- [x] Architecture documented
-- [x] Risk policy documented
-- [x] Strategy contract documented
-- [x] Backtest/validation protocol documented
-- [x] Secret-safe `.gitignore` added
-- [x] Python project scaffold added
-- [x] Core domain enums/models added
-- [x] Trade-proposal invariants added
-- [x] Deterministic Risk Engine V1 added
-- [x] Position sizing and hard veto rules added
-- [x] Live / micro-live mode locked by default
-- [x] Baseline deterministic Regime Detector added
-- [x] Strategy protocol and first-class `NO_TRADE` strategy added
-- [x] Unit tests added for domain, risk, regime and config locks
-- [x] Free/local core validation completed on Python 3.13.5: **13 tests passed**
-- [x] NautilusTrader stable release pinned to `1.230.0`
-- [x] Official v1.230.0 Binance data-only example/API surface checked before integration
-- [x] Deterministic `MarketDataHealth` freshness tracker added
-- [x] Binance data-only probe added for `BTCUSDT.BINANCE`
-- [x] `live_public` mode added: no Binance API key required
-- [x] `demo` mode added: credentials accepted from environment variables only
-- [x] Data-only node contains **no execution client / execution factory**
+- [x] Core architecture, strategy, risk and backtest contracts documented
+- [x] Deterministic Risk Engine V1 and position sizing added
+- [x] Live/micro-live mode locked by default
+- [x] Baseline Regime Detector and first-class `NO_TRADE` added
+- [x] Initial unit tests passed on Python 3.13.5
+- [x] NautilusTrader pinned to `1.230.0`
+- [x] Binance data-only probe for `BTCUSDT.BINANCE` added
+- [x] Public live mode requires no API key
+- [x] Demo credentials are environment-only
+- [x] No execution client exists in M1 data path
 - [x] Quote, trade and 1-minute bar subscriptions configured
-- [x] Market-data health is bridged into `RiskContext`
-- [x] STARTING / STALE / STOPPED data states map to the existing `STALE_MARKET_DATA` hard halt
-- [x] M1 runbook added at `docs/M1_BINANCE_DATA_PIPELINE.md`
-- [x] V1 architecture simplified: BestCode integration deferred; standalone runtime is the default path
-- [x] Zero-cost bootstrap policy locked: no permanent paid server before strategy edge evidence
-
-## Infrastructure note
-
-A GitHub Actions CI workflow was tested but GitHub did not allocate a runner because the account currently reports a billing/payment or spending-limit restriction. The workflow was removed to avoid repeated failed runs or unnecessary cost. Tests remain in the repository and free/local validation is the active bootstrap path.
-
-BestCode was evaluated as a possible control UI, but it would add integration, deployment and security work without helping the current M1/M2 validation goals. It is therefore optional future integration, not a dependency.
-
-A permanent Linux VPS is also deliberately deferred. M1 only needs a short networked runtime session to prove the WebSocket path; backtesting and research do not justify a monthly server bill. A 24/7 runtime becomes relevant only after historical/out-of-sample results justify forward paper testing.
+- [x] Market-data health bridges to deterministic `STALE_MARKET_DATA` hard halt
+- [x] Replit imported from GitHub and confirmed Python **3.12.12**
+- [x] `eba-trader` + `nautilus-trader==1.230.0` installed successfully in Replit Linux
+- [x] Replit test suite completed at **100%** before M2 changes
+- [x] Actual Binance public WebSocket connectivity proven in Replit
+- [x] Actual `QuoteTick(BTCUSDT.BINANCE, ...)` events observed
+- [x] Actual `TradeTick(BTCUSDT.BINANCE, ...)` events observed
+- [x] Zero-cost bootstrap policy locked
+- [x] M2 historical downloader added using Binance public REST only
+- [x] Historical candle integrity validation added: ordering, duplicates, OHLC sanity
+- [x] Trend Following V1 research backtest added
+- [x] Signal-at-close / next-bar-open execution rule added to reduce look-ahead risk
+- [x] Fee + slippage costs included in baseline
+- [x] BTC buy-and-hold benchmark included
+- [x] Historical/backtest unit tests added
+- [x] M2 runbook added at `docs/M2_BACKTEST_LAB.md`
 
 ## Current validation status
 
-- Original deterministic core unit tests: **13/13 passed** on Python 3.13.5 in a local isolated validation copy.
-- New M1 tests for data freshness, Binance probe configuration and stale-data risk integration are committed; full-suite runtime validation remains pending.
-- GitHub Actions: intentionally disabled until account billing/spending-limit status is resolved or a free runner path is chosen.
-- Binance public REST reachability was independently confirmed on 2026-08-17.
-- NautilusTrader WebSocket probe still needs a **one-off free networked runtime execution**, not a permanent server.
-- Current ChatGPT container cannot perform external network/DNS access, so it cannot itself prove the WebSocket session.
+### M0 — Safe research engine bootstrap
+
+**PASSED.**
+
+### M1 — Binance data-only pipeline
+
+**Runtime connectivity PASSED.**
+
+Evidence captured on 2026-08-17 in Replit Linux/Python 3.12.12:
+- NautilusTrader 1.230.0 installed;
+- public Binance WebSocket connected;
+- live BTC/USDT QuoteTick events received;
+- live BTC/USDT TradeTick events received;
+- no exchange account key or execution client used.
+
+Note: the screenshot evidence captured quote/trade events within seconds. A 1-minute bar event was subscribed but was not separately captured in the screenshot; this does not block historical M2 work.
+
+### M2 — Historical Data & Backtest Laboratory
+
+**M2A code path implemented; Replit runtime validation pending.**
+
+Implemented:
+- `eba-download-history` public REST downloader;
+- CSV persistence under ignored `data/raw/`;
+- timestamp/duplicate/OHLC validation;
+- `eba-backtest-trend` long-only EMA crossover baseline;
+- next-bar-open execution;
+- fee/slippage model;
+- buy-and-hold benchmark;
+- return, drawdown, trades, win rate, profit factor, expectancy, approximate Sharpe, exposure and cost output;
+- deterministic tests for data integrity and cost behavior.
 
 ## In progress
 
-- [ ] Execute `eba-binance-data` once against Binance public Spot data in a free/ephemeral networked Linux/Python environment.
-- [ ] Capture first BTC/USDT quote/trade/bar evidence.
+- [ ] Pull latest GitHub changes into Replit.
+- [ ] Reinstall editable package so the two new CLI commands are registered.
+- [ ] Run full test suite after M2 changes.
+- [ ] Download the first historical BTC/USDT 15m dataset.
+- [ ] Run Trend Following V1 baseline and capture metrics.
 
 ## Next tasks — strict order
 
-1. Perform the one-off M1 public-data probe using a free/ephemeral networked Python 3.12-3.14 environment; do not rent a server.
-2. Confirm `BTCUSDT.BINANCE` resolves and quote/trade/bar subscriptions stream correctly.
-3. Build historical-data ingestion and benchmark harness.
-4. Implement the first Trend Following baseline.
-5. Run bias/cost-aware historical and out-of-sample backtests.
-6. Add Mean Reversion, Breakout and Momentum one at a time only after baselines exist.
-7. If and only if results show credible positive expectancy after costs, add forward paper/shadow execution.
-8. Only then evaluate a free or low-cost 24/7 runtime; a paid VPS must be justified by demonstrated edge.
-9. Add a minimal standalone dashboard/PWA only when it makes the validated engine easier to use.
-10. Futures/crowding/liquidation work remains V2+.
+1. Validate M2A on Replit (`pytest`).
+2. Download a bounded 15m BTC/USDT research window from Binance public REST.
+3. Run Trend Following V1 baseline with explicit fee/slippage assumptions.
+4. Inspect result versus BTC buy-and-hold and reject obvious failures.
+5. Add explicit in-sample / out-of-sample split.
+6. Add repeated walk-forward windows across bull, bear and range regimes.
+7. Add base/adverse/severe cost scenarios.
+8. Add parameter-neighborhood robustness tests.
+9. Only after credible positive expectancy after costs: introduce forward paper/shadow execution.
+10. Futures/crowding/liquidation remains V2+.
 
 ## Explicitly not allowed yet
 
@@ -119,33 +136,3 @@ A permanent Linux VPS is also deliberately deferred. M1 only needs a short netwo
 - AI-controlled order submission,
 - strategy self-deployment,
 - API withdrawal permission.
-
-## Milestone status
-
-### M0 — Safe research engine bootstrap
-
-**Passed.**
-
-Evidence:
-- deterministic risk veto path exists,
-- regime detector returns known enum states,
-- `NO_TRADE` is first class,
-- live execution is impossible by default configuration and risk policy,
-- 13 unit tests passed in local validation.
-
-### M1 — Binance data-only pipeline
-
-**Code path complete; one-off external runtime validation pending.**
-
-Implemented:
-- pinned NautilusTrader dependency,
-- public live and Demo data modes,
-- environment-only Demo credential policy,
-- BTC/USDT quote/trade/bar subscriptions,
-- no execution client path,
-- deterministic stale-data tracker,
-- stale-data-to-Risk-Engine hard-veto bridge,
-- runbook and CLI entry point.
-
-Remaining exit evidence:
-- actual NautilusTrader WebSocket session receives/logs BTC/USDT events in a free/ephemeral networked runtime.
