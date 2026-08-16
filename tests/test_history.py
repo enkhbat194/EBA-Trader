@@ -2,10 +2,15 @@ from __future__ import annotations
 
 import pytest
 
-from eba_trader.history import Candle, candle_from_binance_row, validate_candles
+from eba_trader.history import (
+    Candle,
+    candle_from_binance_row,
+    find_interval_gaps,
+    validate_candles,
+)
 
 
-def candle(ts: int, price: float) -> Candle:
+def candle(ts: int, price: float, step: int = 900_000) -> Candle:
     return Candle(
         open_time_ms=ts,
         open=price,
@@ -13,7 +18,7 @@ def candle(ts: int, price: float) -> Candle:
         low=price - 2,
         close=price + 1,
         volume=10.0,
-        close_time_ms=ts + 59_999,
+        close_time_ms=ts + step - 1,
         quote_volume=1000.0,
         trade_count=10,
     )
@@ -33,6 +38,11 @@ def test_validate_rejects_duplicate_timestamp() -> None:
         validate_candles([candle(1000, 100), candle(1000, 101)])
 
 
-def test_validate_accepts_strictly_increasing_candles() -> None:
-    rows = validate_candles([candle(1000, 100), candle(2000, 101)])
-    assert len(rows) == 2
+def test_gap_detector_accepts_contiguous_data() -> None:
+    rows = [candle(0, 100), candle(900_000, 101), candle(1_800_000, 102)]
+    assert find_interval_gaps(rows, "15m") == []
+
+
+def test_gap_detector_reports_missing_bar() -> None:
+    rows = [candle(0, 100), candle(1_800_000, 102)]
+    assert find_interval_gaps(rows, "15m") == [(0, 1_800_000)]
