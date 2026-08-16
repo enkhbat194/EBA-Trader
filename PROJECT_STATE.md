@@ -53,29 +53,34 @@ Create an autonomous professional-grade trading system that can analyze markets,
 - [x] Strategy protocol and first-class `NO_TRADE` strategy added
 - [x] Unit tests added for domain, risk, regime and config locks
 - [x] Demo-only environment template added
+- [x] Free/local core validation completed on Python 3.13.5: **13 tests passed**
 
 ## Infrastructure note
 
 A GitHub Actions CI workflow was tested but GitHub did not allocate a runner because the account currently reports a billing/payment or spending-limit restriction. The workflow was removed to avoid repeated failed runs or unnecessary cost. Tests remain in the repository and free/local validation is the active bootstrap path.
 
+## Current validation status
+
+- Core unit tests: **13/13 passed** on Python 3.13.5 in a local isolated validation copy.
+- GitHub Actions: intentionally disabled until account billing/spending-limit status is resolved or a free runner path is chosen.
+- NautilusTrader integration: not yet executed; official current documentation has been checked before implementation.
+
 ## In progress
 
-- [ ] Local/free validation of the scaffold
 - [ ] NautilusTrader stable dependency validation
 - [ ] Binance Demo market-data integration spike
 
 ## Next tasks — strict order
 
-1. Validate the pure-Python core and test suite outside paid GitHub Actions.
-2. Add/lock a tested NautilusTrader stable release.
-3. Build Binance Demo **data-only** connectivity first.
-4. Record BTC/USDT demo/live-public market data without placing orders.
-5. Build historical-data ingestion and benchmark harness.
-6. Implement first Trend Following baseline.
-7. Run bias/cost-aware backtests.
-8. Add Mean Reversion, Breakout and Momentum one at a time only after baselines exist.
-9. Add paper execution after research metrics are credible.
-10. Futures/crowding/liquidation work remains V2+.
+1. Add/lock a tested NautilusTrader stable release.
+2. Build Binance Demo **data-only** connectivity first.
+3. Record BTC/USDT demo/live-public market data without placing orders.
+4. Build historical-data ingestion and benchmark harness.
+5. Implement first Trend Following baseline.
+6. Run bias/cost-aware backtests.
+7. Add Mean Reversion, Breakout and Momentum one at a time only after baselines exist.
+8. Add paper execution after research metrics are credible.
+9. Futures/crowding/liquidation work remains V2+.
 
 ## Explicitly not allowed yet
 
@@ -88,19 +93,26 @@ A GitHub Actions CI workflow was tested but GitHub did not allocate a runner bec
 - strategy self-deployment,
 - API withdrawal permission.
 
-## Current milestone
+## Milestone status
 
-**M0: Safe research engine bootstrap**
+### M0 — Safe research engine bootstrap
 
-Completed design/code criteria:
+**Passed.**
+
+Evidence:
 - deterministic risk veto path exists,
 - regime detector returns known enum states,
 - `NO_TRADE` is first class,
 - live execution is impossible by default configuration and risk policy,
-- unit tests are present.
+- 13 unit tests passed in local validation.
 
-Remaining M0 exit criteria:
-- run the test suite successfully in a free/local environment,
-- validate package installation,
-- lock the next milestone dependency path,
-- then advance to **M1: Binance Demo data pipeline**.
+### M1 — Binance Demo data pipeline
+
+**Next.**
+
+Exit criteria:
+- stable NautilusTrader install is pinned/recorded,
+- Binance Demo credentials are loaded from environment only,
+- BTC/USDT market data can be received and logged,
+- no order submission path is enabled,
+- stale/disconnected data is surfaced to the core safety layer.
