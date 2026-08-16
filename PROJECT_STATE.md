@@ -16,6 +16,7 @@ Create an autonomous professional-grade trading system that can analyze markets,
 - The owner wants a real trading engine, not a decorative AI signal generator.
 - Cross-chat continuity is mandatory; repo state must preserve decisions and next work.
 - Avoid unnecessary paid infrastructure during bootstrap.
+- Minimize integration work: BestCode integration is **not required for V1** and is deferred unless it later provides a clear operational benefit.
 
 ## Frozen V1 decisions
 
@@ -27,6 +28,8 @@ Create an autonomous professional-grade trading system that can analyze markets,
 - Existing KuCoin account: not the V1 backend
 - Engine target: `nautilus_trader==1.230.0`
 - Python: 3.12-3.14 compatibility target
+- Runtime shape: standalone EBA Trader process in a normal networked Linux/Python environment; no BestCode dependency
+- UI: deferred until the trading engine and paper workflow are validated; when added, keep it minimal
 - Timeframes: 5m execution, 15m signal, 1h regime
 - Strategies: Trend Following, Mean Reversion, Breakout, Momentum, NO_TRADE
 - AI role: research / analysis / critique only
@@ -64,10 +67,13 @@ Create an autonomous professional-grade trading system that can analyze markets,
 - [x] Market-data health is bridged into `RiskContext`
 - [x] STARTING / STALE / STOPPED data states map to the existing `STALE_MARKET_DATA` hard halt
 - [x] M1 runbook added at `docs/M1_BINANCE_DATA_PIPELINE.md`
+- [x] V1 architecture simplified: BestCode integration deferred; standalone runtime is the default path
 
 ## Infrastructure note
 
 A GitHub Actions CI workflow was tested but GitHub did not allocate a runner because the account currently reports a billing/payment or spending-limit restriction. The workflow was removed to avoid repeated failed runs or unnecessary cost. Tests remain in the repository and free/local validation is the active bootstrap path.
+
+BestCode was evaluated as a possible control UI, but it would add integration, deployment and security work without helping the current M1/M2 validation goals. It is therefore optional future integration, not a dependency.
 
 ## Current validation status
 
@@ -80,7 +86,7 @@ A GitHub Actions CI workflow was tested but GitHub did not allocate a runner bec
 
 ## In progress
 
-- [ ] Execute `eba-binance-data` against Binance public Spot data.
+- [ ] Execute `eba-binance-data` against Binance public Spot data in any normal networked Linux/Python environment.
 - [ ] Capture first BTC/USDT quote/trade/bar evidence.
 
 ## Next tasks — strict order
@@ -93,7 +99,8 @@ A GitHub Actions CI workflow was tested but GitHub did not allocate a runner bec
 6. Run bias/cost-aware backtests.
 7. Add Mean Reversion, Breakout and Momentum one at a time only after baselines exist.
 8. Add paper execution after research metrics are credible.
-9. Futures/crowding/liquidation work remains V2+.
+9. Add a minimal standalone dashboard/PWA only when it makes the validated engine easier to use.
+10. Futures/crowding/liquidation work remains V2+.
 
 ## Explicitly not allowed yet
 
