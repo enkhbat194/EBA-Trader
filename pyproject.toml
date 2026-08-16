@@ -10,6 +10,9 @@ readme = "README.md"
 requires-python = ">=3.12,<3.15"
 dependencies = []
 
+[project.scripts]
+eba-binance-data = "eba_trader.binance_probe:run_data_only_probe"
+
 [project.optional-dependencies]
 trading = [
   "nautilus_trader==1.230.0",
