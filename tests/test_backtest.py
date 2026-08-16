@@ -1,0 +1,55 @@
+from __future__ import annotations
+
+from eba_trader.backtest import TrendBacktestConfig, run_trend_backtest
+from eba_trader.history import Candle
+
+
+def make_series() -> list[Candle]:
+    rows: list[Candle] = []
+    price = 100.0
+    for index in range(140):
+        if index < 40:
+            price += 0.05
+        elif index < 95:
+            price += 0.8
+        else:
+            price -= 0.7
+        rows.append(
+            Candle(
+                open_time_ms=index * 60_000,
+                open=price - 0.2,
+                high=price + 0.6,
+                low=price - 0.8,
+                close=price,
+                volume=100.0,
+                close_time_ms=index * 60_000 + 59_999,
+                quote_volume=10_000.0,
+                trade_count=100,
+            )
+        )
+    return rows
+
+
+def test_trend_backtest_produces_trade_and_metrics() -> None:
+    result = run_trend_backtest(
+        make_series(),
+        TrendBacktestConfig(fast_ema=5, slow_ema=15, fee_bps=0, slippage_bps=0),
+    )
+    assert result.trade_count >= 1
+    assert result.final_equity > 0
+    assert result.max_drawdown <= 0
+    assert 0 <= result.exposure <= 1
+
+
+def test_costs_do_not_improve_result() -> None:
+    rows = make_series()
+    free = run_trend_backtest(
+        rows,
+        TrendBacktestConfig(fast_ema=5, slow_ema=15, fee_bps=0, slippage_bps=0),
+    )
+    costly = run_trend_backtest(
+        rows,
+        TrendBacktestConfig(fast_ema=5, slow_ema=15, fee_bps=10, slippage_bps=5),
+    )
+    assert costly.final_equity <= free.final_equity
+    assert costly.total_cost > 0
