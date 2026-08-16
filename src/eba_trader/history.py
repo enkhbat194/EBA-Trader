@@ -191,7 +191,7 @@ def download_history_cli() -> None:
     parser.add_argument("--interval", default="15m", choices=sorted(SUPPORTED_INTERVALS))
     parser.add_argument("--start", required=True, help="UTC ISO date/time, e.g. 2024-01-01")
     parser.add_argument("--end", required=True, help="UTC ISO date/time, e.g. 2025-01-01")
-    parser.add_argument("--out", default="data/btcusdt_15m.csv")
+    parser.add_argument("--out", default="data/raw/btcusdt_15m.csv")
     args = parser.parse_args()
 
     candles = fetch_binance_klines(
