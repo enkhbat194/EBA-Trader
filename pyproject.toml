@@ -12,6 +12,8 @@ dependencies = []
 
 [project.scripts]
 eba-binance-data = "eba_trader.binance_probe:run_data_only_probe"
+eba-download-history = "eba_trader.history:download_history_cli"
+eba-backtest-trend = "eba_trader.backtest:backtest_trend_cli"
 
 [project.optional-dependencies]
 trading = [
