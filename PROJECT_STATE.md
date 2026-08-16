@@ -25,7 +25,7 @@ Create an autonomous professional-grade trading system that can analyze markets,
 - Primary exchange target: Binance
 - Backup exchange target: OKX
 - Existing KuCoin account: not the V1 backend
-- Engine target: NautilusTrader stable release
+- Engine target: `nautilus_trader==1.230.0`
 - Python: 3.12-3.14 compatibility target
 - Timeframes: 5m execution, 15m signal, 1h regime
 - Strategies: Trend Following, Mean Reversion, Breakout, Momentum, NO_TRADE
@@ -52,8 +52,16 @@ Create an autonomous professional-grade trading system that can analyze markets,
 - [x] Baseline deterministic Regime Detector added
 - [x] Strategy protocol and first-class `NO_TRADE` strategy added
 - [x] Unit tests added for domain, risk, regime and config locks
-- [x] Demo-only environment template added
 - [x] Free/local core validation completed on Python 3.13.5: **13 tests passed**
+- [x] NautilusTrader stable release pinned to `1.230.0`
+- [x] Official v1.230.0 Binance data-only example/API surface checked before integration
+- [x] Deterministic `MarketDataHealth` freshness tracker added
+- [x] Binance data-only probe added for `BTCUSDT.BINANCE`
+- [x] `live_public` mode added: no Binance API key required
+- [x] `demo` mode added: credentials accepted from environment variables only
+- [x] Data-only node contains **no execution client / execution factory**
+- [x] Quote, trade and 1-minute bar subscriptions configured
+- [x] M1 runbook added at `docs/M1_BINANCE_DATA_PIPELINE.md`
 
 ## Infrastructure note
 
@@ -61,26 +69,30 @@ A GitHub Actions CI workflow was tested but GitHub did not allocate a runner bec
 
 ## Current validation status
 
-- Core unit tests: **13/13 passed** on Python 3.13.5 in a local isolated validation copy.
+- Original deterministic core unit tests: **13/13 passed** on Python 3.13.5 in a local isolated validation copy.
+- New M1 unit tests for data freshness and Binance probe configuration are committed but still need a full package test run after the trading dependency is installed.
 - GitHub Actions: intentionally disabled until account billing/spending-limit status is resolved or a free runner path is chosen.
-- NautilusTrader integration: not yet executed; official current documentation has been checked before implementation.
+- Binance public REST reachability was independently confirmed on 2026-08-17, but the NautilusTrader WebSocket probe still needs runtime execution in an environment with outbound network access.
+- Current ChatGPT container cannot perform external network/DNS access, so it cannot itself prove the WebSocket connection.
 
 ## In progress
 
-- [ ] NautilusTrader stable dependency validation
-- [ ] Binance Demo market-data integration spike
+- [ ] Execute `eba-binance-data` against Binance public Spot data.
+- [ ] Capture first BTC/USDT quote/trade/bar evidence.
+- [ ] Wire stale-data state into a hard Risk Engine veto.
 
 ## Next tasks — strict order
 
-1. Add/lock a tested NautilusTrader stable release.
-2. Build Binance Demo **data-only** connectivity first.
-3. Record BTC/USDT demo/live-public market data without placing orders.
-4. Build historical-data ingestion and benchmark harness.
-5. Implement first Trend Following baseline.
-6. Run bias/cost-aware backtests.
-7. Add Mean Reversion, Breakout and Momentum one at a time only after baselines exist.
-8. Add paper execution after research metrics are credible.
-9. Futures/crowding/liquidation work remains V2+.
+1. Run the committed data-only probe in a networked Python 3.12-3.14 environment.
+2. Confirm `BTCUSDT.BINANCE` resolves and quote/trade/bar subscriptions stream correctly.
+3. Feed `MarketDataHealth` into the Risk Engine so stale data always returns DENIED/NO_TRADE.
+4. Add durable normalized market-data recording for research.
+5. Build historical-data ingestion and benchmark harness.
+6. Implement first Trend Following baseline.
+7. Run bias/cost-aware backtests.
+8. Add Mean Reversion, Breakout and Momentum one at a time only after baselines exist.
+9. Add paper execution after research metrics are credible.
+10. Futures/crowding/liquidation work remains V2+.
 
 ## Explicitly not allowed yet
 
@@ -106,13 +118,19 @@ Evidence:
 - live execution is impossible by default configuration and risk policy,
 - 13 unit tests passed in local validation.
 
-### M1 — Binance Demo data pipeline
+### M1 — Binance data-only pipeline
 
-**Next.**
+**Implementation substantially complete; runtime validation pending.**
 
-Exit criteria:
-- stable NautilusTrader install is pinned/recorded,
-- Binance Demo credentials are loaded from environment only,
-- BTC/USDT market data can be received and logged,
-- no order submission path is enabled,
-- stale/disconnected data is surfaced to the core safety layer.
+Implemented:
+- pinned NautilusTrader dependency,
+- public live and Demo data modes,
+- environment-only Demo credential policy,
+- BTC/USDT quote/trade/bar subscriptions,
+- no execution client path,
+- deterministic stale-data tracker,
+- runbook and CLI entry point.
+
+Remaining exit evidence:
+- actual NautilusTrader WebSocket session receives/logs BTC/USDT events,
+- stale-data tracker is connected to the Risk Engine hard-veto path.
