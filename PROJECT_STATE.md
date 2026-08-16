@@ -15,6 +15,7 @@ Create an autonomous professional-grade trading system that can analyze markets,
 - The system should learn from historical bot/trading-system failure modes rather than copy a single retail bot strategy.
 - The owner wants a real trading engine, not a decorative AI signal generator.
 - Cross-chat continuity is mandatory; repo state must preserve decisions and next work.
+- Avoid unnecessary paid infrastructure during bootstrap.
 
 ## Frozen V1 decisions
 
@@ -25,7 +26,7 @@ Create an autonomous professional-grade trading system that can analyze markets,
 - Backup exchange target: OKX
 - Existing KuCoin account: not the V1 backend
 - Engine target: NautilusTrader stable release
-- Python: 3.12+
+- Python: 3.12-3.14 compatibility target
 - Timeframes: 5m execution, 15m signal, 1h regime
 - Strategies: Trend Following, Mean Reversion, Breakout, Momentum, NO_TRADE
 - AI role: research / analysis / critique only
@@ -42,28 +43,39 @@ Create an autonomous professional-grade trading system that can analyze markets,
 - [x] Strategy contract documented
 - [x] Backtest/validation protocol documented
 - [x] Secret-safe `.gitignore` added
+- [x] Python project scaffold added
+- [x] Core domain enums/models added
+- [x] Trade-proposal invariants added
+- [x] Deterministic Risk Engine V1 added
+- [x] Position sizing and hard veto rules added
+- [x] Live / micro-live mode locked by default
+- [x] Baseline deterministic Regime Detector added
+- [x] Strategy protocol and first-class `NO_TRADE` strategy added
+- [x] Unit tests added for domain, risk, regime and config locks
+- [x] Demo-only environment template added
+
+## Infrastructure note
+
+A GitHub Actions CI workflow was tested but GitHub did not allocate a runner because the account currently reports a billing/payment or spending-limit restriction. The workflow was removed to avoid repeated failed runs or unnecessary cost. Tests remain in the repository and free/local validation is the active bootstrap path.
 
 ## In progress
 
-- [ ] Python project scaffold
-- [ ] Domain models
-- [ ] Deterministic Risk Engine V1
-- [ ] Regime Detector baseline
-- [ ] Unit tests
-- [ ] NautilusTrader/Binance Demo integration spike
+- [ ] Local/free validation of the scaffold
+- [ ] NautilusTrader stable dependency validation
+- [ ] Binance Demo market-data integration spike
 
 ## Next tasks — strict order
 
-1. Build pure-Python domain core and tests.
-2. Implement position-sizing and risk veto rules.
-3. Implement baseline market-regime classifier without AI.
-4. Add deterministic strategy proposal interface and `NO_TRADE` path.
-5. Add NautilusTrader stable dependency and Binance Demo market-data adapter.
-6. Record live public BTC/USDT data without placing orders.
-7. Build historical-data ingestion and benchmark harness.
-8. Implement first Trend Following baseline.
-9. Run bias/cost-aware backtests.
-10. Only after evidence: add other strategies and paper execution.
+1. Validate the pure-Python core and test suite outside paid GitHub Actions.
+2. Add/lock a tested NautilusTrader stable release.
+3. Build Binance Demo **data-only** connectivity first.
+4. Record BTC/USDT demo/live-public market data without placing orders.
+5. Build historical-data ingestion and benchmark harness.
+6. Implement first Trend Following baseline.
+7. Run bias/cost-aware backtests.
+8. Add Mean Reversion, Breakout and Momentum one at a time only after baselines exist.
+9. Add paper execution after research metrics are credible.
+10. Futures/crowding/liquidation work remains V2+.
 
 ## Explicitly not allowed yet
 
@@ -80,10 +92,15 @@ Create an autonomous professional-grade trading system that can analyze markets,
 
 **M0: Safe research engine bootstrap**
 
-Exit criteria:
-- package installs cleanly,
-- unit tests pass,
-- risk engine denies invalid proposals,
+Completed design/code criteria:
+- deterministic risk veto path exists,
 - regime detector returns known enum states,
-- live execution is impossible by configuration/default code path,
-- next milestone state is recorded here.
+- `NO_TRADE` is first class,
+- live execution is impossible by default configuration and risk policy,
+- unit tests are present.
+
+Remaining M0 exit criteria:
+- run the test suite successfully in a free/local environment,
+- validate package installation,
+- lock the next milestone dependency path,
+- then advance to **M1: Binance Demo data pipeline**.
