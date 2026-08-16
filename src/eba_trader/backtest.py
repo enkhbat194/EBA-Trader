@@ -3,10 +3,12 @@ from __future__ import annotations
 import argparse
 import math
 from dataclasses import dataclass
-from statistics import mean, pstdev
+from statistics import mean, median, pstdev
 from typing import Iterable
 
 from .history import Candle, load_csv
+
+YEAR_MS = 365.0 * 24.0 * 60.0 * 60.0 * 1000.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,13 +43,18 @@ class BacktestResult:
     initial_cash: float
     final_equity: float
     total_return: float
+    annualized_return: float
     benchmark_return: float
+    benchmark_relative_return: float
     max_drawdown: float
     trade_count: int
     win_rate: float
     profit_factor: float
     expectancy: float
+    average_win: float
+    average_loss: float
     sharpe: float
+    sortino: float
     exposure: float
     total_cost: float
     trades: tuple[ClosedTrade, ...]
@@ -71,6 +78,8 @@ def ema(values: Iterable[float], period: int) -> list[float | None]:
 
 
 def max_drawdown(equity_curve: list[float]) -> float:
+    if not equity_curve:
+        raise ValueError("equity_curve cannot be empty")
     peak = equity_curve[0]
     worst = 0.0
     for equity in equity_curve:
@@ -88,7 +97,50 @@ def _safe_profit_factor(trades: list[ClosedTrade]) -> float:
     return gross_profit / gross_loss
 
 
-def run_trend_backtest(candles: Iterable[Candle], config: TrendBacktestConfig | None = None) -> BacktestResult:
+def _infer_bars_per_year(bars: list[Candle]) -> float:
+    if len(bars) < 2:
+        return 0.0
+    gaps = [
+        bars[index].open_time_ms - bars[index - 1].open_time_ms
+        for index in range(1, len(bars))
+        if bars[index].open_time_ms > bars[index - 1].open_time_ms
+    ]
+    if not gaps:
+        return 0.0
+    interval_ms = float(median(gaps))
+    return YEAR_MS / interval_ms if interval_ms > 0 else 0.0
+
+
+def _annualized_return(initial: float, final: float, bars: list[Candle]) -> float:
+    elapsed_ms = bars[-1].close_time_ms - bars[0].open_time_ms
+    if initial <= 0 or final <= 0 or elapsed_ms <= 0:
+        return 0.0
+    years = elapsed_ms / YEAR_MS
+    if years <= 0:
+        return 0.0
+    return (final / initial) ** (1.0 / years) - 1.0
+
+
+def _risk_adjusted_ratios(returns: list[float], bars_per_year: float) -> tuple[float, float]:
+    if len(returns) < 2 or bars_per_year <= 0:
+        return 0.0, 0.0
+    avg = mean(returns)
+    std = pstdev(returns)
+    sharpe = avg / std * math.sqrt(bars_per_year) if std > 0 else 0.0
+    downside = [min(value, 0.0) for value in returns]
+    downside_deviation = math.sqrt(mean([value * value for value in downside]))
+    sortino = (
+        avg / downside_deviation * math.sqrt(bars_per_year)
+        if downside_deviation > 0
+        else 0.0
+    )
+    return sharpe, sortino
+
+
+def run_trend_backtest(
+    candles: Iterable[Candle],
+    config: TrendBacktestConfig | None = None,
+) -> BacktestResult:
     cfg = config or TrendBacktestConfig()
     bars = list(candles)
     if len(bars) < cfg.slow_ema + 2:
@@ -97,7 +149,6 @@ def run_trend_backtest(candles: Iterable[Candle], config: TrendBacktestConfig | 
     closes = [bar.close for bar in bars]
     fast = ema(closes, cfg.fast_ema)
     slow = ema(closes, cfg.slow_ema)
-    round_trip_cost_rate = (cfg.fee_bps + cfg.slippage_bps) / 10_000.0
 
     cash = cfg.initial_cash
     quantity = 0.0
@@ -125,7 +176,8 @@ def run_trend_backtest(candles: Iterable[Candle], config: TrendBacktestConfig | 
         if not previous_signal and signal and quantity == 0.0:
             execution_price = next_bar.open * (1.0 + cfg.slippage_bps / 10_000.0)
             fee = cash * cfg.fee_bps / 10_000.0
-            total_cost += fee + cash * cfg.slippage_bps / 10_000.0
+            slippage_cost = cash * cfg.slippage_bps / 10_000.0
+            total_cost += fee + slippage_cost
             deployable = cash - fee
             quantity = deployable / execution_price
             entry_equity = cash
@@ -137,7 +189,8 @@ def run_trend_backtest(candles: Iterable[Candle], config: TrendBacktestConfig | 
             execution_price = next_bar.open * (1.0 - cfg.slippage_bps / 10_000.0)
             gross = quantity * execution_price
             fee = gross * cfg.fee_bps / 10_000.0
-            total_cost += fee + gross * cfg.slippage_bps / 10_000.0
+            slippage_cost = gross * cfg.slippage_bps / 10_000.0
+            total_cost += fee + slippage_cost
             cash = gross - fee
             pnl = cash - entry_equity
             trades.append(
@@ -166,7 +219,8 @@ def run_trend_backtest(candles: Iterable[Candle], config: TrendBacktestConfig | 
         execution_price = final_bar.close * (1.0 - cfg.slippage_bps / 10_000.0)
         gross = quantity * execution_price
         fee = gross * cfg.fee_bps / 10_000.0
-        total_cost += fee + gross * cfg.slippage_bps / 10_000.0
+        slippage_cost = gross * cfg.slippage_bps / 10_000.0
+        total_cost += fee + slippage_cost
         cash = gross - fee
         trades.append(
             ClosedTrade(
@@ -178,31 +232,43 @@ def run_trend_backtest(candles: Iterable[Candle], config: TrendBacktestConfig | 
                 pnl=cash - entry_equity,
             )
         )
+        if previous_equity > 0:
+            bar_returns.append(cash / previous_equity - 1.0)
         equity_curve.append(cash)
 
     final_equity = cash
-    wins = [trade for trade in trades if trade.pnl > 0]
+    wins = [trade.pnl for trade in trades if trade.pnl > 0]
+    losses = [trade.pnl for trade in trades if trade.pnl < 0]
     expectancy = mean([trade.pnl for trade in trades]) if trades else 0.0
-    std = pstdev(bar_returns) if len(bar_returns) > 1 else 0.0
-    sharpe = (mean(bar_returns) / std * math.sqrt(365.0 * 24.0 * 4.0)) if std > 0 else 0.0
+    average_win = mean(wins) if wins else 0.0
+    average_loss = mean(losses) if losses else 0.0
+    bars_per_year = _infer_bars_per_year(bars)
+    sharpe, sortino = _risk_adjusted_ratios(bar_returns, bars_per_year)
 
     benchmark_entry = bars[cfg.slow_ema + 1].open * (1.0 + cfg.slippage_bps / 10_000.0)
     benchmark_exit = bars[-1].close * (1.0 - cfg.slippage_bps / 10_000.0)
     benchmark_multiplier = benchmark_exit / benchmark_entry
     benchmark_multiplier *= 1.0 - cfg.fee_bps / 10_000.0
     benchmark_multiplier *= 1.0 - cfg.fee_bps / 10_000.0
+    benchmark_return = benchmark_multiplier - 1.0
+    total_return = final_equity / cfg.initial_cash - 1.0
 
     return BacktestResult(
         initial_cash=cfg.initial_cash,
         final_equity=final_equity,
-        total_return=final_equity / cfg.initial_cash - 1.0,
-        benchmark_return=benchmark_multiplier - 1.0,
+        total_return=total_return,
+        annualized_return=_annualized_return(cfg.initial_cash, final_equity, bars),
+        benchmark_return=benchmark_return,
+        benchmark_relative_return=total_return - benchmark_return,
         max_drawdown=max_drawdown(equity_curve),
         trade_count=len(trades),
         win_rate=len(wins) / len(trades) if trades else 0.0,
         profit_factor=_safe_profit_factor(trades),
         expectancy=expectancy,
+        average_win=average_win,
+        average_loss=average_loss,
         sharpe=sharpe,
+        sortino=sortino,
         exposure=exposed_bars / max(len(equity_curve) - 1, 1),
         total_cost=total_cost,
         trades=tuple(trades),
@@ -210,7 +276,9 @@ def run_trend_backtest(candles: Iterable[Candle], config: TrendBacktestConfig | 
 
 
 def backtest_trend_cli() -> None:
-    parser = argparse.ArgumentParser(description="Run EBA Trader Trend Following V1 research backtest")
+    parser = argparse.ArgumentParser(
+        description="Run EBA Trader Trend Following V1 research backtest"
+    )
     parser.add_argument("--csv", required=True)
     parser.add_argument("--fast", type=int, default=20)
     parser.add_argument("--slow", type=int, default=50)
@@ -231,12 +299,17 @@ def backtest_trend_cli() -> None:
     )
     print(f"final_equity={result.final_equity:.2f}")
     print(f"total_return={result.total_return:.2%}")
+    print(f"annualized_return={result.annualized_return:.2%}")
     print(f"btc_buy_hold={result.benchmark_return:.2%}")
+    print(f"benchmark_relative={result.benchmark_relative_return:.2%}")
     print(f"max_drawdown={result.max_drawdown:.2%}")
     print(f"trades={result.trade_count}")
     print(f"win_rate={result.win_rate:.2%}")
     print(f"profit_factor={result.profit_factor:.3f}")
     print(f"expectancy_usd={result.expectancy:.4f}")
+    print(f"average_win_usd={result.average_win:.4f}")
+    print(f"average_loss_usd={result.average_loss:.4f}")
     print(f"sharpe_approx={result.sharpe:.3f}")
+    print(f"sortino_approx={result.sortino:.3f}")
     print(f"exposure={result.exposure:.2%}")
     print(f"estimated_cost_usd={result.total_cost:.4f}")
