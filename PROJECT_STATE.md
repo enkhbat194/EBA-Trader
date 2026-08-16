@@ -18,6 +18,7 @@ Create an autonomous professional-grade trading system that can analyze markets,
 - Avoid unnecessary paid infrastructure during bootstrap.
 - **Bootstrap infrastructure budget is locked to $0 until a strategy edge is demonstrated.**
 - BestCode integration is deferred; EBA Trader remains standalone for V1.
+- Replit is not the development center. Use it only when a networked runtime is actually required; code/test work should be handled from the repo/assistant side whenever possible.
 
 ## Frozen V1 decisions
 
@@ -62,13 +63,23 @@ Create an autonomous professional-grade trading system that can analyze markets,
 - [x] Actual `TradeTick(BTCUSDT.BINANCE, ...)` events observed
 - [x] Zero-cost bootstrap policy locked
 - [x] M2 historical downloader added using Binance public REST only
-- [x] Historical candle integrity validation added: ordering, duplicates, OHLC sanity
-- [x] Trend Following V1 research backtest added
+- [x] Historical candle integrity validation: ordering, duplicates and OHLC sanity
+- [x] Historical interval-gap detector added
+- [x] Historical download end timestamp made exclusive to prevent split-boundary leakage
+- [x] Trend Following V1 long-only EMA 20/50 baseline added
 - [x] Signal-at-close / next-bar-open execution rule added to reduce look-ahead risk
-- [x] Fee + slippage costs included in baseline
+- [x] Fee + slippage costs included
 - [x] BTC buy-and-hold benchmark included
-- [x] Historical/backtest unit tests added
-- [x] M2 runbook added at `docs/M2_BACKTEST_LAB.md`
+- [x] Annualized return, benchmark-relative return, average win/loss and Sortino added
+- [x] Sharpe/Sortino scaling made interval-aware instead of hard-coded to 15m
+- [x] Frozen baseline evidence windows defined: 2021-2023 research, 2024 validation, 2025 out-of-sample
+- [x] 2026+ left outside first baseline study for fresher later evidence
+- [x] Base/adverse/severe cost scenarios defined
+- [x] `eba-baseline-study` one-command M2 study added
+- [x] Baseline study fails closed on missing interval data
+- [x] JSON benchmark report output added at `artifacts/m2_trend_baseline.json`
+- [x] New isolated M2 history/backtest/research logic tests executed locally: **10/10 passed**
+- [x] M2 runbook updated at `docs/M2_BACKTEST_LAB.md`
 
 ## Current validation status
 
@@ -87,43 +98,43 @@ Evidence captured on 2026-08-17 in Replit Linux/Python 3.12.12:
 - live BTC/USDT TradeTick events received;
 - no exchange account key or execution client used.
 
-Note: the screenshot evidence captured quote/trade events within seconds. A 1-minute bar event was subscribed but was not separately captured in the screenshot; this does not block historical M2 work.
+A 1-minute bar event was subscribed but was not separately captured in the screenshot. This does not block M2 historical work.
 
 ### M2 — Historical Data & Backtest Laboratory
 
-**M2A code path implemented; Replit runtime validation pending.**
+**M2A code path implemented and isolated deterministic logic validated. M2B needs public historical data.**
 
-Implemented:
-- `eba-download-history` public REST downloader;
-- CSV persistence under ignored `data/raw/`;
-- timestamp/duplicate/OHLC validation;
-- `eba-backtest-trend` long-only EMA crossover baseline;
-- next-bar-open execution;
-- fee/slippage model;
-- buy-and-hold benchmark;
-- return, drawdown, trades, win rate, profit factor, expectancy, approximate Sharpe, exposure and cost output;
-- deterministic tests for data integrity and cost behavior.
+Frozen windows:
+- research: `2021-01-01` → `2024-01-01` exclusive;
+- validation: `2024-01-01` → `2025-01-01` exclusive;
+- out-of-sample: `2025-01-01` → `2026-01-01` exclusive.
+
+Cost scenarios:
+- base: 10 bps fee + 5 bps slippage per side;
+- adverse: 10 bps fee + 10 bps slippage per side;
+- severe: 15 bps fee + 20 bps slippage per side.
+
+Current caveat:
+- the entire post-M2 repository suite has not been rerun in one Nautilus-enabled environment after the latest M2 changes;
+- the new M2 modules were independently exercised with deterministic synthetic data and **10 tests passed**;
+- the next network-required action is historical Binance REST acquisition, not interactive coding/debugging.
 
 ## In progress
 
-- [ ] Pull latest GitHub changes into Replit.
-- [ ] Reinstall editable package so the two new CLI commands are registered.
-- [ ] Run full test suite after M2 changes.
-- [ ] Download the first historical BTC/USDT 15m dataset.
-- [ ] Run Trend Following V1 baseline and capture metrics.
+- [ ] Obtain the three frozen BTC/USDT 15m windows from Binance public REST.
+- [ ] Produce the first `m2_trend_baseline.json` evidence report.
+- [ ] Review Trend Following V1 against BTC buy-and-hold, drawdown, expectancy and cost stress.
 
 ## Next tasks — strict order
 
-1. Validate M2A on Replit (`pytest`).
-2. Download a bounded 15m BTC/USDT research window from Binance public REST.
-3. Run Trend Following V1 baseline with explicit fee/slippage assumptions.
-4. Inspect result versus BTC buy-and-hold and reject obvious failures.
-5. Add explicit in-sample / out-of-sample split.
-6. Add repeated walk-forward windows across bull, bear and range regimes.
-7. Add base/adverse/severe cost scenarios.
-8. Add parameter-neighborhood robustness tests.
-9. Only after credible positive expectancy after costs: introduce forward paper/shadow execution.
-10. Futures/crowding/liquidation remains V2+.
+1. Run the one-command `eba-baseline-study` in a free networked runtime after syncing/installing the latest package.
+2. Capture the report, not screenshots of dozens of shell steps.
+3. Reject or retain Trend Following V1 based on benchmark-relative return, drawdown, expectancy, trade count and severe-cost behavior.
+4. Add parameter-neighborhood robustness around any retained baseline.
+5. Add repeated walk-forward windows and regime-specific diagnostics.
+6. Only after credible positive expectancy after costs: introduce forward PAPER/SHADOW execution.
+7. Only after forward evidence: consider any 24/7 runtime or server cost.
+8. Futures/crowding/liquidation remains V2+.
 
 ## Explicitly not allowed yet
 
