@@ -16,6 +16,7 @@ Create an autonomous professional-grade trading system that can analyze markets,
 - The owner wants a real trading engine, not a decorative AI signal generator.
 - Cross-chat continuity is mandatory; repo state must preserve decisions and next work.
 - Avoid unnecessary paid infrastructure during bootstrap.
+- **Bootstrap infrastructure budget is locked to $0 until a strategy edge is demonstrated.** Do not rent a permanent VPS/server merely to validate plumbing or unproven strategies.
 - Minimize integration work: BestCode integration is **not required for V1** and is deferred unless it later provides a clear operational benefit.
 
 ## Frozen V1 decisions
@@ -29,6 +30,8 @@ Create an autonomous professional-grade trading system that can analyze markets,
 - Engine target: `nautilus_trader==1.230.0`
 - Python: 3.12-3.14 compatibility target
 - Runtime shape: standalone EBA Trader process in a normal networked Linux/Python environment; no BestCode dependency
+- Permanent 24/7 paid server: **deferred until evidence of edge exists**
+- Temporary runtime validation: use only a free/ephemeral Linux session when needed
 - UI: deferred until the trading engine and paper workflow are validated; when added, keep it minimal
 - Timeframes: 5m execution, 15m signal, 1h regime
 - Strategies: Trend Following, Mean Reversion, Breakout, Momentum, NO_TRADE
@@ -68,6 +71,7 @@ Create an autonomous professional-grade trading system that can analyze markets,
 - [x] STARTING / STALE / STOPPED data states map to the existing `STALE_MARKET_DATA` hard halt
 - [x] M1 runbook added at `docs/M1_BINANCE_DATA_PIPELINE.md`
 - [x] V1 architecture simplified: BestCode integration deferred; standalone runtime is the default path
+- [x] Zero-cost bootstrap policy locked: no permanent paid server before strategy edge evidence
 
 ## Infrastructure note
 
@@ -75,35 +79,38 @@ A GitHub Actions CI workflow was tested but GitHub did not allocate a runner bec
 
 BestCode was evaluated as a possible control UI, but it would add integration, deployment and security work without helping the current M1/M2 validation goals. It is therefore optional future integration, not a dependency.
 
+A permanent Linux VPS is also deliberately deferred. M1 only needs a short networked runtime session to prove the WebSocket path; backtesting and research do not justify a monthly server bill. A 24/7 runtime becomes relevant only after historical/out-of-sample results justify forward paper testing.
+
 ## Current validation status
 
 - Original deterministic core unit tests: **13/13 passed** on Python 3.13.5 in a local isolated validation copy.
 - New M1 tests for data freshness, Binance probe configuration and stale-data risk integration are committed; full-suite runtime validation remains pending.
 - GitHub Actions: intentionally disabled until account billing/spending-limit status is resolved or a free runner path is chosen.
 - Binance public REST reachability was independently confirmed on 2026-08-17.
-- NautilusTrader WebSocket probe still needs runtime execution in an environment with outbound network access.
+- NautilusTrader WebSocket probe still needs a **one-off free networked runtime execution**, not a permanent server.
 - Current ChatGPT container cannot perform external network/DNS access, so it cannot itself prove the WebSocket session.
 
 ## In progress
 
-- [ ] Execute `eba-binance-data` against Binance public Spot data in any normal networked Linux/Python environment.
+- [ ] Execute `eba-binance-data` once against Binance public Spot data in a free/ephemeral networked Linux/Python environment.
 - [ ] Capture first BTC/USDT quote/trade/bar evidence.
 
 ## Next tasks — strict order
 
-1. Run the committed data-only probe in a networked Python 3.12-3.14 environment.
+1. Perform the one-off M1 public-data probe using a free/ephemeral networked Python 3.12-3.14 environment; do not rent a server.
 2. Confirm `BTCUSDT.BINANCE` resolves and quote/trade/bar subscriptions stream correctly.
-3. Add durable normalized market-data recording for research.
-4. Build historical-data ingestion and benchmark harness.
-5. Implement first Trend Following baseline.
-6. Run bias/cost-aware backtests.
-7. Add Mean Reversion, Breakout and Momentum one at a time only after baselines exist.
-8. Add paper execution after research metrics are credible.
+3. Build historical-data ingestion and benchmark harness.
+4. Implement the first Trend Following baseline.
+5. Run bias/cost-aware historical and out-of-sample backtests.
+6. Add Mean Reversion, Breakout and Momentum one at a time only after baselines exist.
+7. If and only if results show credible positive expectancy after costs, add forward paper/shadow execution.
+8. Only then evaluate a free or low-cost 24/7 runtime; a paid VPS must be justified by demonstrated edge.
 9. Add a minimal standalone dashboard/PWA only when it makes the validated engine easier to use.
 10. Futures/crowding/liquidation work remains V2+.
 
 ## Explicitly not allowed yet
 
+- permanent paid VPS/server during unproven bootstrap,
 - real-money order placement,
 - futures,
 - leverage,
@@ -128,7 +135,7 @@ Evidence:
 
 ### M1 — Binance data-only pipeline
 
-**Code path complete; external runtime validation pending.**
+**Code path complete; one-off external runtime validation pending.**
 
 Implemented:
 - pinned NautilusTrader dependency,
@@ -141,4 +148,4 @@ Implemented:
 - runbook and CLI entry point.
 
 Remaining exit evidence:
-- actual NautilusTrader WebSocket session receives/logs BTC/USDT events in a networked runtime.
+- actual NautilusTrader WebSocket session receives/logs BTC/USDT events in a free/ephemeral networked runtime.
