@@ -61,6 +61,8 @@ Create an autonomous professional-grade trading system that can analyze markets,
 - [x] `demo` mode added: credentials accepted from environment variables only
 - [x] Data-only node contains **no execution client / execution factory**
 - [x] Quote, trade and 1-minute bar subscriptions configured
+- [x] Market-data health is bridged into `RiskContext`
+- [x] STARTING / STALE / STOPPED data states map to the existing `STALE_MARKET_DATA` hard halt
 - [x] M1 runbook added at `docs/M1_BINANCE_DATA_PIPELINE.md`
 
 ## Infrastructure note
@@ -70,29 +72,28 @@ A GitHub Actions CI workflow was tested but GitHub did not allocate a runner bec
 ## Current validation status
 
 - Original deterministic core unit tests: **13/13 passed** on Python 3.13.5 in a local isolated validation copy.
-- New M1 unit tests for data freshness and Binance probe configuration are committed but still need a full package test run after the trading dependency is installed.
+- New M1 tests for data freshness, Binance probe configuration and stale-data risk integration are committed; full-suite runtime validation remains pending.
 - GitHub Actions: intentionally disabled until account billing/spending-limit status is resolved or a free runner path is chosen.
-- Binance public REST reachability was independently confirmed on 2026-08-17, but the NautilusTrader WebSocket probe still needs runtime execution in an environment with outbound network access.
-- Current ChatGPT container cannot perform external network/DNS access, so it cannot itself prove the WebSocket connection.
+- Binance public REST reachability was independently confirmed on 2026-08-17.
+- NautilusTrader WebSocket probe still needs runtime execution in an environment with outbound network access.
+- Current ChatGPT container cannot perform external network/DNS access, so it cannot itself prove the WebSocket session.
 
 ## In progress
 
 - [ ] Execute `eba-binance-data` against Binance public Spot data.
 - [ ] Capture first BTC/USDT quote/trade/bar evidence.
-- [ ] Wire stale-data state into a hard Risk Engine veto.
 
 ## Next tasks — strict order
 
 1. Run the committed data-only probe in a networked Python 3.12-3.14 environment.
 2. Confirm `BTCUSDT.BINANCE` resolves and quote/trade/bar subscriptions stream correctly.
-3. Feed `MarketDataHealth` into the Risk Engine so stale data always returns DENIED/NO_TRADE.
-4. Add durable normalized market-data recording for research.
-5. Build historical-data ingestion and benchmark harness.
-6. Implement first Trend Following baseline.
-7. Run bias/cost-aware backtests.
-8. Add Mean Reversion, Breakout and Momentum one at a time only after baselines exist.
-9. Add paper execution after research metrics are credible.
-10. Futures/crowding/liquidation work remains V2+.
+3. Add durable normalized market-data recording for research.
+4. Build historical-data ingestion and benchmark harness.
+5. Implement first Trend Following baseline.
+6. Run bias/cost-aware backtests.
+7. Add Mean Reversion, Breakout and Momentum one at a time only after baselines exist.
+8. Add paper execution after research metrics are credible.
+9. Futures/crowding/liquidation work remains V2+.
 
 ## Explicitly not allowed yet
 
@@ -120,7 +121,7 @@ Evidence:
 
 ### M1 — Binance data-only pipeline
 
-**Implementation substantially complete; runtime validation pending.**
+**Code path complete; external runtime validation pending.**
 
 Implemented:
 - pinned NautilusTrader dependency,
@@ -129,8 +130,8 @@ Implemented:
 - BTC/USDT quote/trade/bar subscriptions,
 - no execution client path,
 - deterministic stale-data tracker,
+- stale-data-to-Risk-Engine hard-veto bridge,
 - runbook and CLI entry point.
 
 Remaining exit evidence:
-- actual NautilusTrader WebSocket session receives/logs BTC/USDT events,
-- stale-data tracker is connected to the Risk Engine hard-veto path.
+- actual NautilusTrader WebSocket session receives/logs BTC/USDT events in a networked runtime.
