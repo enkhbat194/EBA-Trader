@@ -12,7 +12,21 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 BINANCE_KLINES_URL = "https://api.binance.com/api/v3/klines"
-SUPPORTED_INTERVALS = {"1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d"}
+INTERVAL_MS = {
+    "1m": 60_000,
+    "3m": 180_000,
+    "5m": 300_000,
+    "15m": 900_000,
+    "30m": 1_800_000,
+    "1h": 3_600_000,
+    "2h": 7_200_000,
+    "4h": 14_400_000,
+    "6h": 21_600_000,
+    "8h": 28_800_000,
+    "12h": 43_200_000,
+    "1d": 86_400_000,
+}
+SUPPORTED_INTERVALS = set(INTERVAL_MS)
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,6 +72,7 @@ def validate_candles(candles: Iterable[Candle]) -> list[Candle]:
     result = list(candles)
     if not result:
         raise ValueError("No candles supplied")
+
     previous = -1
     seen: set[int] = set()
     for candle in result:
@@ -67,11 +82,27 @@ def validate_candles(candles: Iterable[Candle]) -> list[Candle]:
             raise ValueError("Candles must be strictly increasing by open_time_ms")
         if min(candle.open, candle.high, candle.low, candle.close) <= 0:
             raise ValueError("OHLC prices must be positive")
-        if candle.high < max(candle.open, candle.close) or candle.low > min(candle.open, candle.close):
+        if candle.high < max(candle.open, candle.close):
+            raise ValueError("Invalid OHLC relationship")
+        if candle.low > min(candle.open, candle.close):
             raise ValueError("Invalid OHLC relationship")
         seen.add(candle.open_time_ms)
         previous = candle.open_time_ms
     return result
+
+
+def find_interval_gaps(candles: Iterable[Candle], interval: str) -> list[tuple[int, int]]:
+    if interval not in INTERVAL_MS:
+        raise ValueError(f"Unsupported interval: {interval}")
+
+    rows = validate_candles(candles)
+    expected = INTERVAL_MS[interval]
+    gaps: list[tuple[int, int]] = []
+    for previous, current in zip(rows, rows[1:]):
+        delta = current.open_time_ms - previous.open_time_ms
+        if delta != expected:
+            gaps.append((previous.open_time_ms, current.open_time_ms))
+    return gaps
 
 
 def fetch_binance_klines(
@@ -98,7 +129,7 @@ def fetch_binance_klines(
                 "symbol": symbol,
                 "interval": interval,
                 "startTime": cursor,
-                "endTime": end_ms,
+                "endTime": end_ms - 1,
                 "limit": 1000,
             }
         )
@@ -106,7 +137,7 @@ def fetch_binance_klines(
             f"{BINANCE_KLINES_URL}?{query}",
             headers={"User-Agent": "EBA-Trader/0.1 historical-research"},
         )
-        with urlopen(request, timeout=request_timeout) as response:  # noqa: S310 - fixed Binance URL
+        with urlopen(request, timeout=request_timeout) as response:  # noqa: S310
             payload = json.loads(response.read().decode("utf-8"))
 
         if not isinstance(payload, list):
@@ -114,14 +145,21 @@ def fetch_binance_klines(
         if not payload:
             break
 
-        batch = [candle_from_binance_row(row) for row in payload]
+        batch = [
+            candle_from_binance_row(row)
+            for row in payload
+            if start_ms <= int(row[0]) < end_ms
+        ]
+        if not batch:
+            break
+
         candles.extend(batch)
         next_cursor = batch[-1].open_time_ms + 1
         if next_cursor <= cursor:
             raise RuntimeError("Historical pagination did not advance")
         cursor = next_cursor
 
-        if len(batch) < 1000:
+        if len(payload) < 1000:
             break
         time.sleep(pause_seconds)
 
@@ -190,8 +228,8 @@ def download_history_cli() -> None:
     parser.add_argument("--symbol", default="BTCUSDT")
     parser.add_argument("--interval", default="15m", choices=sorted(SUPPORTED_INTERVALS))
     parser.add_argument("--start", required=True, help="UTC ISO date/time, e.g. 2024-01-01")
-    parser.add_argument("--end", required=True, help="UTC ISO date/time, e.g. 2025-01-01")
-    parser.add_argument("--out", default="data/raw/btcusdt_15m.csv")
+    parser.add_argument("--end", required=True, help="Exclusive UTC end, e.g. 2025-01-01")
+    parser.add_argument("--out", default="data/cache/btcusdt_15m.csv")
     args = parser.parse_args()
 
     candles = fetch_binance_klines(
@@ -200,5 +238,9 @@ def download_history_cli() -> None:
         parse_utc(args.start),
         parse_utc(args.end),
     )
+    gaps = find_interval_gaps(candles, args.interval)
     output = save_csv(candles, args.out)
-    print(f"saved={output} candles={len(candles)} first={candles[0].open_time_ms} last={candles[-1].open_time_ms}")
+    print(
+        f"saved={output} candles={len(candles)} gaps={len(gaps)} "
+        f"first={candles[0].open_time_ms} last={candles[-1].open_time_ms}"
+    )
