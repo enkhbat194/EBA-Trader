@@ -74,6 +74,7 @@ def test_baseline_study_uses_frozen_cost_scenarios(tmp_path, monkeypatch) -> Non
     assert (tmp_path / "report.json").exists()
     assert report["parameter_tuning"] is False
     assert report["holdout"]["status"] == "locked_not_downloaded"
+    assert report["holdout"]["cache_verified_absent"] is True
     assert "out_of_sample" not in report["windows"]
 
 
@@ -84,6 +85,22 @@ def test_baseline_refuses_direct_oos_window(tmp_path, monkeypatch) -> None:
             data_dir=tmp_path / "data",
             report_path=tmp_path / "report.json",
             windows=(research.OOS_WINDOW,),
+            fast_ema=5,
+            slow_ema=15,
+        )
+
+
+def test_development_refuses_preexisting_oos_cache(tmp_path) -> None:
+    data_dir = tmp_path / "data"
+    data_dir.mkdir(parents=True)
+    oos_cache = data_dir / "btcusdt_15m_out_of_sample.csv"
+    oos_cache.write_text("contaminated", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="OOS cache already exists"):
+        research.run_baseline_study(
+            data_dir=data_dir,
+            report_path=tmp_path / "report.json",
+            windows=(),
             fast_ema=5,
             slow_ema=15,
         )
