@@ -105,6 +105,47 @@ def find_interval_gaps(candles: Iterable[Candle], interval: str) -> list[tuple[i
     return gaps
 
 
+def validate_interval_window(
+    candles: Iterable[Candle],
+    interval: str,
+    start_ms: int,
+    end_ms: int,
+) -> list[Candle]:
+    """Validate exact [start_ms, end_ms) coverage for a fixed-interval dataset."""
+    if interval not in INTERVAL_MS:
+        raise ValueError(f"Unsupported interval: {interval}")
+    if start_ms >= end_ms:
+        raise ValueError("start_ms must be earlier than end_ms")
+
+    step = INTERVAL_MS[interval]
+    if start_ms % step != 0 or end_ms % step != 0:
+        raise ValueError("Research window boundaries must align to the requested interval")
+    duration = end_ms - start_ms
+    if duration % step != 0:
+        raise ValueError("Research window length must be an exact interval multiple")
+
+    rows = validate_candles(candles)
+    expected_count = duration // step
+    expected_last_open = end_ms - step
+    if rows[0].open_time_ms != start_ms:
+        raise RuntimeError(
+            f"Historical window starts at {rows[0].open_time_ms}, expected {start_ms}"
+        )
+    if rows[-1].open_time_ms != expected_last_open:
+        raise RuntimeError(
+            f"Historical window ends at {rows[-1].open_time_ms}, expected {expected_last_open}"
+        )
+    if len(rows) != expected_count:
+        raise RuntimeError(
+            f"Historical window has {len(rows)} candles, expected {expected_count}"
+        )
+
+    gaps = find_interval_gaps(rows, interval)
+    if gaps:
+        raise RuntimeError(f"Historical window contains {len(gaps)} interval gaps")
+    return rows
+
+
 def fetch_binance_klines(
     symbol: str,
     interval: str,
@@ -232,15 +273,17 @@ def download_history_cli() -> None:
     parser.add_argument("--out", default="data/cache/btcusdt_15m.csv")
     args = parser.parse_args()
 
+    start_ms = parse_utc(args.start)
+    end_ms = parse_utc(args.end)
     candles = fetch_binance_klines(
         args.symbol,
         args.interval,
-        parse_utc(args.start),
-        parse_utc(args.end),
+        start_ms,
+        end_ms,
     )
-    gaps = find_interval_gaps(candles, args.interval)
+    candles = validate_interval_window(candles, args.interval, start_ms, end_ms)
     output = save_csv(candles, args.out)
     print(
-        f"saved={output} candles={len(candles)} gaps={len(gaps)} "
+        f"saved={output} candles={len(candles)} coverage=EXACT "
         f"first={candles[0].open_time_ms} last={candles[-1].open_time_ms}"
     )
