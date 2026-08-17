@@ -80,6 +80,15 @@ Create an autonomous professional-grade trading system that can analyze markets,
 - [x] JSON benchmark report output added at `artifacts/m2_trend_baseline.json`
 - [x] New isolated M2 history/backtest/research logic tests executed locally: **10/10 passed**
 - [x] M2 runbook updated at `docs/M2_BACKTEST_LAB.md`
+- [x] M2B parameter-neighborhood validation added for EMA 15/20/25 × 40/50/60
+- [x] M2B rolling walk-forward framework added with causal train-only parameter selection
+- [x] Walk-forward output records train/test boundaries, selected parameters and unseen-test metrics
+- [x] `eba-validate-trend` JSON robustness report added
+- [x] Causal historical bull/bear/range diagnostics added using trailing-only price information
+- [x] Trade PnL/win-rate/return breakdown by historical regime added
+- [x] `eba-regime-report` CLI added
+- [x] Causality regression tests added to ensure future data changes do not alter earlier selection/regime labels
+- [x] M2B methodology documented at `docs/M2B_ROBUSTNESS.md`
 
 ## Current validation status
 
@@ -102,7 +111,7 @@ A 1-minute bar event was subscribed but was not separately captured in the scree
 
 ### M2 — Historical Data & Backtest Laboratory
 
-**M2A code path implemented and isolated deterministic logic validated. M2B needs public historical data.**
+**M2A code path implemented and isolated deterministic logic validated. M2B analysis code is now implemented; real historical evidence is still pending.**
 
 Frozen windows:
 - research: `2021-01-01` → `2024-01-01` exclusive;
@@ -114,27 +123,36 @@ Cost scenarios:
 - adverse: 10 bps fee + 10 bps slippage per side;
 - severe: 15 bps fee + 20 bps slippage per side.
 
+M2B first-pass robustness design:
+- parameter neighborhood: fast EMA 15/20/25 × slow EMA 40/50/60;
+- walk-forward default: 180-day train / 30-day test / 30-day step;
+- selection uses train data only;
+- regime diagnostics use trailing-only data and cannot inspect candles after trade entry.
+
 Current caveat:
-- the entire post-M2 repository suite has not been rerun in one Nautilus-enabled environment after the latest M2 changes;
-- the new M2 modules were independently exercised with deterministic synthetic data and **10 tests passed**;
-- the next network-required action is historical Binance REST acquisition, not interactive coding/debugging.
+- the newly added M2B files/tests have been committed but have **not yet been executed in one full Python environment after these latest commits**;
+- the previously isolated M2 logic had 10/10 tests pass;
+- the next unavoidable network action is historical Binance REST acquisition, not interactive coding/debugging.
 
 ## In progress
 
 - [ ] Obtain the three frozen BTC/USDT 15m windows from Binance public REST.
 - [ ] Produce the first `m2_trend_baseline.json` evidence report.
-- [ ] Review Trend Following V1 against BTC buy-and-hold, drawdown, expectancy and cost stress.
+- [ ] Run M2B parameter-neighborhood + walk-forward report on the research window.
+- [ ] Run causal regime diagnostics on the research/validation windows.
+- [ ] Review Trend Following V1 against BTC buy-and-hold, drawdown, expectancy, parameter stability, walk-forward and cost stress.
 
 ## Next tasks — strict order
 
-1. Run the one-command `eba-baseline-study` in a free networked runtime after syncing/installing the latest package.
-2. Capture the report, not screenshots of dozens of shell steps.
-3. Reject or retain Trend Following V1 based on benchmark-relative return, drawdown, expectancy, trade count and severe-cost behavior.
-4. Add parameter-neighborhood robustness around any retained baseline.
-5. Add repeated walk-forward windows and regime-specific diagnostics.
-6. Only after credible positive expectancy after costs: introduce forward PAPER/SHADOW execution.
+1. Run the one-command `eba-baseline-study` in a free networked runtime and capture the JSON report.
+2. Run `eba-validate-trend` on the frozen research dataset and capture the robustness JSON report.
+3. Run `eba-regime-report` to identify where the strategy earns/loses money by causal regime.
+4. Reject or retain Trend Following V1 before inspecting/tuning the frozen 2025 out-of-sample window.
+5. If retained, review 2024 validation, then perform the one-time frozen 2025 out-of-sample evaluation without retuning.
+6. Only after credible positive expectancy, cost robustness and acceptable drawdown: introduce forward PAPER/SHADOW execution.
 7. Only after forward evidence: consider any 24/7 runtime or server cost.
-8. Futures/crowding/liquidation remains V2+.
+8. Mean Reversion, Breakout and Momentum are added one at a time only after Trend baseline evidence is understood.
+9. Futures/crowding/liquidation remains V2+.
 
 ## Explicitly not allowed yet
 
