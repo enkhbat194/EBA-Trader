@@ -5,7 +5,7 @@ import json
 import math
 from dataclasses import dataclass
 from pathlib import Path
-from statistics import mean, median
+from statistics import median
 from typing import Iterable, Sequence
 
 from .backtest import BacktestResult, TrendBacktestConfig, run_trend_backtest
@@ -116,6 +116,7 @@ def _evaluate_candidate(
     initial_cash: float,
     fee_bps: float,
     slippage_bps: float,
+    trade_start_time_ms: int | None = None,
 ) -> BacktestResult:
     return run_trend_backtest(
         candles,
@@ -126,6 +127,7 @@ def _evaluate_candidate(
             fee_bps=fee_bps,
             slippage_bps=slippage_bps,
         ),
+        trade_start_time_ms=trade_start_time_ms,
     )
 
 
@@ -201,8 +203,6 @@ def _select_on_train(
         )
         scored.append((candidate, result))
 
-    # Deliberately simple and auditable selection rule: maximize train total return,
-    # then prefer the shallower drawdown, then the slower parameter pair for a stable tie-break.
     return max(
         scored,
         key=lambda item: (
@@ -225,6 +225,12 @@ def run_walk_forward(
     fee_bps: float = 10.0,
     slippage_bps: float = 5.0,
 ) -> WalkForwardSummary:
+    """Run causal rolling walk-forward validation.
+
+    Parameter selection sees train data only. Test evaluation receives ``train + test``
+    solely as causal EMA warm-up context, while ``trade_start_time_ms`` prevents any
+    train-period trade/equity/benchmark contribution.
+    """
     bars = list(candles)
     if not candidates:
         raise ValueError("At least one parameter candidate is required")
@@ -235,9 +241,10 @@ def run_walk_forward(
     train_bars = _bars_for_days(bars, train_days)
     test_bars = _bars_for_days(bars, test_days)
     step_bars = _bars_for_days(bars, step_days)
-    minimum = max_slow + 2
-    if train_bars < minimum or test_bars < minimum:
-        raise ValueError("Train/test window is too short for the slowest EMA candidate")
+    if train_bars < max_slow + 2:
+        raise ValueError("Train window is too short for the slowest EMA candidate")
+    if test_bars < 2:
+        raise ValueError("Test window must contain at least two bars")
     if len(bars) < train_bars + test_bars:
         raise ValueError("Not enough candles for one walk-forward fold")
 
@@ -255,12 +262,14 @@ def run_walk_forward(
             fee_bps=fee_bps,
             slippage_bps=slippage_bps,
         )
+
         test_result = _evaluate_candidate(
-            test,
+            train + test,
             selected,
             initial_cash=initial_cash,
             fee_bps=fee_bps,
             slippage_bps=slippage_bps,
+            trade_start_time_ms=test[0].open_time_ms,
         )
         folds.append(
             WalkForwardFold(
@@ -401,6 +410,7 @@ def trend_validation_cli() -> None:
     report = {
         "method": {
             "selection_rule": "max train total_return; tie-break shallower drawdown",
+            "test_indicator_context": "causal train history; trading starts at test boundary",
             "candidate_count": len(DEFAULT_PARAMETER_NEIGHBORHOOD),
             "train_days": args.train_days,
             "test_days": args.test_days,
