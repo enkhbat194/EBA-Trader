@@ -50,6 +50,7 @@ def result_to_dict(result: BacktestResult) -> dict[str, float | int | None]:
         "total_return": result.total_return,
         "annualized_return": result.annualized_return,
         "benchmark_return": result.benchmark_return,
+        "benchmark_max_drawdown": result.benchmark_max_drawdown,
         "benchmark_relative_return": result.benchmark_relative_return,
         "max_drawdown": result.max_drawdown,
         "trade_count": result.trade_count,
@@ -91,12 +92,7 @@ def _load_or_fetch_window(
     end_ms = parse_utc(window.end)
 
     if refresh or not csv_path.exists():
-        candles = fetch_binance_klines(
-            symbol,
-            interval,
-            start_ms,
-            end_ms,
-        )
+        candles = fetch_binance_klines(symbol, interval, start_ms, end_ms)
         candles = validate_interval_window(candles, interval, start_ms, end_ms)
         save_csv(candles, csv_path)
         return candles
@@ -268,9 +264,7 @@ def run_frozen_oos_study(
 
 def baseline_study_cli() -> None:
     parser = argparse.ArgumentParser(
-        description=(
-            "Internal generic baseline runner; public first-cycle CLI is locked in locked_cli.py"
-        )
+        description="Internal generic baseline runner; public first-cycle CLI is locked"
     )
     parser.add_argument("--symbol", default="BTCUSDT")
     parser.add_argument("--interval", default="15m")
@@ -288,11 +282,7 @@ def baseline_study_cli() -> None:
         initial_cash=args.cash,
         refresh=args.refresh,
     )
-
-    print(
-        f"study symbol={report['symbol']} interval={report['interval']} "
-        f"fast={report['fast_ema']} slow={report['slow_ema']}"
-    )
+    print(f"study symbol={report['symbol']} interval={report['interval']} fast={report['fast_ema']} slow={report['slow_ema']}")
     for window_name, window in report["windows"].items():
         base = window["scenarios"]["base"]
         severe = window["scenarios"]["severe"]
@@ -329,7 +319,8 @@ def frozen_oos_cli() -> None:
         f"OOS 2025 fast={report['fast_ema']} slow={report['slow_ema']} "
         f"base_return={base['total_return']:.2%} "
         f"btc_buy_hold={base['benchmark_return']:.2%} "
-        f"drawdown={base['max_drawdown']:.2%} "
+        f"btc_drawdown={base['benchmark_max_drawdown']:.2%} "
+        f"strategy_drawdown={base['max_drawdown']:.2%} "
         f"severe_return={severe['total_return']:.2%}"
     )
     print("retuning_after_open=FORBIDDEN")
