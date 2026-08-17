@@ -34,7 +34,9 @@ def _regime_payload(candles: list, *, fast: int, slow: int, cash: float) -> dict
     return {
         "strategy_total_return": result.total_return,
         "benchmark_return": result.benchmark_return,
-        "max_drawdown": result.max_drawdown,
+        "strategy_max_drawdown": result.max_drawdown,
+        "benchmark_max_drawdown": result.benchmark_max_drawdown,
+        "drawdown_better_than_btc": result.max_drawdown > result.benchmark_max_drawdown,
         "trade_count": result.trade_count,
         "regimes": {
             item.regime.value: {
@@ -159,13 +161,21 @@ def development_evidence_cli() -> None:
     print(
         f"research_return={research_base['total_return']:.2%} "
         f"research_btc={research_base['benchmark_return']:.2%} "
+        f"research_dd={research_base['max_drawdown']:.2%} "
+        f"research_btc_dd={research_base['benchmark_max_drawdown']:.2%}"
+    )
+    print(
         f"validation_return={validation_base['total_return']:.2%} "
-        f"validation_btc={validation_base['benchmark_return']:.2%}"
+        f"validation_btc={validation_base['benchmark_return']:.2%} "
+        f"validation_dd={validation_base['max_drawdown']:.2%} "
+        f"validation_btc_dd={validation_base['benchmark_max_drawdown']:.2%}"
     )
     print(
         f"parameter_positive={neighborhood['positive_return_fraction']:.1%} "
+        f"parameter_risk_better={neighborhood['drawdown_improvement_fraction']:.1%} "
         f"walk_forward_positive={walk_forward['positive_test_fraction']:.1%} "
-        f"walk_forward_beats_btc={walk_forward['benchmark_beating_fraction']:.1%}"
+        f"walk_forward_beats_btc={walk_forward['benchmark_beating_fraction']:.1%} "
+        f"walk_forward_risk_better={walk_forward['drawdown_improvement_fraction']:.1%}"
     )
     print("parameter_neighborhood=DIAGNOSTIC_ONLY")
     print("oos_2025=LOCKED_NOT_ACCESSED")
