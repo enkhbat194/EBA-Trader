@@ -58,11 +58,7 @@ def run_development_evidence(
     report_path: str | Path = "artifacts/m2_development_evidence.json",
     refresh: bool = False,
 ) -> dict[str, object]:
-    """Run the first development cycle with the predeclared EMA 20/50 baseline.
-
-    The parameter neighborhood is diagnostic only. It cannot change the baseline that is
-    eligible for the frozen 2025 OOS in this cycle.
-    """
+    """Run the first development cycle with the predeclared EMA 20/50 baseline."""
     fast_ema = FIRST_CYCLE_FAST_EMA
     slow_ema = FIRST_CYCLE_SLOW_EMA
     base_dir = Path(data_dir)
@@ -103,6 +99,7 @@ def run_development_evidence(
         "cycle": "trend_v1_predeclared_ema_20_50",
         "symbol": symbol.upper(),
         "interval": interval,
+        "data_dir": str(base_dir),
         "frozen_baseline": {"fast_ema": fast_ema, "slow_ema": slow_ema},
         "parameter_neighborhood_role": "fragility_diagnostic_not_tuning",
         "oos_2025": "LOCKED_NOT_ACCESSED",
