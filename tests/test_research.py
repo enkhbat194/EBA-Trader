@@ -92,6 +92,7 @@ def test_baseline_study_uses_frozen_cost_scenarios(tmp_path, monkeypatch) -> Non
     scenarios = report["windows"]["research"]["scenarios"]
     assert set(scenarios) == {"base", "adverse", "severe"}
     assert scenarios["severe"]["final_equity"] <= scenarios["base"]["final_equity"]
+    assert scenarios["base"]["benchmark_max_drawdown"] <= 0
     assert (tmp_path / "report.json").exists()
     assert report["parameter_tuning"] is False
     assert report["holdout"]["status"] == "locked_not_downloaded"
@@ -155,6 +156,7 @@ def test_frozen_oos_uses_frozen_parameters_and_blocks_rerun(tmp_path, monkeypatc
     assert report["slow_ema"] == 15
     assert report["retuning_after_open"] == "forbidden"
     assert report["window"]["coverage"] == "exact"
+    assert report["window"]["scenarios"]["base"]["benchmark_max_drawdown"] <= 0
     assert report_path.exists()
 
     with pytest.raises(RuntimeError, match="already exists"):
@@ -177,6 +179,7 @@ def test_json_profit_factor_never_emits_infinity() -> None:
             "total_return": 0.1,
             "annualized_return": 0.1,
             "benchmark_return": 0.05,
+            "benchmark_max_drawdown": -0.2,
             "benchmark_relative_return": 0.05,
             "max_drawdown": -0.1,
             "trade_count": 1,
@@ -191,4 +194,6 @@ def test_json_profit_factor_never_emits_infinity() -> None:
             "total_cost": 1.0,
         },
     )()
-    assert research.result_to_dict(result)["profit_factor"] is None
+    payload = research.result_to_dict(result)
+    assert payload["profit_factor"] is None
+    assert payload["benchmark_max_drawdown"] == -0.2
