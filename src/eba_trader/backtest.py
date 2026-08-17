@@ -112,6 +112,8 @@ def _infer_bars_per_year(bars: list[Candle]) -> float:
 
 
 def _annualized_return(initial: float, final: float, bars: list[Candle]) -> float:
+    if len(bars) < 1:
+        return 0.0
     elapsed_ms = bars[-1].close_time_ms - bars[0].open_time_ms
     if initial <= 0 or final <= 0 or elapsed_ms <= 0:
         return 0.0
@@ -137,18 +139,57 @@ def _risk_adjusted_ratios(returns: list[float], bars_per_year: float) -> tuple[f
     return sharpe, sortino
 
 
+def _first_evaluation_bar_index(
+    bars: list[Candle],
+    cfg: TrendBacktestConfig,
+    trade_start_time_ms: int | None,
+) -> int:
+    minimum_index = cfg.slow_ema + 1
+    if minimum_index >= len(bars):
+        raise ValueError("Not enough candles for trend backtest")
+    if trade_start_time_ms is None:
+        return minimum_index
+    for index in range(minimum_index, len(bars)):
+        if bars[index].open_time_ms >= trade_start_time_ms:
+            return index
+    raise ValueError("trade_start_time_ms is after the available candles")
+
+
 def run_trend_backtest(
     candles: Iterable[Candle],
     config: TrendBacktestConfig | None = None,
+    *,
+    trade_start_time_ms: int | None = None,
 ) -> BacktestResult:
+    """Run a strict long-only EMA crossover baseline.
+
+    EMA values are computed over every supplied candle, which allows callers such as
+    walk-forward validation to provide causal pre-test history for indicator warm-up.
+    Trading, equity metrics, exposure and the benchmark begin only at
+    ``trade_start_time_ms`` (or the first valid post-warm-up bar when omitted).
+
+    Entry requires an actual False -> True EMA state transition. Being already above the
+    slow EMA at the evaluation boundary does not synthesize a crossover.
+    """
     cfg = config or TrendBacktestConfig()
     bars = list(candles)
     if len(bars) < cfg.slow_ema + 2:
         raise ValueError("Not enough candles for trend backtest")
 
+    evaluation_bar_index = _first_evaluation_bar_index(bars, cfg, trade_start_time_ms)
+    evaluation_start_ms = bars[evaluation_bar_index].open_time_ms
+    evaluation_bars = bars[evaluation_bar_index:]
+
     closes = [bar.close for bar in bars]
     fast = ema(closes, cfg.fast_ema)
     slow = ema(closes, cfg.slow_ema)
+
+    signal_seed_index = cfg.slow_ema - 1
+    seed_fast = fast[signal_seed_index]
+    seed_slow = slow[signal_seed_index]
+    if seed_fast is None or seed_slow is None:
+        raise RuntimeError("EMA warm-up state is unexpectedly unavailable")
+    previous_signal = seed_fast > seed_slow
 
     cash = cfg.initial_cash
     quantity = 0.0
@@ -160,9 +201,8 @@ def run_trend_backtest(
     equity_curve: list[float] = [cash]
     bar_returns: list[float] = []
     exposed_bars = 0
-
+    evaluated_bars = 0
     previous_equity = cash
-    previous_signal = False
 
     for index in range(cfg.slow_ema, len(bars) - 1):
         fast_value = fast[index]
@@ -171,47 +211,53 @@ def run_trend_backtest(
             continue
 
         signal = fast_value > slow_value
+        crossed_up = not previous_signal and signal
+        crossed_down = previous_signal and not signal
         next_bar = bars[index + 1]
+        evaluation_active = next_bar.open_time_ms >= evaluation_start_ms
 
-        if not previous_signal and signal and quantity == 0.0:
-            execution_price = next_bar.open * (1.0 + cfg.slippage_bps / 10_000.0)
-            fee = cash * cfg.fee_bps / 10_000.0
-            slippage_cost = cash * cfg.slippage_bps / 10_000.0
-            total_cost += fee + slippage_cost
-            deployable = cash - fee
-            quantity = deployable / execution_price
-            entry_equity = cash
-            entry_price = execution_price
-            entry_time_ms = next_bar.open_time_ms
-            cash = 0.0
+        if evaluation_active:
+            if crossed_up and quantity == 0.0:
+                execution_price = next_bar.open * (1.0 + cfg.slippage_bps / 10_000.0)
+                fee = cash * cfg.fee_bps / 10_000.0
+                slippage_cost = cash * cfg.slippage_bps / 10_000.0
+                total_cost += fee + slippage_cost
+                deployable = cash - fee
+                quantity = deployable / execution_price
+                entry_equity = cash
+                entry_price = execution_price
+                entry_time_ms = next_bar.open_time_ms
+                cash = 0.0
 
-        elif previous_signal and not signal and quantity > 0.0:
-            execution_price = next_bar.open * (1.0 - cfg.slippage_bps / 10_000.0)
-            gross = quantity * execution_price
-            fee = gross * cfg.fee_bps / 10_000.0
-            slippage_cost = gross * cfg.slippage_bps / 10_000.0
-            total_cost += fee + slippage_cost
-            cash = gross - fee
-            pnl = cash - entry_equity
-            trades.append(
-                ClosedTrade(
-                    entry_time_ms=entry_time_ms,
-                    exit_time_ms=next_bar.open_time_ms,
-                    entry_price=entry_price,
-                    exit_price=execution_price,
-                    net_return=cash / entry_equity - 1.0,
-                    pnl=pnl,
+            elif crossed_down and quantity > 0.0:
+                execution_price = next_bar.open * (1.0 - cfg.slippage_bps / 10_000.0)
+                gross = quantity * execution_price
+                fee = gross * cfg.fee_bps / 10_000.0
+                slippage_cost = gross * cfg.slippage_bps / 10_000.0
+                total_cost += fee + slippage_cost
+                cash = gross - fee
+                pnl = cash - entry_equity
+                trades.append(
+                    ClosedTrade(
+                        entry_time_ms=entry_time_ms,
+                        exit_time_ms=next_bar.open_time_ms,
+                        entry_price=entry_price,
+                        exit_price=execution_price,
+                        net_return=cash / entry_equity - 1.0,
+                        pnl=pnl,
+                    )
                 )
-            )
-            quantity = 0.0
+                quantity = 0.0
 
-        mark_equity = cash if quantity == 0.0 else quantity * next_bar.close
-        if quantity > 0.0:
-            exposed_bars += 1
-        if previous_equity > 0:
-            bar_returns.append(mark_equity / previous_equity - 1.0)
-        previous_equity = mark_equity
-        equity_curve.append(mark_equity)
+            mark_equity = cash if quantity == 0.0 else quantity * next_bar.close
+            if quantity > 0.0:
+                exposed_bars += 1
+            if previous_equity > 0:
+                bar_returns.append(mark_equity / previous_equity - 1.0)
+            previous_equity = mark_equity
+            equity_curve.append(mark_equity)
+            evaluated_bars += 1
+
         previous_signal = signal
 
     if quantity > 0.0:
@@ -242,11 +288,11 @@ def run_trend_backtest(
     expectancy = mean([trade.pnl for trade in trades]) if trades else 0.0
     average_win = mean(wins) if wins else 0.0
     average_loss = mean(losses) if losses else 0.0
-    bars_per_year = _infer_bars_per_year(bars)
+    bars_per_year = _infer_bars_per_year(evaluation_bars)
     sharpe, sortino = _risk_adjusted_ratios(bar_returns, bars_per_year)
 
-    benchmark_entry = bars[cfg.slow_ema + 1].open * (1.0 + cfg.slippage_bps / 10_000.0)
-    benchmark_exit = bars[-1].close * (1.0 - cfg.slippage_bps / 10_000.0)
+    benchmark_entry = evaluation_bars[0].open * (1.0 + cfg.slippage_bps / 10_000.0)
+    benchmark_exit = evaluation_bars[-1].close * (1.0 - cfg.slippage_bps / 10_000.0)
     benchmark_multiplier = benchmark_exit / benchmark_entry
     benchmark_multiplier *= 1.0 - cfg.fee_bps / 10_000.0
     benchmark_multiplier *= 1.0 - cfg.fee_bps / 10_000.0
@@ -257,7 +303,7 @@ def run_trend_backtest(
         initial_cash=cfg.initial_cash,
         final_equity=final_equity,
         total_return=total_return,
-        annualized_return=_annualized_return(cfg.initial_cash, final_equity, bars),
+        annualized_return=_annualized_return(cfg.initial_cash, final_equity, evaluation_bars),
         benchmark_return=benchmark_return,
         benchmark_relative_return=total_return - benchmark_return,
         max_drawdown=max_drawdown(equity_curve),
@@ -269,7 +315,7 @@ def run_trend_backtest(
         average_loss=average_loss,
         sharpe=sharpe,
         sortino=sortino,
-        exposure=exposed_bars / max(len(equity_curve) - 1, 1),
+        exposure=exposed_bars / max(evaluated_bars, 1),
         total_cost=total_cost,
         trades=tuple(trades),
     )
@@ -277,7 +323,7 @@ def run_trend_backtest(
 
 def backtest_trend_cli() -> None:
     parser = argparse.ArgumentParser(
-        description="Run EBA Trader Trend Following V1 research backtest"
+        description="Run EBA Trader strict EMA Trend Following V1 research backtest"
     )
     parser.add_argument("--csv", required=True)
     parser.add_argument("--fast", type=int, default=20)
