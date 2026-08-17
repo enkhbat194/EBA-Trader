@@ -76,8 +76,10 @@ def test_parameter_neighborhood_returns_bounded_fractions() -> None:
     assert 0 <= summary.positive_return_fraction <= 1
     assert 0 <= summary.benchmark_beating_fraction <= 1
     assert 0 <= summary.positive_expectancy_fraction <= 1
+    assert 0 <= summary.drawdown_improvement_fraction <= 1
     assert summary.worst_total_return <= summary.median_total_return
     assert summary.worst_max_drawdown <= summary.median_max_drawdown <= 0
+    assert all(item.benchmark_max_drawdown <= 0 for item in summary.evaluations)
 
 
 def test_walk_forward_produces_out_of_sample_folds() -> None:
@@ -99,10 +101,13 @@ def test_walk_forward_produces_out_of_sample_folds() -> None:
     assert sum(count for _, count in summary.parameter_selection_counts) == len(summary.folds)
     assert 0 <= summary.positive_test_fraction <= 1
     assert 0 <= summary.benchmark_beating_fraction <= 1
+    assert 0 <= summary.drawdown_improvement_fraction <= 1
+    assert summary.median_benchmark_drawdown <= 0
     for fold in summary.folds:
         assert fold.train_end_ms < fold.test_start_ms
         assert fold.selected in candidates
         assert fold.test_max_drawdown <= 0
+        assert fold.test_benchmark_max_drawdown <= 0
 
 
 def test_first_walk_forward_selection_does_not_look_into_test_tail() -> None:
