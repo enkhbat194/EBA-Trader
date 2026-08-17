@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from bisect import bisect_right
+from bisect import bisect_left
 from dataclasses import dataclass
 from enum import StrEnum
 from statistics import mean, median
@@ -110,6 +110,23 @@ def classify_historical_regimes(
     return tuple(points)
 
 
+def regime_before_entry(
+    points: Sequence[RegimePoint],
+    entry_time_ms: int,
+) -> HistoricalRegime:
+    """Return the last regime whose candle was already complete before entry.
+
+    RegimePoint timestamps are candle *open* times and their labels use that candle's close.
+    A trade entered exactly at a candle open must therefore use the previous point, never
+    the point sharing the entry timestamp.
+    """
+    if not points:
+        return HistoricalRegime.UNKNOWN
+    timestamps = [point.open_time_ms for point in points]
+    index = bisect_left(timestamps, entry_time_ms) - 1
+    return HistoricalRegime.UNKNOWN if index < 0 else points[index].regime
+
+
 def diagnose_trades_by_regime(
     candles: Iterable[Candle],
     result: BacktestResult,
@@ -123,14 +140,12 @@ def diagnose_trades_by_regime(
         lookback_days=lookback_days,
         threshold=threshold,
     )
-    timestamps = [point.open_time_ms for point in points]
     grouped: dict[HistoricalRegime, list[tuple[float, float]]] = {
         regime: [] for regime in HistoricalRegime
     }
 
     for trade in result.trades:
-        index = bisect_right(timestamps, trade.entry_time_ms) - 1
-        regime = HistoricalRegime.UNKNOWN if index < 0 else points[index].regime
+        regime = regime_before_entry(points, trade.entry_time_ms)
         grouped[regime].append((trade.pnl, trade.net_return))
 
     stats: list[RegimeTradeStats] = []
