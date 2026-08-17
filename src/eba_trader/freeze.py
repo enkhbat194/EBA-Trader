@@ -16,14 +16,9 @@ def file_sha256(path: str | Path) -> str:
 
 def freeze_oos_candidate(
     *,
-    fast_ema: int,
-    slow_ema: int,
     development_report_path: str | Path = "artifacts/m2_development_evidence.json",
     freeze_path: str | Path = "artifacts/m2_frozen_candidate.json",
 ) -> dict[str, object]:
-    if fast_ema <= 1 or slow_ema <= fast_ema:
-        raise ValueError("Require 1 < fast_ema < slow_ema")
-
     development_path = Path(development_report_path)
     if not development_path.exists():
         raise FileNotFoundError("Development evidence report does not exist")
@@ -32,12 +27,24 @@ def freeze_oos_candidate(
     if development.get("oos_2025") != "LOCKED_NOT_ACCESSED":
         raise ValueError("Development report does not prove that 2025 OOS stayed locked")
 
+    baseline = development.get("frozen_baseline")
+    if not isinstance(baseline, dict):
+        raise ValueError("Development report does not contain a frozen baseline")
+    try:
+        fast_ema = int(baseline["fast_ema"])
+        slow_ema = int(baseline["slow_ema"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("Frozen baseline EMA parameters are invalid") from exc
+    if fast_ema <= 1 or slow_ema <= fast_ema:
+        raise ValueError("Frozen baseline requires 1 < fast_ema < slow_ema")
+
     output = Path(freeze_path)
     if output.exists():
         raise RuntimeError("Frozen candidate already exists; do not overwrite before OOS")
 
     payload: dict[str, object] = {
         "decision": "retain_for_frozen_oos",
+        "source": "development_report.frozen_baseline",
         "fast_ema": fast_ema,
         "slow_ema": slow_ema,
         "development_report": str(development_path),
@@ -70,7 +77,7 @@ def load_frozen_candidate(
         if development_report_path is not None
         else str(payload.get("development_report", ""))
     )
-    if not development_path.exists():
+    if not development_path.is_file():
         raise FileNotFoundError("Development evidence referenced by freeze file is missing")
 
     expected = str(payload.get("development_report_sha256", ""))
@@ -78,8 +85,14 @@ def load_frozen_candidate(
     if not expected or actual != expected:
         raise RuntimeError("Development evidence changed after candidate freeze")
 
+    development = json.loads(development_path.read_text(encoding="utf-8"))
+    baseline = development.get("frozen_baseline")
+    if not isinstance(baseline, dict):
+        raise ValueError("Development report frozen baseline is missing")
     fast = int(payload["fast_ema"])
     slow = int(payload["slow_ema"])
+    if fast != int(baseline["fast_ema"]) or slow != int(baseline["slow_ema"]):
+        raise RuntimeError("Frozen candidate no longer matches development frozen baseline")
     if fast <= 1 or slow <= fast:
         raise ValueError("Frozen EMA parameters are invalid")
     return payload
@@ -87,16 +100,15 @@ def load_frozen_candidate(
 
 def freeze_candidate_cli() -> None:
     parser = argparse.ArgumentParser(
-        description="Freeze the final Trend candidate before opening the 2025 OOS holdout"
+        description="Freeze the predeclared Trend baseline before opening the 2025 OOS holdout"
     )
-    parser.add_argument("--fast", type=int, required=True)
-    parser.add_argument("--slow", type=int, required=True)
-    args = parser.parse_args()
+    parser.parse_args()
 
-    payload = freeze_oos_candidate(fast_ema=args.fast, slow_ema=args.slow)
+    payload = freeze_oos_candidate()
     print(
         f"frozen fast={payload['fast_ema']} slow={payload['slow_ema']} "
         f"development_sha256={payload['development_report_sha256']}"
     )
+    print("source=development_report.frozen_baseline")
     print("retuning_after_freeze=FORBIDDEN")
     print("freeze=artifacts/m2_frozen_candidate.json")
