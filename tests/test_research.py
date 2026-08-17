@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import json
+
 import pytest
 
 import eba_trader.research as research
+from eba_trader.freeze import freeze_oos_candidate
 from eba_trader.history import Candle
 
 
@@ -28,6 +31,22 @@ def make_candles(count: int = 160, step: int = 900_000) -> list[Candle]:
             )
         )
     return rows
+
+
+def make_frozen_candidate(tmp_path, *, fast: int = 5, slow: int = 15):
+    development = tmp_path / "development.json"
+    development.write_text(
+        json.dumps({"phase": "development_only", "oos_2025": "LOCKED_NOT_ACCESSED"}),
+        encoding="utf-8",
+    )
+    frozen = tmp_path / "freeze.json"
+    freeze_oos_candidate(
+        fast_ema=fast,
+        slow_ema=slow,
+        development_report_path=development,
+        freeze_path=frozen,
+    )
+    return development, frozen
 
 
 def test_default_baseline_windows_keep_2025_oos_locked() -> None:
@@ -76,24 +95,27 @@ def test_frozen_oos_requires_explicit_confirmation(tmp_path) -> None:
             confirm_frozen=False,
             data_dir=tmp_path / "data",
             report_path=tmp_path / "oos.json",
-            fast_ema=5,
-            slow_ema=15,
+            freeze_path=tmp_path / "freeze.json",
+            development_report_path=tmp_path / "development.json",
         )
 
 
-def test_frozen_oos_writes_once_and_blocks_rerun(tmp_path, monkeypatch) -> None:
+def test_frozen_oos_uses_frozen_parameters_and_blocks_rerun(tmp_path, monkeypatch) -> None:
     candles = make_candles()
     monkeypatch.setattr(research, "fetch_binance_klines", lambda *args, **kwargs: candles)
+    development, frozen = make_frozen_candidate(tmp_path, fast=5, slow=15)
     report_path = tmp_path / "oos.json"
 
     report = research.run_frozen_oos_study(
         confirm_frozen=True,
         data_dir=tmp_path / "data",
         report_path=report_path,
-        fast_ema=5,
-        slow_ema=15,
+        freeze_path=frozen,
+        development_report_path=development,
     )
     assert report["phase"] == "frozen_out_of_sample"
+    assert report["fast_ema"] == 5
+    assert report["slow_ema"] == 15
     assert report["retuning_after_open"] == "forbidden"
     assert report_path.exists()
 
@@ -102,8 +124,8 @@ def test_frozen_oos_writes_once_and_blocks_rerun(tmp_path, monkeypatch) -> None:
             confirm_frozen=True,
             data_dir=tmp_path / "data",
             report_path=report_path,
-            fast_ema=5,
-            slow_ema=15,
+            freeze_path=frozen,
+            development_report_path=development,
         )
 
 
