@@ -36,13 +36,17 @@ def make_candles(count: int = 160, step: int = 900_000) -> list[Candle]:
 def make_frozen_candidate(tmp_path, *, fast: int = 5, slow: int = 15):
     development = tmp_path / "development.json"
     development.write_text(
-        json.dumps({"phase": "development_only", "oos_2025": "LOCKED_NOT_ACCESSED"}),
+        json.dumps(
+            {
+                "phase": "development_only",
+                "oos_2025": "LOCKED_NOT_ACCESSED",
+                "frozen_baseline": {"fast_ema": fast, "slow_ema": slow},
+            }
+        ),
         encoding="utf-8",
     )
     frozen = tmp_path / "freeze.json"
     freeze_oos_candidate(
-        fast_ema=fast,
-        slow_ema=slow,
         development_report_path=development,
         freeze_path=frozen,
     )
