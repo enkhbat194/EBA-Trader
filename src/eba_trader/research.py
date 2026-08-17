@@ -11,10 +11,10 @@ from .freeze import load_frozen_candidate
 from .history import (
     Candle,
     fetch_binance_klines,
-    find_interval_gaps,
     load_csv,
     parse_utc,
     save_csv,
+    validate_interval_window,
 )
 
 
@@ -87,28 +87,22 @@ def _load_or_fetch_window(
     refresh: bool,
 ) -> list[Candle]:
     csv_path = _window_cache_path(base_dir, symbol, interval, window)
+    start_ms = parse_utc(window.start)
+    end_ms = parse_utc(window.end)
+
     if refresh or not csv_path.exists():
         candles = fetch_binance_klines(
             symbol,
             interval,
-            parse_utc(window.start),
-            parse_utc(window.end),
+            start_ms,
+            end_ms,
         )
-        gaps = find_interval_gaps(candles, interval)
-        if gaps:
-            raise RuntimeError(
-                f"{window.name} has {len(gaps)} interval gaps; study refuses incomplete data"
-            )
+        candles = validate_interval_window(candles, interval, start_ms, end_ms)
         save_csv(candles, csv_path)
         return candles
 
     candles = load_csv(csv_path)
-    gaps = find_interval_gaps(candles, interval)
-    if gaps:
-        raise RuntimeError(
-            f"Cached {window.name} data has {len(gaps)} interval gaps; delete cache and refetch"
-        )
-    return candles
+    return validate_interval_window(candles, interval, start_ms, end_ms)
 
 
 def _evaluate_window(
@@ -192,7 +186,7 @@ def run_baseline_study(
             "start": window.start,
             "end_exclusive": window.end,
             "candle_count": len(candles),
-            "gap_count": 0,
+            "coverage": "exact",
             "scenarios": scenarios,
         }
 
@@ -263,7 +257,7 @@ def run_frozen_oos_study(
             "start": OOS_WINDOW.start,
             "end_exclusive": OOS_WINDOW.end,
             "candle_count": len(candles),
-            "gap_count": 0,
+            "coverage": "exact",
             "scenarios": scenarios,
         },
     }
@@ -275,7 +269,7 @@ def run_frozen_oos_study(
 def baseline_study_cli() -> None:
     parser = argparse.ArgumentParser(
         description=(
-            "Download frozen BTC/USDT development windows and run Trend Following V1 cost stress"
+            "Internal generic baseline runner; public first-cycle CLI is locked in locked_cli.py"
         )
     )
     parser.add_argument("--symbol", default="BTCUSDT")
