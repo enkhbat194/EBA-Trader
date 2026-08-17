@@ -5,7 +5,7 @@ import json
 import pytest
 
 import eba_trader.research as research
-from eba_trader.freeze import freeze_oos_candidate
+from eba_trader.freeze import file_sha256, freeze_oos_candidate
 from eba_trader.history import Candle, INTERVAL_MS
 
 STEP = INTERVAL_MS["15m"]
@@ -63,9 +63,22 @@ def make_frozen_candidate(tmp_path, *, fast: int = 5, slow: int = 15):
         ),
         encoding="utf-8",
     )
+    verdict = tmp_path / "verdict.json"
+    verdict.write_text(
+        json.dumps(
+            {
+                "screening_version": 1,
+                "development_report_sha256": file_sha256(development),
+                "status": "ELIGIBLE_FOR_FROZEN_OOS",
+                "all_gates_passed": True,
+            }
+        ),
+        encoding="utf-8",
+    )
     frozen = tmp_path / "freeze.json"
     freeze_oos_candidate(
         development_report_path=development,
+        verdict_path=verdict,
         freeze_path=frozen,
     )
     return development, frozen
