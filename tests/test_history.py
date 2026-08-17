@@ -64,6 +64,57 @@ def test_validate_rejects_duplicate_timestamp() -> None:
         validate_candles([candle(1000, 100), candle(1000, 101)])
 
 
+def test_validate_rejects_negative_volume() -> None:
+    row = candle(0, 100)
+    invalid = Candle(
+        open_time_ms=row.open_time_ms,
+        open=row.open,
+        high=row.high,
+        low=row.low,
+        close=row.close,
+        volume=-1.0,
+        close_time_ms=row.close_time_ms,
+        quote_volume=row.quote_volume,
+        trade_count=row.trade_count,
+    )
+    with pytest.raises(ValueError, match="volume"):
+        validate_candles([invalid])
+
+
+def test_validate_rejects_negative_trade_count() -> None:
+    row = candle(0, 100)
+    invalid = Candle(
+        open_time_ms=row.open_time_ms,
+        open=row.open,
+        high=row.high,
+        low=row.low,
+        close=row.close,
+        volume=row.volume,
+        close_time_ms=row.close_time_ms,
+        quote_volume=row.quote_volume,
+        trade_count=-1,
+    )
+    with pytest.raises(ValueError, match="trade_count"):
+        validate_candles([invalid])
+
+
+def test_validate_rejects_close_before_open() -> None:
+    row = candle(STEP, 100)
+    invalid = Candle(
+        open_time_ms=row.open_time_ms,
+        open=row.open,
+        high=row.high,
+        low=row.low,
+        close=row.close,
+        volume=row.volume,
+        close_time_ms=row.open_time_ms,
+        quote_volume=row.quote_volume,
+        trade_count=row.trade_count,
+    )
+    with pytest.raises(ValueError, match="after open"):
+        validate_candles([invalid])
+
+
 def test_gap_detector_accepts_contiguous_data() -> None:
     rows = [candle(0, 100), candle(STEP, 101), candle(2 * STEP, 102)]
     assert find_interval_gaps(rows, "15m") == []
@@ -89,6 +140,24 @@ def test_exact_window_rejects_missing_leading_bar_without_internal_gap() -> None
 def test_exact_window_rejects_missing_trailing_bar_without_internal_gap() -> None:
     rows = [candle(index * STEP, 100 + index) for index in range(3)]
     with pytest.raises(RuntimeError, match="ends at"):
+        validate_interval_window(rows, "15m", 0, 4 * STEP)
+
+
+def test_exact_window_rejects_wrong_close_timestamp() -> None:
+    rows = [candle(index * STEP, 100 + index) for index in range(4)]
+    bad = rows[2]
+    rows[2] = Candle(
+        open_time_ms=bad.open_time_ms,
+        open=bad.open,
+        high=bad.high,
+        low=bad.low,
+        close=bad.close,
+        volume=bad.volume,
+        close_time_ms=bad.close_time_ms - 1,
+        quote_volume=bad.quote_volume,
+        trade_count=bad.trade_count,
+    )
+    with pytest.raises(RuntimeError, match="expected"):
         validate_interval_window(rows, "15m", 0, 4 * STEP)
 
 
