@@ -25,6 +25,8 @@ M2 contains no exchange account access and no order-execution code. Historical d
 - `out_of_sample`: 2025-01-01 inclusive → 2026-01-01 exclusive;
 - 2026+ remains outside the first baseline study so it can be used later as fresher evidence.
 
+The 2025 out-of-sample window is **locked** during development. `eba-baseline-study` does not download or expose it. This prevents the holdout result from influencing parameter or strategy decisions.
+
 The downloader treats every end timestamp as **exclusive**. This prevents one boundary candle from leaking into two adjacent windows.
 
 ## Data integrity gates
@@ -36,11 +38,11 @@ Before a window can be backtested it must pass:
 - sane OHLC relationships;
 - expected interval continuity with zero missing 15-minute bars.
 
-The baseline study fails closed when an interval gap is detected.
+The study fails closed when an interval gap is detected.
 
 ## Cost stress
 
-Every frozen window runs the same strategy under three scenarios:
+Every opened window runs the same strategy under three scenarios:
 
 | Scenario | Fee / side | Slippage / side |
 |---|---:|---:|
@@ -69,23 +71,46 @@ The report includes:
 - market exposure;
 - estimated fee/slippage cost.
 
-## One-command network validation
+## Development study
 
 Most M2 code and deterministic tests are developed without Replit. A networked runtime is needed only to obtain Binance historical data.
 
-After the runtime has the latest package installed, the intended single study command is:
+After the runtime has the latest package installed:
 
 ```bash
 eba-baseline-study
 ```
 
-It downloads/caches the three frozen windows, rejects interval gaps, runs base/adverse/severe cost stress and writes:
+This downloads/caches only:
+
+- 2021-2023 research;
+- 2024 validation.
+
+It explicitly prints `holdout=2025 LOCKED` and writes:
 
 ```text
 artifacts/m2_trend_baseline.json
 ```
 
+The report contains the locked holdout metadata but no 2025 result.
+
 Cached market data stays under ignored `data/cache/` and is not committed to Git.
+
+## Frozen out-of-sample opening
+
+The 2025 holdout may be opened only after research/validation and robustness decisions are final.
+
+```bash
+eba-oos-study --confirm-frozen
+```
+
+The command writes:
+
+```text
+artifacts/m2_trend_oos_2025.json
+```
+
+If that report already exists, the command refuses to rerun. Retuning after the holdout is opened is explicitly forbidden. A strategy that fails the frozen holdout is not repaired by tuning against 2025; it returns to research as a new hypothesis with a new validation cycle.
 
 ## Interpretation rules
 
@@ -95,7 +120,7 @@ Cached market data stays under ignored `data/cache/` and is not committed to Git
 4. Very low trade count is insufficient evidence.
 5. High win rate with weak profit factor/expectancy is a failure.
 6. A result that disappears under adverse/severe costs is fragile.
-7. The out-of-sample result cannot be used for parameter tuning without restarting the validation cycle.
+7. The frozen OOS result is never a tuning dataset.
 8. No M2 result authorizes live money.
 
 ## Acceptance path
@@ -108,20 +133,22 @@ Cached market data stays under ignored `data/cache/` and is not committed to Git
 - costs and benchmark are included;
 - deterministic unit tests pass.
 
-### M2B — Evidence quality
+### M2B — Development evidence
 
-- frozen research/validation/out-of-sample windows complete;
+- research and validation windows complete;
 - base/adverse/severe scenarios complete;
-- report artifact is produced;
-- result is reviewed against benchmark, drawdown and expectancy.
+- parameter-neighborhood robustness complete;
+- rolling walk-forward complete;
+- causal regime diagnostics complete;
+- result is reviewed without opening 2025 OOS.
 
-### M2C — Robustness (next)
+### M2C — Frozen OOS
 
-Only after M2B:
+Only after development decisions are frozen:
 
-- parameter-neighborhood tests;
-- repeated walk-forward windows;
-- regime-specific diagnostics;
-- strategy rejection/promotion rules.
+- open 2025 once;
+- capture the frozen report;
+- do not retune against it;
+- reject or retain the hypothesis.
 
 M2C must pass before a strategy can be considered for PAPER execution.
