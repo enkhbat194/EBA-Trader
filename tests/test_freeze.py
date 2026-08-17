@@ -7,12 +7,19 @@ import pytest
 from eba_trader.freeze import freeze_oos_candidate, load_frozen_candidate
 
 
-def write_development_report(path, *, oos_status: str = "LOCKED_NOT_ACCESSED") -> None:
+def write_development_report(
+    path,
+    *,
+    oos_status: str = "LOCKED_NOT_ACCESSED",
+    fast: int = 20,
+    slow: int = 50,
+) -> None:
     path.write_text(
         json.dumps(
             {
                 "phase": "development_only",
                 "oos_2025": oos_status,
+                "frozen_baseline": {"fast_ema": fast, "slow_ema": slow},
                 "research_robustness": {"example": True},
             },
             sort_keys=True,
@@ -24,8 +31,6 @@ def write_development_report(path, *, oos_status: str = "LOCKED_NOT_ACCESSED") -
 def test_freeze_requires_development_report(tmp_path) -> None:
     with pytest.raises(FileNotFoundError):
         freeze_oos_candidate(
-            fast_ema=20,
-            slow_ema=50,
             development_report_path=tmp_path / "missing.json",
             freeze_path=tmp_path / "freeze.json",
         )
@@ -36,11 +41,23 @@ def test_freeze_requires_proof_oos_was_locked(tmp_path) -> None:
     write_development_report(development, oos_status="OPENED")
     with pytest.raises(ValueError, match="stayed locked"):
         freeze_oos_candidate(
-            fast_ema=20,
-            slow_ema=50,
             development_report_path=development,
             freeze_path=tmp_path / "freeze.json",
         )
+
+
+def test_freeze_uses_only_predeclared_baseline(tmp_path) -> None:
+    development = tmp_path / "development.json"
+    frozen = tmp_path / "freeze.json"
+    write_development_report(development, fast=20, slow=50)
+
+    payload = freeze_oos_candidate(
+        development_report_path=development,
+        freeze_path=frozen,
+    )
+    assert payload["fast_ema"] == 20
+    assert payload["slow_ema"] == 50
+    assert payload["source"] == "development_report.frozen_baseline"
 
 
 def test_freeze_hash_detects_development_report_mutation(tmp_path) -> None:
@@ -49,8 +66,6 @@ def test_freeze_hash_detects_development_report_mutation(tmp_path) -> None:
     write_development_report(development)
 
     freeze_oos_candidate(
-        fast_ema=20,
-        slow_ema=50,
         development_report_path=development,
         freeze_path=frozen,
     )
@@ -74,15 +89,11 @@ def test_freeze_file_cannot_be_overwritten(tmp_path) -> None:
     frozen = tmp_path / "freeze.json"
     write_development_report(development)
     freeze_oos_candidate(
-        fast_ema=20,
-        slow_ema=50,
         development_report_path=development,
         freeze_path=frozen,
     )
     with pytest.raises(RuntimeError, match="already exists"):
         freeze_oos_candidate(
-            fast_ema=25,
-            slow_ema=60,
             development_report_path=development,
             freeze_path=frozen,
         )
