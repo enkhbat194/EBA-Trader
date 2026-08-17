@@ -38,6 +38,7 @@ class ParameterEvaluation:
     total_return: float
     benchmark_relative_return: float
     max_drawdown: float
+    benchmark_max_drawdown: float
     trade_count: int
     expectancy: float
     profit_factor: float
@@ -49,6 +50,7 @@ class NeighborhoodSummary:
     positive_return_fraction: float
     benchmark_beating_fraction: float
     positive_expectancy_fraction: float
+    drawdown_improvement_fraction: float
     median_total_return: float
     worst_total_return: float
     median_max_drawdown: float
@@ -67,6 +69,7 @@ class WalkForwardFold:
     train_max_drawdown: float
     test_return: float
     test_benchmark_return: float
+    test_benchmark_max_drawdown: float
     test_benchmark_relative_return: float
     test_max_drawdown: float
     test_trade_count: int
@@ -79,15 +82,22 @@ class WalkForwardSummary:
     positive_test_fraction: float
     benchmark_beating_fraction: float
     positive_expectancy_fraction: float
+    drawdown_improvement_fraction: float
     median_test_return: float
     worst_test_return: float
     median_test_drawdown: float
     worst_test_drawdown: float
+    median_benchmark_drawdown: float
     parameter_selection_counts: tuple[tuple[str, int], ...]
 
 
 def _finite_or_none(value: float) -> float | None:
     return value if math.isfinite(value) else None
+
+
+def _drawdown_is_better(strategy_drawdown: float, benchmark_drawdown: float) -> bool:
+    # Drawdowns are zero or negative. A less-negative value is the better result.
+    return strategy_drawdown > benchmark_drawdown
 
 
 def _median_interval_ms(candles: Sequence[Candle]) -> int:
@@ -158,6 +168,7 @@ def run_parameter_neighborhood(
                 total_return=result.total_return,
                 benchmark_relative_return=result.benchmark_relative_return,
                 max_drawdown=result.max_drawdown,
+                benchmark_max_drawdown=result.benchmark_max_drawdown,
                 trade_count=result.trade_count,
                 expectancy=result.expectancy,
                 profit_factor=result.profit_factor,
@@ -174,6 +185,13 @@ def run_parameter_neighborhood(
             sum(item.benchmark_relative_return > 0 for item in evaluations) / count
         ),
         positive_expectancy_fraction=sum(item.expectancy > 0 for item in evaluations) / count,
+        drawdown_improvement_fraction=(
+            sum(
+                _drawdown_is_better(item.max_drawdown, item.benchmark_max_drawdown)
+                for item in evaluations
+            )
+            / count
+        ),
         median_total_return=median(returns),
         worst_total_return=min(returns),
         median_max_drawdown=median(drawdowns),
@@ -283,6 +301,7 @@ def run_walk_forward(
                 train_max_drawdown=train_result.max_drawdown,
                 test_return=test_result.total_return,
                 test_benchmark_return=test_result.benchmark_return,
+                test_benchmark_max_drawdown=test_result.benchmark_max_drawdown,
                 test_benchmark_relative_return=test_result.benchmark_relative_return,
                 test_max_drawdown=test_result.max_drawdown,
                 test_trade_count=test_result.trade_count,
@@ -302,6 +321,7 @@ def run_walk_forward(
 
     test_returns = [fold.test_return for fold in folds]
     test_drawdowns = [fold.test_max_drawdown for fold in folds]
+    benchmark_drawdowns = [fold.test_benchmark_max_drawdown for fold in folds]
     count = len(folds)
     return WalkForwardSummary(
         folds=tuple(folds),
@@ -310,10 +330,21 @@ def run_walk_forward(
             sum(fold.test_benchmark_relative_return > 0 for fold in folds) / count
         ),
         positive_expectancy_fraction=sum(fold.test_expectancy > 0 for fold in folds) / count,
+        drawdown_improvement_fraction=(
+            sum(
+                _drawdown_is_better(
+                    fold.test_max_drawdown,
+                    fold.test_benchmark_max_drawdown,
+                )
+                for fold in folds
+            )
+            / count
+        ),
         median_test_return=median(test_returns),
         worst_test_return=min(test_returns),
         median_test_drawdown=median(test_drawdowns),
         worst_test_drawdown=min(test_drawdowns),
+        median_benchmark_drawdown=median(benchmark_drawdowns),
         parameter_selection_counts=tuple(sorted(selection_counts.items())),
     )
 
@@ -323,6 +354,7 @@ def _neighborhood_to_dict(summary: NeighborhoodSummary) -> dict[str, object]:
         "positive_return_fraction": summary.positive_return_fraction,
         "benchmark_beating_fraction": summary.benchmark_beating_fraction,
         "positive_expectancy_fraction": summary.positive_expectancy_fraction,
+        "drawdown_improvement_fraction": summary.drawdown_improvement_fraction,
         "median_total_return": summary.median_total_return,
         "worst_total_return": summary.worst_total_return,
         "median_max_drawdown": summary.median_max_drawdown,
@@ -334,6 +366,11 @@ def _neighborhood_to_dict(summary: NeighborhoodSummary) -> dict[str, object]:
                 "total_return": item.total_return,
                 "benchmark_relative_return": item.benchmark_relative_return,
                 "max_drawdown": item.max_drawdown,
+                "benchmark_max_drawdown": item.benchmark_max_drawdown,
+                "drawdown_better_than_btc": _drawdown_is_better(
+                    item.max_drawdown,
+                    item.benchmark_max_drawdown,
+                ),
                 "trade_count": item.trade_count,
                 "expectancy": item.expectancy,
                 "profit_factor": _finite_or_none(item.profit_factor),
@@ -348,10 +385,12 @@ def _walk_forward_to_dict(summary: WalkForwardSummary) -> dict[str, object]:
         "positive_test_fraction": summary.positive_test_fraction,
         "benchmark_beating_fraction": summary.benchmark_beating_fraction,
         "positive_expectancy_fraction": summary.positive_expectancy_fraction,
+        "drawdown_improvement_fraction": summary.drawdown_improvement_fraction,
         "median_test_return": summary.median_test_return,
         "worst_test_return": summary.worst_test_return,
         "median_test_drawdown": summary.median_test_drawdown,
         "worst_test_drawdown": summary.worst_test_drawdown,
+        "median_benchmark_drawdown": summary.median_benchmark_drawdown,
         "parameter_selection_counts": dict(summary.parameter_selection_counts),
         "folds": [
             {
@@ -366,8 +405,13 @@ def _walk_forward_to_dict(summary: WalkForwardSummary) -> dict[str, object]:
                 "train_max_drawdown": fold.train_max_drawdown,
                 "test_return": fold.test_return,
                 "test_benchmark_return": fold.test_benchmark_return,
+                "test_benchmark_max_drawdown": fold.test_benchmark_max_drawdown,
                 "test_benchmark_relative_return": fold.test_benchmark_relative_return,
                 "test_max_drawdown": fold.test_max_drawdown,
+                "test_drawdown_better_than_btc": _drawdown_is_better(
+                    fold.test_max_drawdown,
+                    fold.test_benchmark_max_drawdown,
+                ),
                 "test_trade_count": fold.test_trade_count,
                 "test_expectancy": fold.test_expectancy,
             }
@@ -429,6 +473,7 @@ def trend_validation_cli() -> None:
         "neighborhood "
         f"positive={neighborhood.positive_return_fraction:.1%} "
         f"beats_btc={neighborhood.benchmark_beating_fraction:.1%} "
+        f"risk_better={neighborhood.drawdown_improvement_fraction:.1%} "
         f"median_return={neighborhood.median_total_return:.2%} "
         f"worst_return={neighborhood.worst_total_return:.2%}"
     )
@@ -437,6 +482,7 @@ def trend_validation_cli() -> None:
         f"folds={len(walk_forward.folds)} "
         f"positive={walk_forward.positive_test_fraction:.1%} "
         f"beats_btc={walk_forward.benchmark_beating_fraction:.1%} "
+        f"risk_better={walk_forward.drawdown_improvement_fraction:.1%} "
         f"median_test={walk_forward.median_test_return:.2%} "
         f"worst_test={walk_forward.worst_test_return:.2%}"
     )
