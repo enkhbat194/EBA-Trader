@@ -65,6 +65,19 @@ def result_to_dict(result: BacktestResult) -> dict[str, float | int | None]:
     }
 
 
+def _window_cache_path(base_dir: Path, symbol: str, interval: str, window: StudyWindow) -> Path:
+    return base_dir / f"{symbol.lower()}_{interval}_{window.name}.csv"
+
+
+def assert_oos_not_cached(base_dir: Path, symbol: str, interval: str) -> None:
+    oos_path = _window_cache_path(base_dir, symbol, interval, OOS_WINDOW)
+    if oos_path.exists():
+        raise RuntimeError(
+            "Frozen 2025 OOS cache already exists. Development evidence can no longer claim "
+            "LOCKED_NOT_ACCESSED; quarantine the cycle instead of silently continuing."
+        )
+
+
 def _load_or_fetch_window(
     window: StudyWindow,
     *,
@@ -73,7 +86,7 @@ def _load_or_fetch_window(
     base_dir: Path,
     refresh: bool,
 ) -> list[Candle]:
-    csv_path = base_dir / f"{symbol.lower()}_{interval}_{window.name}.csv"
+    csv_path = _window_cache_path(base_dir, symbol, interval, window)
     if refresh or not csv_path.exists():
         candles = fetch_binance_klines(
             symbol,
@@ -135,6 +148,7 @@ def run_baseline_study(
 ) -> dict[str, object]:
     base_dir = Path(data_dir)
     base_dir.mkdir(parents=True, exist_ok=True)
+    assert_oos_not_cached(base_dir, symbol, interval)
 
     report: dict[str, object] = {
         "phase": "development",
@@ -149,6 +163,7 @@ def run_baseline_study(
             "start": OOS_WINDOW.start,
             "end_exclusive": OOS_WINDOW.end,
             "status": "locked_not_downloaded",
+            "cache_verified_absent": True,
         },
         "untouched_future_window": "2026+ remains outside the first baseline study",
         "windows": {},
