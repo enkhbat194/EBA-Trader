@@ -49,12 +49,14 @@ def regime_report_cli() -> None:
             "lookback_days": diagnostics.lookback_days,
             "directional_threshold": diagnostics.threshold,
             "causal": True,
-            "note": "Each trade is labeled using only price history available at entry time.",
+            "note": "Each trade is labeled using only fully completed price history before entry.",
         },
         "strategy": {
             "total_return": result.total_return,
             "benchmark_return": result.benchmark_return,
+            "benchmark_max_drawdown": result.benchmark_max_drawdown,
             "max_drawdown": result.max_drawdown,
+            "drawdown_better_than_btc": result.max_drawdown > result.benchmark_max_drawdown,
             "trade_count": result.trade_count,
         },
         "regimes": {
@@ -76,7 +78,9 @@ def regime_report_cli() -> None:
     print(
         f"strategy_return={result.total_return:.2%} "
         f"btc_buy_hold={result.benchmark_return:.2%} "
-        f"max_drawdown={result.max_drawdown:.2%} trades={result.trade_count}"
+        f"strategy_drawdown={result.max_drawdown:.2%} "
+        f"btc_drawdown={result.benchmark_max_drawdown:.2%} "
+        f"trades={result.trade_count}"
     )
     for item in diagnostics.stats:
         print(
