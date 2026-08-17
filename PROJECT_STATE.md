@@ -81,6 +81,7 @@ Build a professional-grade autonomous trading system that validates strategies w
 - [x] regression test for same-open-timestamp leakage
 - [x] `eba-validate-trend`
 - [x] `eba-regime-report`
+- [x] one-command `eba-development-study`
 - [x] methodology documented in `docs/M2B_ROBUSTNESS.md`
 
 ## Evidence-window policy
@@ -99,33 +100,41 @@ Fresh future:
 
 The old baseline design exposed 2025 together with development data. This was corrected before historical study execution.
 
-- [x] `eba-baseline-study` now opens **research + validation only**
+- [x] `eba-baseline-study` opens **research + validation only**
 - [x] 2025 OOS is not downloaded/exposed by development study
+- [x] development study fails closed if a 2025 OOS cache file already exists
+- [x] development report records `cache_verified_absent: true`
 - [x] direct OOS use through baseline function is rejected
+- [x] OOS cannot accept ad-hoc `--fast/--slow` overrides
+- [x] `eba-freeze-oos-candidate` freezes only `development_report.frozen_baseline`
+- [x] freeze file stores SHA-256 of the development evidence report
+- [x] changing development evidence after freeze invalidates the freeze
 - [x] frozen OOS requires separate `eba-oos-study --confirm-frozen`
+- [x] OOS loader verifies frozen candidate still matches the hashed development baseline
 - [x] existing OOS report blocks rerun to discourage retuning
 - [x] retuning after OOS open is explicitly forbidden
 
 ## One-command development workflow
 
-`eba-development-study` is now the preferred next network action.
+`eba-development-study` is the preferred next network action.
 
 It will:
-1. download/cache only 2021–2024 development data;
-2. run EMA 20/50 baseline under base/adverse/severe costs;
-3. run parameter-neighborhood robustness on research data;
-4. run rolling walk-forward on research data;
-5. run causal regime diagnostics on research and validation;
-6. write `artifacts/m2_development_evidence.json`;
-7. leave 2025 OOS **LOCKED_NOT_ACCESSED**.
+1. verify no 2025 OOS cache exists;
+2. download/cache only 2021–2024 development data;
+3. run EMA 20/50 baseline under base/adverse/severe costs;
+4. run parameter-neighborhood robustness on research data;
+5. run rolling walk-forward on research data;
+6. run causal regime diagnostics on research and validation;
+7. write `artifacts/m2_development_evidence.json`;
+8. leave 2025 OOS **LOCKED_NOT_ACCESSED**.
 
-This reduces phone/Replit work to one study command when network runtime is needed.
+The parameter neighborhood is a fragility test, not permission to tune the first baseline. For the first cycle the predeclared EMA 20/50 baseline remains the only candidate eligible for the frozen OOS.
 
 ## Current validation caveat
 
 - M1 live public data is proven.
 - Earlier isolated M2 logic tests passed.
-- The newest M2B/OOS-lock commits and their new tests have **not yet been executed as one complete suite in a synced Python environment**.
+- The newest M2B/freeze/OOS-lock commits and their new tests have **not yet been executed as one complete suite in a synced Python environment**.
 - No real historical BTC evidence report has been generated yet.
 
 ## Next tasks — strict order
@@ -133,12 +142,13 @@ This reduces phone/Replit work to one study command when network runtime is need
 1. In one free networked runtime, sync/install latest repo and run full `pytest` once.
 2. Run `eba-development-study` once; capture `artifacts/m2_development_evidence.json`.
 3. Review research + validation evidence without touching 2025.
-4. Reject or freeze Trend V1 parameters/decision.
-5. Only if retained, open 2025 exactly through `eba-oos-study --confirm-frozen`.
-6. If OOS passes, move toward PAPER/SHADOW; otherwise return to a new research hypothesis without tuning against 2025.
-7. Mean Reversion / Breakout / Momentum only after Trend baseline is understood.
-8. Paid server only after forward evidence justifies it.
-9. Futures/crowding/liquidation remains V2+.
+4. If EMA 20/50 is rejected, stop this cycle and create a new hypothesis without opening 2025.
+5. If EMA 20/50 is retained, run `eba-freeze-oos-candidate` (no parameter arguments).
+6. Then and only then run `eba-oos-study --confirm-frozen` once.
+7. If OOS passes, move toward PAPER/SHADOW; if it fails, return to a new research cycle without tuning against 2025.
+8. Mean Reversion / Breakout / Momentum only after Trend baseline is understood.
+9. Paid server only after forward evidence justifies it.
+10. Futures/crowding/liquidation remains V2+.
 
 ## Explicitly forbidden now
 
