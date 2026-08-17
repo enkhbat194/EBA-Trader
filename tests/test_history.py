@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import json
+from urllib.error import HTTPError
+from urllib.request import Request
+
 import pytest
 
+import eba_trader.history as history
 from eba_trader.history import (
     Candle,
     candle_from_binance_row,
@@ -11,6 +16,20 @@ from eba_trader.history import (
 )
 
 STEP = 900_000
+
+
+class FakeResponse:
+    def __init__(self, payload: object):
+        self.payload = payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def read(self) -> bytes:
+        return json.dumps(self.payload).encode("utf-8")
 
 
 def candle(ts: int, price: float, step: int = STEP) -> Candle:
@@ -25,6 +44,10 @@ def candle(ts: int, price: float, step: int = STEP) -> Candle:
         quote_volume=1000.0,
         trade_count=10,
     )
+
+
+def test_public_historical_endpoint_is_market_data_only_host() -> None:
+    assert history.BINANCE_KLINES_URL == "https://data-api.binance.vision/api/v3/klines"
 
 
 def test_parse_binance_row() -> None:
@@ -73,3 +96,42 @@ def test_exact_window_rejects_misaligned_boundaries() -> None:
     rows = [candle(0, 100), candle(STEP, 101)]
     with pytest.raises(ValueError, match="align"):
         validate_interval_window(rows, "15m", 1, 2 * STEP)
+
+
+def test_request_json_retries_rate_limit_then_succeeds(monkeypatch) -> None:
+    calls = iter(
+        [
+            HTTPError("https://example", 429, "rate limited", {"Retry-After": "0"}, None),
+            FakeResponse([[1, "ok"]]),
+        ]
+    )
+
+    def fake_urlopen(request, timeout):
+        value = next(calls)
+        if isinstance(value, Exception):
+            raise value
+        return value
+
+    monkeypatch.setattr(history, "urlopen", fake_urlopen)
+    monkeypatch.setattr(history.time, "sleep", lambda seconds: None)
+    payload = history._request_json(
+        Request("https://example"),
+        request_timeout=1.0,
+        max_retries=1,
+        backoff_seconds=0.0,
+    )
+    assert payload == [[1, "ok"]]
+
+
+def test_request_json_does_not_retry_nonretryable_400(monkeypatch) -> None:
+    def fake_urlopen(request, timeout):
+        raise HTTPError("https://example", 400, "bad request", {}, None)
+
+    monkeypatch.setattr(history, "urlopen", fake_urlopen)
+    with pytest.raises(RuntimeError, match="400"):
+        history._request_json(
+            Request("https://example"),
+            request_timeout=1.0,
+            max_retries=5,
+            backoff_seconds=0.0,
+        )
