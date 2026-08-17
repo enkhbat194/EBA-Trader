@@ -15,6 +15,9 @@ from .validation import (
     run_walk_forward,
 )
 
+FIRST_CYCLE_FAST_EMA = 20
+FIRST_CYCLE_SLOW_EMA = 50
+
 
 def _regime_payload(candles: list, *, fast: int, slow: int, cash: float) -> dict[str, object]:
     result = run_trend_backtest(
@@ -50,13 +53,18 @@ def run_development_evidence(
     *,
     symbol: str = "BTCUSDT",
     interval: str = "15m",
-    fast_ema: int = 20,
-    slow_ema: int = 50,
     initial_cash: float = 1000.0,
     data_dir: str | Path = "data/cache/m2",
     report_path: str | Path = "artifacts/m2_development_evidence.json",
     refresh: bool = False,
 ) -> dict[str, object]:
+    """Run the first development cycle with the predeclared EMA 20/50 baseline.
+
+    The parameter neighborhood is diagnostic only. It cannot change the baseline that is
+    eligible for the frozen 2025 OOS in this cycle.
+    """
+    fast_ema = FIRST_CYCLE_FAST_EMA
+    slow_ema = FIRST_CYCLE_SLOW_EMA
     base_dir = Path(data_dir)
     baseline = run_baseline_study(
         symbol=symbol,
@@ -92,9 +100,11 @@ def run_development_evidence(
 
     report: dict[str, object] = {
         "phase": "development_only",
+        "cycle": "trend_v1_predeclared_ema_20_50",
         "symbol": symbol.upper(),
         "interval": interval,
         "frozen_baseline": {"fast_ema": fast_ema, "slow_ema": slow_ema},
+        "parameter_neighborhood_role": "fragility_diagnostic_not_tuning",
         "oos_2025": "LOCKED_NOT_ACCESSED",
         "baseline": baseline,
         "research_robustness": {
@@ -125,12 +135,12 @@ def run_development_evidence(
 
 def development_evidence_cli() -> None:
     parser = argparse.ArgumentParser(
-        description="Run all M2 development evidence without opening the frozen 2025 OOS"
+        description=(
+            "Run the predeclared EMA 20/50 M2 development evidence without opening 2025 OOS"
+        )
     )
     parser.add_argument("--symbol", default="BTCUSDT")
     parser.add_argument("--interval", default="15m")
-    parser.add_argument("--fast", type=int, default=20)
-    parser.add_argument("--slow", type=int, default=50)
     parser.add_argument("--cash", type=float, default=1000.0)
     parser.add_argument("--refresh", action="store_true")
     args = parser.parse_args()
@@ -138,8 +148,6 @@ def development_evidence_cli() -> None:
     report = run_development_evidence(
         symbol=args.symbol,
         interval=args.interval,
-        fast_ema=args.fast,
-        slow_ema=args.slow,
         initial_cash=args.cash,
         refresh=args.refresh,
     )
@@ -150,6 +158,7 @@ def development_evidence_cli() -> None:
     neighborhood = robustness["parameter_neighborhood"]
     walk_forward = robustness["walk_forward"]
 
+    print("baseline=EMA20/50 PREDECLARED")
     print(
         f"research_return={research_base['total_return']:.2%} "
         f"research_btc={research_base['benchmark_return']:.2%} "
@@ -161,5 +170,6 @@ def development_evidence_cli() -> None:
         f"walk_forward_positive={walk_forward['positive_test_fraction']:.1%} "
         f"walk_forward_beats_btc={walk_forward['benchmark_beating_fraction']:.1%}"
     )
+    print("parameter_neighborhood=DIAGNOSTIC_ONLY")
     print("oos_2025=LOCKED_NOT_ACCESSED")
     print("report=artifacts/m2_development_evidence.json")
