@@ -77,16 +77,24 @@ def validate_candles(candles: Iterable[Candle]) -> list[Candle]:
     previous = -1
     seen: set[int] = set()
     for candle in result:
+        if candle.open_time_ms < 0 or candle.close_time_ms < 0:
+            raise ValueError("Candle timestamps cannot be negative")
         if candle.open_time_ms in seen:
             raise ValueError(f"Duplicate candle timestamp: {candle.open_time_ms}")
         if candle.open_time_ms <= previous:
             raise ValueError("Candles must be strictly increasing by open_time_ms")
+        if candle.close_time_ms <= candle.open_time_ms:
+            raise ValueError("Candle close_time_ms must be after open_time_ms")
         if min(candle.open, candle.high, candle.low, candle.close) <= 0:
             raise ValueError("OHLC prices must be positive")
         if candle.high < max(candle.open, candle.close):
             raise ValueError("Invalid OHLC relationship")
         if candle.low > min(candle.open, candle.close):
             raise ValueError("Invalid OHLC relationship")
+        if candle.volume < 0 or candle.quote_volume < 0:
+            raise ValueError("Candle volume cannot be negative")
+        if candle.trade_count < 0:
+            raise ValueError("Candle trade_count cannot be negative")
         seen.add(candle.open_time_ms)
         previous = candle.open_time_ms
     return result
@@ -144,6 +152,14 @@ def validate_interval_window(
     gaps = find_interval_gaps(rows, interval)
     if gaps:
         raise RuntimeError(f"Historical window contains {len(gaps)} interval gaps")
+
+    for candle in rows:
+        expected_close = candle.open_time_ms + step - 1
+        if candle.close_time_ms != expected_close:
+            raise RuntimeError(
+                f"Candle at {candle.open_time_ms} closes at {candle.close_time_ms}, "
+                f"expected {expected_close} for {interval}"
+            )
     return rows
 
 
