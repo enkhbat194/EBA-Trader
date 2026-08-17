@@ -14,6 +14,27 @@ def file_sha256(path: str | Path) -> str:
     return digest.hexdigest()
 
 
+def _oos_cache_from_development(development: dict[str, object]) -> Path:
+    try:
+        symbol = str(development["symbol"]).lower()
+        interval = str(development["interval"])
+        data_dir = Path(str(development["data_dir"]))
+    except KeyError as exc:
+        raise ValueError("Development report is missing data location metadata") from exc
+    if not symbol or not interval:
+        raise ValueError("Development report data location metadata is invalid")
+    return data_dir / f"{symbol}_{interval}_out_of_sample.csv"
+
+
+def _assert_oos_cache_absent(development: dict[str, object]) -> Path:
+    oos_cache = _oos_cache_from_development(development)
+    if oos_cache.exists():
+        raise RuntimeError(
+            "Frozen 2025 OOS cache exists before authorized OOS opening; holdout is contaminated"
+        )
+    return oos_cache
+
+
 def freeze_oos_candidate(
     *,
     development_report_path: str | Path = "artifacts/m2_development_evidence.json",
@@ -26,6 +47,7 @@ def freeze_oos_candidate(
     development = json.loads(development_path.read_text(encoding="utf-8"))
     if development.get("oos_2025") != "LOCKED_NOT_ACCESSED":
         raise ValueError("Development report does not prove that 2025 OOS stayed locked")
+    oos_cache = _assert_oos_cache_absent(development)
 
     baseline = development.get("frozen_baseline")
     if not isinstance(baseline, dict):
@@ -49,6 +71,8 @@ def freeze_oos_candidate(
         "slow_ema": slow_ema,
         "development_report": str(development_path),
         "development_report_sha256": file_sha256(development_path),
+        "oos_cache": str(oos_cache),
+        "oos_cache_verified_absent_at_freeze": True,
         "oos_window": {
             "start": "2025-01-01",
             "end_exclusive": "2026-01-01",
@@ -86,6 +110,12 @@ def load_frozen_candidate(
         raise RuntimeError("Development evidence changed after candidate freeze")
 
     development = json.loads(development_path.read_text(encoding="utf-8"))
+    oos_cache = _assert_oos_cache_absent(development)
+    if str(payload.get("oos_cache", "")) != str(oos_cache):
+        raise RuntimeError("Frozen candidate OOS cache path no longer matches development evidence")
+    if payload.get("oos_cache_verified_absent_at_freeze") is not True:
+        raise RuntimeError("Frozen candidate lacks OOS cache absence proof")
+
     baseline = development.get("frozen_baseline")
     if not isinstance(baseline, dict):
         raise ValueError("Development report frozen baseline is missing")
@@ -110,5 +140,6 @@ def freeze_candidate_cli() -> None:
         f"development_sha256={payload['development_report_sha256']}"
     )
     print("source=development_report.frozen_baseline")
+    print("oos_cache_absent=VERIFIED")
     print("retuning_after_freeze=FORBIDDEN")
     print("freeze=artifacts/m2_frozen_candidate.json")
