@@ -16,6 +16,7 @@ eba-download-history = "eba_trader.history:download_history_cli"
 eba-backtest-trend = "eba_trader.backtest:backtest_trend_cli"
 eba-baseline-study = "eba_trader.research:baseline_study_cli"
 eba-validate-trend = "eba_trader.validation:trend_validation_cli"
+eba-regime-report = "eba_trader.regime_report:regime_report_cli"
 
 [project.optional-dependencies]
 trading = [
