@@ -7,7 +7,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .backtest import BacktestResult, TrendBacktestConfig, run_trend_backtest
+from .freeze import load_frozen_candidate
 from .history import (
+    Candle,
     fetch_binance_klines,
     find_interval_gaps,
     load_csv,
@@ -70,7 +72,7 @@ def _load_or_fetch_window(
     interval: str,
     base_dir: Path,
     refresh: bool,
-) -> list:
+) -> list[Candle]:
     csv_path = base_dir / f"{symbol.lower()}_{interval}_{window.name}.csv"
     if refresh or not csv_path.exists():
         candles = fetch_binance_klines(
@@ -97,7 +99,7 @@ def _load_or_fetch_window(
 
 
 def _evaluate_window(
-    candles: list,
+    candles: list[Candle],
     *,
     fast_ema: int,
     slow_ema: int,
@@ -191,11 +193,11 @@ def run_frozen_oos_study(
     confirm_frozen: bool,
     symbol: str = "BTCUSDT",
     interval: str = "15m",
-    fast_ema: int = 20,
-    slow_ema: int = 50,
     initial_cash: float = 1000.0,
     data_dir: str | Path = "data/cache/m2",
     report_path: str | Path = "artifacts/m2_trend_oos_2025.json",
+    freeze_path: str | Path = "artifacts/m2_frozen_candidate.json",
+    development_report_path: str | Path = "artifacts/m2_development_evidence.json",
     refresh: bool = False,
 ) -> dict[str, object]:
     if not confirm_frozen:
@@ -208,6 +210,13 @@ def run_frozen_oos_study(
         raise RuntimeError(
             "Frozen OOS report already exists. Do not rerun and retune against the holdout."
         )
+
+    frozen = load_frozen_candidate(
+        freeze_path=freeze_path,
+        development_report_path=development_report_path,
+    )
+    fast_ema = int(frozen["fast_ema"])
+    slow_ema = int(frozen["slow_ema"])
 
     base_dir = Path(data_dir)
     base_dir.mkdir(parents=True, exist_ok=True)
@@ -232,6 +241,7 @@ def run_frozen_oos_study(
         "slow_ema": slow_ema,
         "initial_cash": initial_cash,
         "parameter_tuning": False,
+        "development_report_sha256": frozen["development_report_sha256"],
         "retuning_after_open": "forbidden",
         "window": {
             "name": OOS_WINDOW.name,
@@ -290,12 +300,10 @@ def baseline_study_cli() -> None:
 
 def frozen_oos_cli() -> None:
     parser = argparse.ArgumentParser(
-        description="Open the frozen 2025 OOS exactly after development decisions are final"
+        description="Open the frozen 2025 OOS using only the pre-frozen candidate"
     )
     parser.add_argument("--symbol", default="BTCUSDT")
     parser.add_argument("--interval", default="15m")
-    parser.add_argument("--fast", type=int, default=20)
-    parser.add_argument("--slow", type=int, default=50)
     parser.add_argument("--cash", type=float, default=1000.0)
     parser.add_argument("--confirm-frozen", action="store_true")
     args = parser.parse_args()
@@ -304,14 +312,13 @@ def frozen_oos_cli() -> None:
         confirm_frozen=args.confirm_frozen,
         symbol=args.symbol,
         interval=args.interval,
-        fast_ema=args.fast,
-        slow_ema=args.slow,
         initial_cash=args.cash,
     )
     base = report["window"]["scenarios"]["base"]
     severe = report["window"]["scenarios"]["severe"]
     print(
-        f"OOS 2025 base_return={base['total_return']:.2%} "
+        f"OOS 2025 fast={report['fast_ema']} slow={report['slow_ema']} "
+        f"base_return={base['total_return']:.2%} "
         f"btc_buy_hold={base['benchmark_return']:.2%} "
         f"drawdown={base['max_drawdown']:.2%} "
         f"severe_return={severe['total_return']:.2%}"
