@@ -4,8 +4,10 @@ from eba_trader.backtest import TrendBacktestConfig, run_trend_backtest
 from eba_trader.history import Candle
 from eba_trader.regime_diagnostics import (
     HistoricalRegime,
+    RegimePoint,
     classify_historical_regimes,
     diagnose_trades_by_regime,
+    regime_before_entry,
 )
 
 INTERVAL_MS = 15 * 60 * 1000
@@ -71,6 +73,17 @@ def test_regime_classifier_detects_directional_sections() -> None:
     points = classify_historical_regimes(make_market(), lookback_days=1, threshold=1.0)
     assert points[150].regime is HistoricalRegime.BULL
     assert points[300].regime is HistoricalRegime.BEAR
+
+
+def test_entry_uses_previous_completed_candle_not_same_open_timestamp() -> None:
+    points = (
+        RegimePoint(0, HistoricalRegime.BULL, 2.0),
+        RegimePoint(INTERVAL_MS, HistoricalRegime.BEAR, -2.0),
+        RegimePoint(2 * INTERVAL_MS, HistoricalRegime.RANGE, 0.0),
+    )
+    assert regime_before_entry(points, INTERVAL_MS) is HistoricalRegime.BULL
+    assert regime_before_entry(points, 2 * INTERVAL_MS) is HistoricalRegime.BEAR
+    assert regime_before_entry(points, 0) is HistoricalRegime.UNKNOWN
 
 
 def test_trade_diagnostics_account_for_all_closed_trades() -> None:
