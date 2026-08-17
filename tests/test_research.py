@@ -47,11 +47,16 @@ def exact_fake_fetch(symbol: str, interval: str, start_ms: int, end_ms: int, **k
 
 
 def make_frozen_candidate(tmp_path, *, fast: int = 5, slow: int = 15):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
     development = tmp_path / "development.json"
     development.write_text(
         json.dumps(
             {
                 "phase": "development_only",
+                "symbol": "BTCUSDT",
+                "interval": "15m",
+                "data_dir": str(data_dir),
                 "oos_2025": "LOCKED_NOT_ACCESSED",
                 "frozen_baseline": {"fast_ema": fast, "slow_ema": slow},
             }
