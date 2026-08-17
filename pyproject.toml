@@ -18,6 +18,7 @@ eba-baseline-study = "eba_trader.research:baseline_study_cli"
 eba-oos-study = "eba_trader.research:frozen_oos_cli"
 eba-validate-trend = "eba_trader.validation:trend_validation_cli"
 eba-regime-report = "eba_trader.regime_report:regime_report_cli"
+eba-development-study = "eba_trader.evidence:development_evidence_cli"
 
 [project.optional-dependencies]
 trading = [
