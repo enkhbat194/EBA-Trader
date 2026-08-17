@@ -6,31 +6,44 @@ import pytest
 
 import eba_trader.research as research
 from eba_trader.freeze import freeze_oos_candidate
-from eba_trader.history import Candle
+from eba_trader.history import Candle, INTERVAL_MS
+
+STEP = INTERVAL_MS["15m"]
 
 
-def make_candles(count: int = 160, step: int = 900_000) -> list[Candle]:
+def make_window(start_ms: int, end_ms: int, step: int = STEP) -> list[Candle]:
     rows: list[Candle] = []
     price = 100.0
+    count = (end_ms - start_ms) // step
     for index in range(count):
-        if index < count // 2:
-            price += 0.4
+        phase = index % 240
+        if phase < 80:
+            price -= 0.12
+        elif phase < 180:
+            price += 0.28
         else:
-            price -= 0.15
+            price -= 0.08
+        ts = start_ms + index * step
         rows.append(
             Candle(
-                open_time_ms=index * step,
+                open_time_ms=ts,
                 open=price - 0.1,
                 high=price + 0.5,
                 low=price - 0.5,
                 close=price,
                 volume=100.0,
-                close_time_ms=index * step + step - 1,
+                close_time_ms=ts + step - 1,
                 quote_volume=10_000.0,
                 trade_count=100,
             )
         )
     return rows
+
+
+def exact_fake_fetch(symbol: str, interval: str, start_ms: int, end_ms: int, **kwargs):
+    assert symbol == "BTCUSDT"
+    assert interval == "15m"
+    return make_window(start_ms, end_ms)
 
 
 def make_frozen_candidate(tmp_path, *, fast: int = 5, slow: int = 15):
@@ -60,8 +73,7 @@ def test_default_baseline_windows_keep_2025_oos_locked() -> None:
 
 
 def test_baseline_study_uses_frozen_cost_scenarios(tmp_path, monkeypatch) -> None:
-    candles = make_candles()
-    monkeypatch.setattr(research, "fetch_binance_klines", lambda *args, **kwargs: candles)
+    monkeypatch.setattr(research, "fetch_binance_klines", exact_fake_fetch)
     windows = (research.StudyWindow("research", "2021-01-01", "2021-01-03"),)
 
     report = research.run_baseline_study(
@@ -79,11 +91,11 @@ def test_baseline_study_uses_frozen_cost_scenarios(tmp_path, monkeypatch) -> Non
     assert report["parameter_tuning"] is False
     assert report["holdout"]["status"] == "locked_not_downloaded"
     assert report["holdout"]["cache_verified_absent"] is True
+    assert report["windows"]["research"]["coverage"] == "exact"
     assert "out_of_sample" not in report["windows"]
 
 
-def test_baseline_refuses_direct_oos_window(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(research, "fetch_binance_klines", lambda *args, **kwargs: make_candles())
+def test_baseline_refuses_direct_oos_window(tmp_path) -> None:
     with pytest.raises(ValueError, match="out-of-sample"):
         research.run_baseline_study(
             data_dir=tmp_path / "data",
@@ -122,8 +134,7 @@ def test_frozen_oos_requires_explicit_confirmation(tmp_path) -> None:
 
 
 def test_frozen_oos_uses_frozen_parameters_and_blocks_rerun(tmp_path, monkeypatch) -> None:
-    candles = make_candles()
-    monkeypatch.setattr(research, "fetch_binance_klines", lambda *args, **kwargs: candles)
+    monkeypatch.setattr(research, "fetch_binance_klines", exact_fake_fetch)
     development, frozen = make_frozen_candidate(tmp_path, fast=5, slow=15)
     report_path = tmp_path / "oos.json"
 
@@ -138,6 +149,7 @@ def test_frozen_oos_uses_frozen_parameters_and_blocks_rerun(tmp_path, monkeypatc
     assert report["fast_ema"] == 5
     assert report["slow_ema"] == 15
     assert report["retuning_after_open"] == "forbidden"
+    assert report["window"]["coverage"] == "exact"
     assert report_path.exists()
 
     with pytest.raises(RuntimeError, match="already exists"):
