@@ -45,6 +45,7 @@ class BacktestResult:
     total_return: float
     annualized_return: float
     benchmark_return: float
+    benchmark_max_drawdown: float
     benchmark_relative_return: float
     max_drawdown: float
     trade_count: int
@@ -112,15 +113,13 @@ def _infer_bars_per_year(bars: list[Candle]) -> float:
 
 
 def _annualized_return(initial: float, final: float, bars: list[Candle]) -> float:
-    if len(bars) < 1:
+    if not bars:
         return 0.0
     elapsed_ms = bars[-1].close_time_ms - bars[0].open_time_ms
     if initial <= 0 or final <= 0 or elapsed_ms <= 0:
         return 0.0
     years = elapsed_ms / YEAR_MS
-    if years <= 0:
-        return 0.0
-    return (final / initial) ** (1.0 / years) - 1.0
+    return (final / initial) ** (1.0 / years) - 1.0 if years > 0 else 0.0
 
 
 def _risk_adjusted_ratios(returns: list[float], bars_per_year: float) -> tuple[float, float]:
@@ -155,6 +154,26 @@ def _first_evaluation_bar_index(
     raise ValueError("trade_start_time_ms is after the available candles")
 
 
+def _buy_and_hold_metrics(
+    bars: list[Candle],
+    cfg: TrendBacktestConfig,
+) -> tuple[float, float]:
+    entry_price = bars[0].open * (1.0 + cfg.slippage_bps / 10_000.0)
+    entry_fee = cfg.initial_cash * cfg.fee_bps / 10_000.0
+    quantity = (cfg.initial_cash - entry_fee) / entry_price
+
+    curve = [cfg.initial_cash]
+    for bar in bars:
+        curve.append(quantity * bar.close)
+
+    exit_price = bars[-1].close * (1.0 - cfg.slippage_bps / 10_000.0)
+    gross = quantity * exit_price
+    exit_fee = gross * cfg.fee_bps / 10_000.0
+    final_equity = gross - exit_fee
+    curve.append(final_equity)
+    return final_equity / cfg.initial_cash - 1.0, max_drawdown(curve)
+
+
 def run_trend_backtest(
     candles: Iterable[Candle],
     config: TrendBacktestConfig | None = None,
@@ -163,13 +182,10 @@ def run_trend_backtest(
 ) -> BacktestResult:
     """Run a strict long-only EMA crossover baseline.
 
-    EMA values are computed over every supplied candle, which allows callers such as
-    walk-forward validation to provide causal pre-test history for indicator warm-up.
-    Trading, equity metrics, exposure and the benchmark begin only at
-    ``trade_start_time_ms`` (or the first valid post-warm-up bar when omitted).
-
-    Entry requires an actual False -> True EMA state transition. Being already above the
-    slow EMA at the evaluation boundary does not synthesize a crossover.
+    EMA values are computed over every supplied candle, allowing walk-forward callers to
+    provide causal pre-test history for indicator warm-up. Trading, equity metrics,
+    exposure and the benchmark begin only at ``trade_start_time_ms`` (or the first valid
+    post-warm-up bar when omitted).
     """
     cfg = config or TrendBacktestConfig()
     bars = list(candles)
@@ -290,13 +306,7 @@ def run_trend_backtest(
     average_loss = mean(losses) if losses else 0.0
     bars_per_year = _infer_bars_per_year(evaluation_bars)
     sharpe, sortino = _risk_adjusted_ratios(bar_returns, bars_per_year)
-
-    benchmark_entry = evaluation_bars[0].open * (1.0 + cfg.slippage_bps / 10_000.0)
-    benchmark_exit = evaluation_bars[-1].close * (1.0 - cfg.slippage_bps / 10_000.0)
-    benchmark_multiplier = benchmark_exit / benchmark_entry
-    benchmark_multiplier *= 1.0 - cfg.fee_bps / 10_000.0
-    benchmark_multiplier *= 1.0 - cfg.fee_bps / 10_000.0
-    benchmark_return = benchmark_multiplier - 1.0
+    benchmark_return, benchmark_drawdown = _buy_and_hold_metrics(evaluation_bars, cfg)
     total_return = final_equity / cfg.initial_cash - 1.0
 
     return BacktestResult(
@@ -305,6 +315,7 @@ def run_trend_backtest(
         total_return=total_return,
         annualized_return=_annualized_return(cfg.initial_cash, final_equity, evaluation_bars),
         benchmark_return=benchmark_return,
+        benchmark_max_drawdown=benchmark_drawdown,
         benchmark_relative_return=total_return - benchmark_return,
         max_drawdown=max_drawdown(equity_curve),
         trade_count=len(trades),
@@ -347,6 +358,7 @@ def backtest_trend_cli() -> None:
     print(f"total_return={result.total_return:.2%}")
     print(f"annualized_return={result.annualized_return:.2%}")
     print(f"btc_buy_hold={result.benchmark_return:.2%}")
+    print(f"btc_buy_hold_drawdown={result.benchmark_max_drawdown:.2%}")
     print(f"benchmark_relative={result.benchmark_relative_return:.2%}")
     print(f"max_drawdown={result.max_drawdown:.2%}")
     print(f"trades={result.trade_count}")
