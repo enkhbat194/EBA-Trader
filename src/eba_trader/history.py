@@ -8,10 +8,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Iterable
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-BINANCE_KLINES_URL = "https://api.binance.com/api/v3/klines"
+BINANCE_KLINES_URL = "https://data-api.binance.vision/api/v3/klines"
 INTERVAL_MS = {
     "1m": 60_000,
     "3m": 180_000,
@@ -146,6 +147,45 @@ def validate_interval_window(
     return rows
 
 
+def _retry_delay_seconds(error: HTTPError, attempt: int, backoff_seconds: float) -> float:
+    retry_after = error.headers.get("Retry-After") if error.headers is not None else None
+    if retry_after:
+        try:
+            return min(max(float(retry_after), 0.0), 120.0)
+        except ValueError:
+            pass
+    return min(backoff_seconds * (2**attempt), 30.0)
+
+
+def _request_json(
+    request: Request,
+    *,
+    request_timeout: float,
+    max_retries: int,
+    backoff_seconds: float,
+) -> object:
+    if max_retries < 0:
+        raise ValueError("max_retries cannot be negative")
+    if backoff_seconds < 0:
+        raise ValueError("backoff_seconds cannot be negative")
+
+    for attempt in range(max_retries + 1):
+        try:
+            with urlopen(request, timeout=request_timeout) as response:  # noqa: S310
+                return json.loads(response.read().decode("utf-8"))
+        except HTTPError as error:
+            retryable = error.code in {418, 429} or 500 <= error.code < 600
+            if not retryable or attempt >= max_retries:
+                raise RuntimeError(f"Binance HTTP error {error.code}") from error
+            time.sleep(_retry_delay_seconds(error, attempt, backoff_seconds))
+        except (URLError, TimeoutError) as error:
+            if attempt >= max_retries:
+                raise RuntimeError("Binance network request failed after retries") from error
+            time.sleep(min(backoff_seconds * (2**attempt), 30.0))
+
+    raise RuntimeError("Unreachable retry state")
+
+
 def fetch_binance_klines(
     symbol: str,
     interval: str,
@@ -154,6 +194,8 @@ def fetch_binance_klines(
     *,
     request_timeout: float = 20.0,
     pause_seconds: float = 0.08,
+    max_retries: int = 5,
+    backoff_seconds: float = 0.5,
 ) -> list[Candle]:
     if interval not in SUPPORTED_INTERVALS:
         raise ValueError(f"Unsupported interval: {interval}")
@@ -178,8 +220,12 @@ def fetch_binance_klines(
             f"{BINANCE_KLINES_URL}?{query}",
             headers={"User-Agent": "EBA-Trader/0.1 historical-research"},
         )
-        with urlopen(request, timeout=request_timeout) as response:  # noqa: S310
-            payload = json.loads(response.read().decode("utf-8"))
+        payload = _request_json(
+            request,
+            request_timeout=request_timeout,
+            max_retries=max_retries,
+            backoff_seconds=backoff_seconds,
+        )
 
         if not isinstance(payload, list):
             raise RuntimeError(f"Unexpected Binance response: {payload!r}")
