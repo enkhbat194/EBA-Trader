@@ -1,0 +1,95 @@
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+from typing import Any
+
+from . import m8_alt_data_audit as core
+
+
+def parse_binance_metrics_rows_with_frozen_boundary(
+    rows: list[list[str]],
+    *,
+    start_ms: int,
+    end_ms: int,
+) -> tuple[list[core.BinanceMetric], int, int]:
+    """Exclude the exact audit-start boundary from the accepted 5m metrics grid.
+
+    The frozen M8 protocol defines accepted Binance metric timestamps as strictly greater than
+    the audit start and strictly less than the audit end. Official Binance Vision includes a row
+    stamped exactly at 2021-01-01 00:00:00. That boundary row is valid source data but is outside
+    the predeclared accepted grid, so it is discarded before the unchanged core parser runs.
+    """
+    filtered: list[list[str]] = []
+    for row in rows:
+        if not row or row[0].strip().lower() == "create_time":
+            filtered.append(row)
+            continue
+        try:
+            timestamp_ms = core._parse_timestamp(row[0])
+        except (TypeError, ValueError):
+            filtered.append(row)
+            continue
+        if timestamp_ms == start_ms:
+            continue
+        filtered.append(row)
+    return core.parse_binance_metrics_rows(
+        filtered,
+        start_ms=start_ms,
+        end_ms=end_ms,
+    )
+
+
+def run_m8_data_audit(
+    *,
+    report_path: str | Path = "artifacts/m8_alt_derivatives_data_audit.json",
+    workers: int = 8,
+) -> dict[str, object]:
+    original_parser = core.parse_binance_metrics_rows
+    core.parse_binance_metrics_rows = parse_binance_metrics_rows_with_frozen_boundary
+    try:
+        return core.run_m8_data_audit(report_path=report_path, workers=workers)
+    finally:
+        core.parse_binance_metrics_rows = original_parser
+
+
+def _source_status(section: dict[str, Any], key: str) -> object:
+    value = section[key]
+    if not isinstance(value, dict):
+        raise RuntimeError(f"Invalid M8 report section: {key}")
+    return value["status"]
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Run frozen M8 alternative derivatives historical data audit (2021-2024 only)"
+    )
+    parser.add_argument(
+        "--report",
+        default="artifacts/m8_alt_derivatives_data_audit.json",
+    )
+    parser.add_argument("--workers", type=int, default=8)
+    args = parser.parse_args()
+    report = run_m8_data_audit(report_path=args.report, workers=args.workers)
+    primary = report["primary"]
+    secondary = report["secondary"]
+    if not isinstance(primary, dict) or not isinstance(secondary, dict):
+        raise RuntimeError("Invalid M8 report structure")
+    print(f"M8 decision: {report['decision']}")
+    print(f"Binance metrics: {_source_status(primary, 'binance_metrics_5m')}")
+    print(f"Bybit kline: {_source_status(primary, 'bybit_kline_1h')}")
+    print(f"Bybit open interest: {_source_status(primary, 'bybit_open_interest_1h')}")
+    print(f"Bybit account ratio: {_source_status(primary, 'bybit_account_ratio_1h')}")
+    print(f"Bybit funding: {_source_status(primary, 'bybit_funding')}")
+    print(
+        "Cross-exchange alignment: "
+        f"{_source_status(primary, 'cross_exchange_hourly_alignment')}"
+    )
+    print(f"BookDepth: {_source_status(secondary, 'binance_book_depth_partial')}")
+    print(f"Liquidation: {_source_status(secondary, 'binance_liquidation_snapshot')}")
+    print("Forward returns: NOT_COMPUTED")
+    print("2025 OOS remains LOCKED_NOT_ACCESSED")
+
+
+if __name__ == "__main__":
+    main()
