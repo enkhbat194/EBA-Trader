@@ -138,40 +138,33 @@ The old baseline design exposed 2025 together with development data. This was co
 - [x] existing OOS cache, open marker, or report blocks rerun
 - [x] retuning after OOS open is forbidden
 
-## Preferred one-command development workflow
+## First-cycle development outcome
 
-`bash scripts/run_m2_full_development.sh` is the next real-data action in a clean tracked tree.
+The real-data workflow ran on 2026-08-20 from clean commit `4f8f908`.
 
-It will:
-1. verify no 2025 OOS cache exists;
-2. download/cache only 2021–2024 development data;
-3. run predeclared strict EMA 20/50 under base/adverse/severe costs;
-4. run parameter-neighborhood fragility diagnostics on research data;
-5. run causal walk-forward with train-history EMA warm-up and test-boundary trading gate;
-6. run causal regime diagnostics on research and validation;
-7. write and screen `artifacts/m2_development_evidence.json`;
-8. run and screen the predeclared risk-sized execution layer on the same datasets;
-9. leave 2025 OOS `LOCKED_NOT_ACCESSED`.
+- Signal verdict: `REJECT_DEVELOPMENT_CYCLE` (8/10 gates failed).
+- Validation base return: -45.07%; expectancy: -$1.34; profit factor: 0.770.
+- Validation severe-cost return: -85.74%.
+- Parameter-neighborhood positive expectancy: 0%.
+- Risk execution evidence/verdict: not run, blocked by rejected signal authority.
+- 2025 OOS: `LOCKED_NOT_ACCESSED`.
+- Full record: `docs/M2_TREND_V1_DEVELOPMENT_RESULT_2026-08-20.md`.
 
 ## Current validation caveat
 
 - M1 live public data is proven.
-- Python 3.12.14: complete deterministic suite passed (120 tests) and Ruff passed on 2026-08-20.
+- Python 3.12.14: complete deterministic suite passed (124 tests) and Ruff passed on 2026-08-20.
 - Editable packaging was verified with the authoritative development/risk/final console commands.
-- No real historical BTC development evidence report has been generated yet.
+- Real historical signal evidence was generated and rejected; no risk or OOS evidence was opened.
 
 ## Next tasks — strict order
 
-1. Commit/review the 2026-08-20 audit fixes so provenance can require a clean tracked tree.
-2. In one free networked Linux runtime, run `bash scripts/run_m2_full_development.sh` once.
-3. Review signal and risk-execution research/validation verdicts without touching 2025.
-4. If either layer rejects, stop this cycle and create a new hypothesis without opening 2025.
-5. If both pass, run `eba-final-freeze` with no configuration arguments.
-6. Then and only then run `eba-final-oos --confirm-frozen` once.
-7. Run `eba-final-oos-verdict`; a pass authorizes only forward PAPER/SHADOW evaluation.
-8. Mean Reversion / Breakout / Momentum only after Trend baseline is understood.
-9. Paid server only after forward evidence justifies it.
-10. Futures/crowding/liquidation remains V2+.
+1. Retire the rejected Trend V1 EMA 20/50 cycle; do not freeze or open 2025.
+2. Define a materially new strategy hypothesis and predeclare its parameters/gates before testing.
+3. Use only 2021–2024 development data for the new cycle.
+4. Keep Mean Reversion / Breakout / Momentum sequencing explicit and independently screened.
+5. Paid server only after forward evidence justifies it.
+6. Futures/crowding/liquidation remains V2+.
 
 ## Explicitly forbidden now
 
