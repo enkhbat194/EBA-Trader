@@ -31,7 +31,7 @@ eba-m6-archive-seed = "eba_trader.derivatives_archive_seed:main"
 eba-m6-data-audit = "eba_trader.derivatives_audit:main"
 eba-m7-seed = "eba_trader.m7_seed:main"
 eba-m7-edge-discovery = "eba_trader.m7_funding_flow:main"
-eba-m8-data-audit = "eba_trader.m8_alt_data_audit:main"
+eba-m8-data-audit = "eba_trader.m8_alt_data_runner:main"
 
 [project.optional-dependencies]
 trading = [
