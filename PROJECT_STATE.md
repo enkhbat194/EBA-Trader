@@ -66,12 +66,10 @@ exchange execution after research/paper gates pass.
 
 ## Evidence-window policy
 
-Development discovery/research:
-- `2021-01-01` → `2024-01-01` exclusive
-
-Fixed reused development challenge:
-- `2024-01-01` → `2025-01-01` exclusive
-- This is **not pristine OOS** after V1/V2/V3 development.
+Development/research only:
+- `2021-01-01` → `2025-01-01` exclusive
+- 2021–2024 has now been reused across multiple development cycles and must not be described as pristine OOS.
+- New research must use temporal/rolling stability inside this development window rather than pretending 2024 is untouched validation.
 
 Frozen holdout:
 - `2025-01-01` → `2026-01-01` exclusive
@@ -128,74 +126,78 @@ Final pushed implementation branch head before M5:
 
 V1, V2, and V3 are retired for promotion. Do not rescue them with post-result parameter retuning.
 
-## M5 — Edge Discovery Engine
+## M5 — Price/Volume Edge Discovery V1 — CLOSED / NO STABLE EDGE
 
 Feature branch: `edge-discovery-engine`
 
-Status: **PRICE/VOLUME V1 SEARCH SPACE FROZEN + IMPLEMENTATION IN PROGRESS**
+Final implementation/result commit:
+`64cbcf27bca4534c1ecf4d173f20ac75f69203fd`
 
-M5 changes the research method:
+Decision: **`NO_STABLE_EDGE_FOUND`**
+
+M5 changed the research method from strategy-first to edge-first:
 
 `predeclare market events -> measure forward returns -> control costs/multiple testing -> require
-cross-year stability -> fixed 2024 challenge -> only then consider a new strategy hypothesis`
+cross-year stability -> development challenge -> only then consider a strategy hypothesis`
 
-M5 Price/Volume V1 frozen design:
+Frozen M5 search:
 
-- discovery uses 2021–2023 only;
-- 2024 is a fixed reused development challenge;
-- 2025 remains locked;
-- 24 predeclared event candidates;
-- 3 causal forward horizons: 4 / 16 / 48 15m bars;
-- 72 total discovery hypothesis tests;
-- signal at completed 15m close, hypothetical measurement starts at next 15m open;
-- source-gap-reset ATR/VWAP/volume features;
-- event cooldown: 4 bars;
-- Base research friction: 30 bps round trip;
-- Severe research friction: 70 bps round trip;
-- yearly stability required in 2021, 2022, 2023;
-- daily aggregation used before significance screening;
-- Benjamini-Hochberg FDR correction across all 72 discovery tests, q <= 0.10;
-- positive-direction survivors classify as `LONG_EDGE_CANDIDATE`;
-- negative-direction survivors classify as `NO_TRADE_VETO_CANDIDATE` only, never short authority;
-- no candidate can auto-generate or deploy V4.
+- 24 predeclared price/volume event candidates
+- 3 causal forward horizons: 4 / 16 / 48 15m bars
+- 72 total discovery hypothesis tests
+- Base research friction: 30 bps round trip
+- Severe research friction: 70 bps round trip
+- yearly stability required in 2021, 2022, 2023
+- daily aggregation before significance screening
+- Benjamini-Hochberg FDR correction across all 72 tests, q <= 0.10
+- no candidate could auto-generate or deploy a strategy
 
-Completed on the M5 branch:
+Final M5 result:
 
-- [x] `docs/M5_EDGE_DISCOVERY_PROTOCOL.md`
-- [x] `docs/M5_EDGE_DISCOVERY_FREEZE.json`
-- [x] `src/eba_trader/edge_discovery_policy.py`
-- [x] `src/eba_trader/edge_discovery.py`
-- [x] policy and causal/statistical unit tests
-- [x] `eba-edge-discovery` CLI entry
-- [x] Windows and Bash one-command runners
-- [x] GitHub Actions Python 3.12 pytest/Ruff workflow
-- [x] M5 worklog
+- Full pytest: **167 passed**
+- Ruff: **PASS**
+- `LONG_EDGE_CANDIDATE`: **0**
+- `NO_TRADE_VETO_CANDIDATE`: **0**
+- `OBSERVATION_ONLY`: **24**
+- Discovery-passing horizons: **0/72**
+- 2024 challenge-passing horizons: **0/72**
+- 2025 OOS: **`LOCKED_NOT_ACCESSED`**
+- Evidence SHA-256: `a535d7c79576d92e0979a18f52b718d62885097953f0883bc1ac9f5b74595279`
+- Record: `docs/M5_EDGE_DISCOVERY_RESULT_2026-08-21.md`
 
-## M5 next tasks — strict order
+M5 is retired as a frozen search cycle. Do not rescue it by changing thresholds, adding post-result filters, reversing failed signs, or rerunning it under altered rules.
 
-1. Run full repository pytest on Python 3.12.
-2. Run Ruff on the same commit.
-3. Fix implementation defects only; do not change the frozen 24 candidates, thresholds or gates.
-4. Commit a green implementation.
-5. On a clean tracked tree run `scripts/run_edge_discovery.ps1` on Windows.
-6. The runner may read only the frozen 2021–2024 development datasets.
-7. Preserve the first complete JSON result; the runner refuses to overwrite it.
-8. If nothing survives, record `NO_STABLE_EDGE_FOUND`; do not invent a rescue filter.
-9. If candidates survive, audit them before writing any V4 strategy contract.
-10. Do not open 2025.
+## M6 — Derivatives Information Edge Discovery — NEXT
 
-## Later research, not in Price/Volume V1
+M6 must add materially new information rather than more price/volume threshold tuning.
 
-Funding/basis can be added only as a separately versioned edge-discovery family with explicit
-historical-data provenance. Open-interest, liquidation, order-book, news/macro and AI inputs remain
-later scope and must not contaminate the frozen M5 Price/Volume V1 run.
+Primary candidate inputs for provenance audit:
+
+- Binance BTCUSDT USDⓈ-M perpetual funding-rate history
+- Binance BTCUSDT USDⓈ-M premium-index klines
+- BTCUSDT perpetual-versus-spot basis derived only if both source series have complete, auditable timestamps
+- futures activity/volume features only if historical coverage and fields are reproducible
+
+Open interest is excluded from M6 until long-horizon historical provenance is independently demonstrated. News, macro, liquidation feeds, order-book history, and AI remain later research families.
+
+### M6 strict order
+
+1. Create a separately versioned derivatives-data audit branch from the closed M5 state.
+2. Implement public-data download/cache code with the existing 2025 holdout guard applied before any network request.
+3. Audit exact 2021–2024 coverage, timestamps, duplicates, gaps, source semantics, and reproducibility for each proposed derivatives series.
+4. Record dataset hashes and reject any source that cannot provide reproducible historical coverage.
+5. Do **not** freeze an edge search space until the data audit is complete.
+6. After the audit, predeclare a small derivatives-informed search space and temporal validation protocol before examining candidate forward-return results.
+7. Use 2021–2024 only as development data with rolling/walk-forward stability; do not relabel 2024 pristine OOS.
+8. Keep 2025 `LOCKED_NOT_ACCESSED` throughout M6 development.
+9. If M6 finds no stable edge, stop that family without rescue tuning.
+10. AI strategy routing remains future architecture only after multiple deterministic strategies/edges earn evidence.
 
 ## Explicitly forbidden now
 
 - opening or downloading the 2025 BTC holdout
-- changing the M5 frozen search after seeing its first complete result
+- changing or rerunning M5 to rescue failed candidates
 - using 2024 as if it were pristine OOS
-- automatically turning an observed sign reversal into a new candidate
 - paid permanent VPS
 - real-money orders
 - futures / leverage / short execution
