@@ -29,6 +29,8 @@ eba-v3-development = "eba_trader.v3_pullback_evidence:main"
 eba-edge-discovery = "eba_trader.edge_discovery:main"
 eba-m6-archive-seed = "eba_trader.derivatives_archive_seed:main"
 eba-m6-data-audit = "eba_trader.derivatives_audit:main"
+eba-m7-seed = "eba_trader.m7_seed:main"
+eba-m7-edge-discovery = "eba_trader.m7_funding_flow:main"
 
 [project.optional-dependencies]
 trading = [
