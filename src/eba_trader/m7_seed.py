@@ -65,7 +65,11 @@ def _seed_derivatives(cache: Path, *, workers: int) -> dict[str, object]:
                 futures_map[future] = (year, month)
             downloaded = [future.result() for future in as_completed(futures_map)]
 
-        missing = [f"{year:04d}-{month:02d}" for year, month, _, checksum, _, _ in downloaded if checksum is None]
+        missing = [
+            f"{year:04d}-{month:02d}"
+            for year, month, _, checksum, _, _ in downloaded
+            if checksum is None
+        ]
         if missing:
             raise RuntimeError(
                 f"M7 frozen {dataset.name} archive has missing months: {', '.join(sorted(missing))}"
@@ -84,7 +88,8 @@ def _seed_derivatives(cache: Path, *, workers: int) -> dict[str, object]:
         expected = expected_hashes[dataset.name]
         if actual != expected:
             raise RuntimeError(
-                f"M7 frozen {dataset.name} hash mismatch after checksum-verified archive seed: {actual}"
+                f"M7 frozen {dataset.name} hash mismatch after checksum-verified "
+                f"archive seed: {actual}"
             )
         report[dataset.name] = {
             "status": "SEEDED_AND_FROZEN_HASH_VERIFIED",
@@ -140,7 +145,9 @@ def _seed_spot(spot_cache: Path) -> dict[str, object]:
         save_csv(validated, path)
         actual = sha256_file(path)
         if actual != expected_hash:
-            raise RuntimeError(f"M7 frozen Spot {name} hash mismatch after source download: {actual}")
+            raise RuntimeError(
+                f"M7 frozen Spot {name} hash mismatch after source download: {actual}"
+            )
         report[name] = {
             "status": "SEEDED_AND_FROZEN_HASH_VERIFIED",
             "path": str(path),

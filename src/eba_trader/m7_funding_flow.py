@@ -20,13 +20,12 @@ from .derivatives_audit import (
     audit_funding,
     audit_klines,
 )
-from .derivatives_audit_policy import EXPECTED_15M_SLOTS
 from .history import Candle, load_csv, parse_utc, validate_interval_window
 from .holdout_guard import assert_not_first_cycle_oos_overlap
 from .m7_funding_flow_policy import (
     ACTIVITY_BASELINE_WINDOWS,
-    BASELINE_UPLIFT,
     BASE_ROUND_TRIP_COST_BPS,
+    BASELINE_UPLIFT,
     CHALLENGE_END_EXCLUSIVE,
     CHALLENGE_START,
     DISCOVERY_END_EXCLUSIVE,
@@ -274,11 +273,15 @@ def build_funding_events(
 
 
 def _share_matches(candidate: M7CandidateSpec, feature: FlowFeature) -> bool:
-    if candidate.taker_share_min is not None and feature.taker_buy_share < candidate.taker_share_min:
+    if (
+        candidate.taker_share_min is not None
+        and feature.taker_buy_share < candidate.taker_share_min
+    ):
         return False
-    if candidate.taker_share_max is not None and feature.taker_buy_share > candidate.taker_share_max:
-        return False
-    return True
+    return not (
+        candidate.taker_share_max is not None
+        and feature.taker_buy_share > candidate.taker_share_max
+    )
 
 
 def flow_candidate_matches(
@@ -301,9 +304,10 @@ def flow_candidate_matches(
         and feature.trade_count_intensity < candidate.trade_intensity_min
     ):
         return False
-    if candidate.abs_return_max is not None and abs(feature.price_return) > candidate.abs_return_max:
-        return False
-    return True
+    return not (
+        candidate.abs_return_max is not None
+        and abs(feature.price_return) > candidate.abs_return_max
+    )
 
 
 def _funding_side_matches(candidate: M7CandidateSpec, event: FundingEvent) -> bool:
@@ -729,9 +733,7 @@ def evaluate_candidates(
 
         if passing:
             classification = (
-                "LONG_EDGE_CANDIDATE"
-                if candidate.direction > 0
-                else "NO_TRADE_VETO_CANDIDATE"
+                "LONG_EDGE_CANDIDATE" if candidate.direction > 0 else "NO_TRADE_VETO_CANDIDATE"
             )
         else:
             classification = "OBSERVATION_ONLY"
@@ -839,12 +841,8 @@ def _candidate_payload(result: CandidateResult) -> dict[str, Any]:
         "candidate": asdict(result.candidate),
         "classification": result.classification,
         "passing_horizons": list(result.passing_horizons),
-        "discovery": {
-            str(horizon): asdict(stats) for horizon, stats in result.discovery.items()
-        },
-        "challenge": {
-            str(horizon): asdict(stats) for horizon, stats in result.challenge.items()
-        },
+        "discovery": {str(horizon): asdict(stats) for horizon, stats in result.discovery.items()},
+        "challenge": {str(horizon): asdict(stats) for horizon, stats in result.challenge.items()},
     }
 
 
@@ -854,7 +852,9 @@ def _write_report_once(output: Path, payload: dict[str, Any]) -> None:
         with output.open("x", encoding="utf-8") as handle:
             handle.write(json.dumps(payload, indent=2, sort_keys=True, allow_nan=False))
     except FileExistsError as error:
-        raise RuntimeError("M7 report already exists; preserve the first frozen-search result") from error
+        raise RuntimeError(
+            "M7 report already exists; preserve the first frozen-search result"
+        ) from error
 
 
 def run_m7_edge_discovery(
@@ -878,14 +878,10 @@ def run_m7_edge_discovery(
     results = evaluate_candidates(futures, funding_events, spot)
 
     long_edges = [
-        item.candidate.name
-        for item in results
-        if item.classification == "LONG_EDGE_CANDIDATE"
+        item.candidate.name for item in results if item.classification == "LONG_EDGE_CANDIDATE"
     ]
     veto_edges = [
-        item.candidate.name
-        for item in results
-        if item.classification == "NO_TRADE_VETO_CANDIDATE"
+        item.candidate.name for item in results if item.classification == "NO_TRADE_VETO_CANDIDATE"
     ]
     decision = (
         "DERIVATIVES_EDGE_CANDIDATES_FOUND"
