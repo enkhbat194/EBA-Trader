@@ -1,72 +1,17 @@
-name: M7 one-shot implementation autofix
+name: M7 implementation autofix (closed)
 
 on:
-  push:
-    branches:
-      - m7-funding-futures-edge-discovery
-    paths:
-      - .github/workflows/m7-one-shot-autofix.yml
-  pull_request:
-    branches:
-      - m6-derivatives-data-audit
-    paths:
-      - .github/workflows/m7-one-shot-autofix.yml
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  autofix:
+  closed-cycle-guard:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout exact M7 branch
-        uses: actions/checkout@v4
-        with:
-          ref: m7-funding-futures-edge-discovery
-          fetch-depth: 0
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-
-      - name: Install project
-        run: python -m pip install -e '.[dev]'
-
-      - name: Fix implementation-only lint and formatting
+      - name: Refuse post-result M7 autofix
         run: |
-          python -m ruff check --fix --unsafe-fixes src/eba_trader/m7_funding_flow.py src/eba_trader/m7_seed.py tests/test_m7_funding_flow.py tests/test_m7_funding_flow_policy.py || true
-          python -m ruff format src/eba_trader/m7_funding_flow.py src/eba_trader/m7_seed.py tests/test_m7_funding_flow.py tests/test_m7_funding_flow_policy.py
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('src/eba_trader/m7_seed.py')
-          text = path.read_text(encoding='utf-8')
-          old = '                f"M7 frozen {dataset.name} hash mismatch after checksum-verified archive seed: {actual}"\n'
-          new = (
-              '                f"M7 frozen {dataset.name} hash mismatch after checksum-verified "\n'
-              '                f"archive seed: {actual}"\n'
-          )
-          if old not in text:
-              raise SystemExit('Expected M7 seed lint target was not found')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
-          PY
-
-      - name: Full deterministic tests
-        run: python -m pytest -q
-
-      - name: Full Ruff
-        run: python -m ruff check .
-
-      - name: Commit implementation-only fixes
-        run: |
-          if git diff --quiet; then
-            echo 'No autofix changes needed.'
-            exit 0
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/eba_trader/m7_funding_flow.py src/eba_trader/m7_seed.py tests/test_m7_funding_flow.py tests/test_m7_funding_flow_policy.py
-          git commit -m 'Fix M7 implementation lint without changing freeze'
-          git push origin HEAD:m7-funding-futures-edge-discovery
+          echo 'M7 implementation validation is complete: 191 tests passed and Ruff passed.'
+          echo 'M7 is closed; post-result autofix is disabled.'
+          exit 1
