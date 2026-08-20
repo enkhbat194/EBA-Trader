@@ -1,0 +1,26 @@
+{
+  "cycle": "v3_bull_pullback_recovery",
+  "status": "FROZEN_PREDECLARED_NOT_BACKTESTED",
+  "frozen_at": "2026-08-20",
+  "policy_document": "docs/M4_V3_BULL_PULLBACK_RECOVERY_HYPOTHESIS.md",
+  "policy_sha256": "e10448c974bc6ff74cabe9f2ca0616f67c78c212457bd2fa198af7776b805feb",
+  "base_git_commit": "0c108182eb778688570950ee92e0c13d1a16d4e7",
+  "development_data": {
+    "research": {
+      "path": "data/cache/m2/btcusdt_15m_research.csv",
+      "start": "2021-01-01",
+      "end_exclusive": "2024-01-01",
+      "sha256": "253c6ae35856e58e35df17eaa71caeea5caaa3681c38dd7214a2872afccd8d63"
+    },
+    "validation": {
+      "path": "data/cache/m2/btcusdt_15m_validation.csv",
+      "start": "2024-01-01",
+      "end_exclusive": "2025-01-01",
+      "sha256": "3a96b6b668cfacb0fefabb8665675d4ca589cc712b0681fb57e7a13356eda0f2"
+    }
+  },
+  "gate_count": 34,
+  "parameter_changes_after_first_run": "forbidden",
+  "ai_module": "excluded",
+  "oos_2025": "LOCKED_NOT_ACCESSED"
+}
