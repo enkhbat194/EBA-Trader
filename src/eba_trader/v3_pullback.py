@@ -362,9 +362,7 @@ def _recovery_eligible(
         return False
     if bar.close <= prior_vwap - cfg.recovery_vwap_buffer_atr * atr_value:
         return False
-    if filters_enabled and bar.volume < cfg.min_volume_ratio * prior_median_volume:
-        return False
-    return True
+    return not filters_enabled or bar.volume >= cfg.min_volume_ratio * prior_median_volume
 
 
 def _profit_factor(values: list[float]) -> float:
@@ -688,10 +686,11 @@ def run_v3_pullback_backtest(
         arm_terminated_this_bar = False
         if arm is not None:
             arm.pullback_low = min(arm.pullback_low, bar.low)
-            if not _source_ready(features, index, cfg):
-                arm = None
-                arm_terminated_this_bar = True
-            elif not _bull_regime(features, index, cfg):
+            if not _source_ready(features, index, cfg) or not _bull_regime(
+                features,
+                index,
+                cfg,
+            ):
                 arm = None
                 arm_terminated_this_bar = True
             elif _recovery_eligible(
