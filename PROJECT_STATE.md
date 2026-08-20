@@ -159,12 +159,12 @@ The real-data workflow ran on 2026-08-20 from clean commit `4f8f908`.
 
 ## Next tasks — strict order
 
-1. Retire the rejected Trend V1 EMA 20/50 cycle; do not freeze or open 2025.
-2. Define a materially new strategy hypothesis and predeclare its parameters/gates before testing.
-3. Use only 2021–2024 development data for the new cycle.
+1. Trend V2 policy is frozen by `docs/M3_TREND_V2_POLICY_FREEZE.json`; do not change parameters.
+2. Implement causal indicator/resampling/entry/exit/risk tests before evidence.
+3. Use only 2021–2024 development data for the new cycle; keep 2025 locked.
 4. Keep Mean Reversion / Breakout / Momentum sequencing explicit and independently screened.
 5. Paid server only after forward evidence justifies it.
-6. Futures/crowding/liquidation remains V2+.
+6. Futures/crowding/liquidation remains a later scope.
 
 ## Explicitly forbidden now
 

@@ -1,0 +1,26 @@
+{
+  "cycle": "trend_v2_regime_filtered_volatility_aware_breakout",
+  "status": "FROZEN_PREDECLARED_NOT_BACKTESTED",
+  "frozen_at": "2026-08-20",
+  "policy_document": "docs/M3_TREND_V2_HYPOTHESIS.md",
+  "policy_sha256": "af1b0667e0d0b514379286943c3ff7909140592dd562153e0213eff728a435f9",
+  "base_git_commit": "db36d6879191f37e278cfb60ec5e1095c6cf9a81",
+  "development_data": {
+    "research": {
+      "path": "data/cache/m2/btcusdt_15m_research.csv",
+      "start": "2021-01-01",
+      "end_exclusive": "2024-01-01",
+      "sha256": "253c6ae35856e58e35df17eaa71caeea5caaa3681c38dd7214a2872afccd8d63"
+    },
+    "validation": {
+      "path": "data/cache/m2/btcusdt_15m_validation.csv",
+      "start": "2024-01-01",
+      "end_exclusive": "2025-01-01",
+      "sha256": "3a96b6b668cfacb0fefabb8665675d4ca589cc712b0681fb57e7a13356eda0f2"
+    }
+  },
+  "gate_count": 36,
+  "parameter_changes_after_first_run": "forbidden",
+  "ai_module": "excluded",
+  "oos_2025": "LOCKED_NOT_ACCESSED"
+}
