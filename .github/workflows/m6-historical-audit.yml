@@ -1,0 +1,77 @@
+name: M6 historical derivatives audit
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  historical-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v4
+        with:
+          ref: m6-derivatives-data-audit
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project
+        run: python -m pip install -e '.[dev]'
+
+      - name: Verify clean provenance
+        run: |
+          git status --short
+          test -z "$(git status --porcelain --untracked-files=no)"
+          git log -1 --oneline
+
+      - name: Seed checksum-verified Binance Vision archives
+        run: python -m eba_trader.derivatives_archive_seed
+
+      - name: Run M6 historical derivatives audit from verified cache
+        run: python -m eba_trader.derivatives_audit --no-download
+
+      - name: Print archive and audit summary
+        if: always()
+        run: |
+          if [ -f data/cache/m6/binance_vision_manifest.json ]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path('data/cache/m6/binance_vision_manifest.json').read_text())
+          for name, section in manifest['datasets'].items():
+              print('archive', name, 'rows=', section['total_rows'], 'verified=', section['verified_files'], 'missing=', section['missing_files'])
+          print('archive_oos_2025:', manifest['oos_2025'])
+          PY
+          fi
+          if [ -f artifacts/m6_derivatives_data_audit.json ]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('artifacts/m6_derivatives_data_audit.json').read_text())
+          print('decision:', report['decision'])
+          for name, section in report['audits'].items():
+              print(name, section['status'])
+          print('oos_2025:', report['oos_2025'])
+          PY
+          else
+            echo 'No M6 audit report was produced.'
+          fi
+
+      - name: Upload M6 audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m6-derivatives-data-audit
+          path: |
+            artifacts/m6_derivatives_data_audit.json
+            data/cache/m6/binance_vision_manifest.json
+          if-no-files-found: ignore
+          retention-days: 30
