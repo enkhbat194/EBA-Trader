@@ -7,10 +7,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .backtest import BacktestResult, TrendBacktestConfig, run_trend_backtest
+from .data_policy import allowed_source_gap_ranges
 from .freeze import load_frozen_candidate
 from .history import (
+    INTERVAL_MS,
     Candle,
     fetch_binance_klines,
+    find_interval_gaps,
     load_csv,
     parse_utc,
     save_csv,
@@ -114,12 +117,24 @@ def _load_or_fetch_window(
 
     if refresh or not csv_path.exists():
         candles = fetch_binance_klines(symbol, interval, start_ms, end_ms)
-        candles = validate_interval_window(candles, interval, start_ms, end_ms)
+        candles = validate_interval_window(
+            candles,
+            interval,
+            start_ms,
+            end_ms,
+            allowed_missing_ranges=allowed_source_gap_ranges(symbol, interval),
+        )
         save_csv(candles, csv_path)
         return candles
 
     candles = load_csv(csv_path)
-    return validate_interval_window(candles, interval, start_ms, end_ms)
+    return validate_interval_window(
+        candles,
+        interval,
+        start_ms,
+        end_ms,
+        allowed_missing_ranges=allowed_source_gap_ranges(symbol, interval),
+    )
 
 
 def _evaluate_window(
@@ -204,11 +219,22 @@ def run_baseline_study(
             slow_ema=slow_ema,
             initial_cash=initial_cash,
         )
+        gaps = find_interval_gaps(candles, interval)
         window_report[window.name] = {
             "start": window.start,
             "end_exclusive": window.end,
             "candle_count": len(candles),
-            "coverage": "exact",
+            "coverage": "exact_with_predeclared_source_gaps" if gaps else "exact",
+            "source_gaps": [
+                {
+                    "missing_start_ms": previous + INTERVAL_MS[interval],
+                    "missing_end_exclusive_ms": current,
+                    "missing_candle_count": (
+                        (current - previous) // INTERVAL_MS[interval] - 1
+                    ),
+                }
+                for previous, current in gaps
+            ],
             "scenarios": scenarios,
         }
 

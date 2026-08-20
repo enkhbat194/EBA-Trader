@@ -69,6 +69,8 @@ Build a professional-grade autonomous trading system that validates strategies w
 - [x] total/annualized return, drawdown, expectancy, profit factor, avg win/loss, Sharpe, Sortino, exposure, costs
 - [x] base/adverse/severe cost scenarios
 - [x] complete Python 3.12 deterministic suite passed on 2026-08-20
+- [x] seven reproducible 2021/2023 Binance source gaps (70 candles) explicitly allowlisted and
+  reported; every other gap remains a hard failure
 
 ### M2B — Robustness/evidence tooling
 

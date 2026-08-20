@@ -121,6 +121,8 @@ def validate_interval_window(
     interval: str,
     start_ms: int,
     end_ms: int,
+    *,
+    allowed_missing_ranges: Iterable[tuple[int, int]] = (),
 ) -> list[Candle]:
     """Validate exact [start_ms, end_ms) coverage for a fixed-interval dataset."""
     if interval not in INTERVAL_MS:
@@ -136,7 +138,6 @@ def validate_interval_window(
         raise ValueError("Research window length must be an exact interval multiple")
 
     rows = validate_candles(candles)
-    expected_count = duration // step
     expected_last_open = end_ms - step
     if rows[0].open_time_ms != start_ms:
         raise RuntimeError(
@@ -146,14 +147,20 @@ def validate_interval_window(
         raise RuntimeError(
             f"Historical window ends at {rows[-1].open_time_ms}, expected {expected_last_open}"
         )
+    gaps = find_interval_gaps(rows, interval)
+    allowed = set(allowed_missing_ranges)
+    actual_missing_ranges = [(previous + step, current) for previous, current in gaps]
+    unexpected = [gap for gap in actual_missing_ranges if gap not in allowed]
+    if unexpected:
+        raise RuntimeError(f"Historical window contains {len(unexpected)} unexpected interval gaps")
+
+    missing_count = sum((end - start) // step for start, end in actual_missing_ranges)
+    expected_count = duration // step - missing_count
     if len(rows) != expected_count:
         raise RuntimeError(
-            f"Historical window has {len(rows)} candles, expected {expected_count}"
+            f"Historical window has {len(rows)} candles, expected {expected_count} "
+            "after allowed source gaps"
         )
-
-    gaps = find_interval_gaps(rows, interval)
-    if gaps:
-        raise RuntimeError(f"Historical window contains {len(gaps)} interval gaps")
 
     for candle in rows:
         expected_close = candle.open_time_ms + step - 1

@@ -12,7 +12,7 @@ Before evaluating a strategy:
 - verify timestamp ordering,
 - verify no duplicate/corrupt bars,
 - normalize timezone,
-- document missing data,
+- reject unapproved missing data and document any predeclared source-outage gaps,
 - ensure indicators use only information available at decision time.
 
 ### Stage 2 — In-sample research

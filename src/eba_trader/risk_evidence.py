@@ -6,6 +6,7 @@ import math
 from collections.abc import Mapping
 from pathlib import Path
 
+from .data_policy import allowed_source_gap_ranges
 from .execution_policy import (
     EXECUTION_POLICY_NAME,
     EXECUTION_POLICY_VERSION,
@@ -15,7 +16,7 @@ from .execution_policy import (
     FIRST_CYCLE_MAX_DRAWDOWN_HALT,
     FIRST_CYCLE_RISK_FRACTION,
 )
-from .history import load_csv, parse_utc, validate_interval_window
+from .history import find_interval_gaps, load_csv, parse_utc, validate_interval_window
 from .provenance import collect_source_provenance
 from .research import COST_SCENARIOS
 from .risk_trend import RiskTrendConfig, RiskTrendResult, run_risk_sized_trend_backtest
@@ -83,6 +84,10 @@ def _load_exact_window(path: Path, *, start: str, end: str):
         FIRST_CYCLE_INTERVAL,
         parse_utc(start),
         parse_utc(end),
+        allowed_missing_ranges=allowed_source_gap_ranges(
+            FIRST_CYCLE_SYMBOL,
+            FIRST_CYCLE_INTERVAL,
+        ),
     )
 
 
@@ -165,6 +170,17 @@ def run_risk_execution_evidence(
         start=VALIDATION_START,
         end=VALIDATION_END_EXCLUSIVE,
     )
+    interval_ms = 15 * 60 * 1000
+
+    def dataset_gaps(candles):
+        return [
+            {
+                "missing_start_ms": previous + interval_ms,
+                "missing_end_exclusive_ms": current,
+                "missing_candle_count": (current - previous) // interval_ms - 1,
+            }
+            for previous, current in find_interval_gaps(candles, FIRST_CYCLE_INTERVAL)
+        ]
 
     costs = signal["baseline"].get("cost_scenarios", COST_SCENARIOS)
     report: dict[str, object] = {
@@ -204,6 +220,7 @@ def run_risk_execution_evidence(
                 "start": RESEARCH_START,
                 "end_exclusive": RESEARCH_END_EXCLUSIVE,
                 "candle_count": len(research_candles),
+                "source_gaps": dataset_gaps(research_candles),
             },
             "validation": {
                 "path": str(validation_path),
@@ -211,6 +228,7 @@ def run_risk_execution_evidence(
                 "start": VALIDATION_START,
                 "end_exclusive": VALIDATION_END_EXCLUSIVE,
                 "candle_count": len(validation_candles),
+                "source_gaps": dataset_gaps(validation_candles),
             },
         },
         "windows": {

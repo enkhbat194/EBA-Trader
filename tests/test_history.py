@@ -131,6 +131,24 @@ def test_exact_window_accepts_complete_coverage() -> None:
     assert len(validated) == 4
 
 
+def test_exact_window_accepts_only_explicitly_allowed_source_gap() -> None:
+    rows = [candle(0, 100), candle(STEP, 101), candle(3 * STEP, 103)]
+    validated = validate_interval_window(
+        rows,
+        "15m",
+        0,
+        4 * STEP,
+        allowed_missing_ranges=((2 * STEP, 3 * STEP),),
+    )
+    assert len(validated) == 3
+
+
+def test_exact_window_rejects_unapproved_source_gap() -> None:
+    rows = [candle(0, 100), candle(STEP, 101), candle(3 * STEP, 103)]
+    with pytest.raises(RuntimeError, match="unexpected interval gaps"):
+        validate_interval_window(rows, "15m", 0, 4 * STEP)
+
+
 def test_exact_window_rejects_missing_leading_bar_without_internal_gap() -> None:
     rows = [candle(index * STEP, 100 + index) for index in range(1, 4)]
     with pytest.raises(RuntimeError, match="starts at"):
