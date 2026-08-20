@@ -32,6 +32,10 @@ MIN_DISCOVERY_EVENTS = 60
 MIN_DISCOVERY_DAYS = 20
 MIN_DISCOVERY_EVENTS_PER_YEAR = 10
 MIN_CHALLENGE_EVENTS = 15
+DISCOVERY_START = "2021-01-01"
+DISCOVERY_END_EXCLUSIVE = "2024-01-01"
+CHALLENGE_START = "2024-01-01"
+CHALLENGE_END_EXCLUSIVE = "2025-01-01"
 
 
 @dataclass(frozen=True, slots=True)
@@ -203,6 +207,8 @@ def verify_edge_discovery_freeze(root: str | Path = ".") -> dict[str, object]:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("cycle") != EDGE_DISCOVERY_POLICY_NAME:
         raise RuntimeError("M5 freeze manifest cycle mismatch")
+    if manifest.get("status") != "FROZEN_PREDECLARED_SEARCH_SPACE":
+        raise RuntimeError("M5 freeze manifest status mismatch")
     if manifest.get("protocol_sha256") != actual_protocol_hash:
         raise RuntimeError("M5 freeze manifest protocol hash mismatch")
     if manifest.get("candidate_count") != len(EDGE_CANDIDATES):
@@ -211,6 +217,28 @@ def verify_edge_discovery_freeze(root: str | Path = ".") -> dict[str, object]:
         raise RuntimeError("M5 hypothesis-test count mismatch")
     if manifest.get("horizons_bars") != list(HORIZONS_BARS):
         raise RuntimeError("M5 horizon set mismatch")
+    if manifest.get("event_cooldown_bars") != EVENT_COOLDOWN_BARS:
+        raise RuntimeError("M5 event cooldown mismatch")
+    if manifest.get("fdr_q_threshold") != FDR_Q_THRESHOLD:
+        raise RuntimeError("M5 FDR threshold mismatch")
+    expected_discovery = {
+        "path": "data/cache/m2/btcusdt_15m_research.csv",
+        "start": DISCOVERY_START,
+        "end_exclusive": DISCOVERY_END_EXCLUSIVE,
+        "sha256": EDGE_DISCOVERY_RESEARCH_SHA256,
+    }
+    if manifest.get("discovery_data") != expected_discovery:
+        raise RuntimeError("M5 discovery data boundary mismatch")
+    expected_challenge = {
+        "path": "data/cache/m2/btcusdt_15m_validation.csv",
+        "start": CHALLENGE_START,
+        "end_exclusive": CHALLENGE_END_EXCLUSIVE,
+        "sha256": EDGE_DISCOVERY_CHALLENGE_SHA256,
+    }
+    if manifest.get("challenge_data") != expected_challenge:
+        raise RuntimeError("M5 challenge data boundary mismatch")
+    if manifest.get("parameter_changes_after_first_run") != "forbidden":
+        raise RuntimeError("M5 freeze unexpectedly permits parameter changes")
     if manifest.get("oos_2025") != "LOCKED_NOT_ACCESSED":
         raise RuntimeError("M5 does not preserve the 2025 OOS lock")
     if manifest.get("strategy_generation") != "forbidden":

@@ -16,6 +16,10 @@ from .edge_discovery_policy import (
     ATR_PERIOD,
     BASE_ROUND_TRIP_COST_BPS,
     BREAKOUT_LOOKBACK_BARS,
+    CHALLENGE_END_EXCLUSIVE,
+    CHALLENGE_START,
+    DISCOVERY_END_EXCLUSIVE,
+    DISCOVERY_START,
     EDGE_CANDIDATES,
     EDGE_DISCOVERY_CHALLENGE_SHA256,
     EDGE_DISCOVERY_RESEARCH_SHA256,
@@ -38,10 +42,6 @@ from .provenance import collect_source_provenance
 from .study_policy import (
     FIRST_CYCLE_INTERVAL,
     FIRST_CYCLE_SYMBOL,
-    RESEARCH_END_EXCLUSIVE,
-    RESEARCH_START,
-    VALIDATION_END_EXCLUSIVE,
-    VALIDATION_START,
 )
 
 FIFTEEN_MINUTES_MS = 15 * 60 * 1000
@@ -469,7 +469,10 @@ def benjamini_hochberg(p_values: dict[tuple[str, int], float]) -> dict[tuple[str
     return adjusted
 
 
-def _year_stats(outcomes: tuple[EventOutcome, ...], years: tuple[int, ...]) -> tuple[YearStats, ...]:
+def _year_stats(
+    outcomes: tuple[EventOutcome, ...],
+    years: tuple[int, ...],
+) -> tuple[YearStats, ...]:
     result: list[YearStats] = []
     for year in years:
         selected = [
@@ -682,6 +685,17 @@ def _candidate_payload(result: CandidateResult) -> dict[str, Any]:
     }
 
 
+def _write_report_once(output: Path, payload: dict[str, Any]) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with output.open("x", encoding="utf-8") as handle:
+            handle.write(json.dumps(payload, indent=2, sort_keys=True, allow_nan=False))
+    except FileExistsError as exc:
+        raise RuntimeError(
+            "M5 report already exists. Preserve the first complete frozen-search result."
+        ) from exc
+
+
 def _load_frozen_data(data_dir: Path) -> tuple[list[Candle], list[Candle]]:
     research_path = data_dir / "btcusdt_15m_research.csv"
     challenge_path = data_dir / "btcusdt_15m_validation.csv"
@@ -690,10 +704,10 @@ def _load_frozen_data(data_dir: Path) -> tuple[list[Candle], list[Candle]]:
     if sha256_file(challenge_path) != EDGE_DISCOVERY_CHALLENGE_SHA256:
         raise RuntimeError("M5 challenge data hash mismatch")
 
-    research_start = parse_utc(RESEARCH_START)
-    research_end = parse_utc(RESEARCH_END_EXCLUSIVE)
-    challenge_start = parse_utc(VALIDATION_START)
-    challenge_end = parse_utc(VALIDATION_END_EXCLUSIVE)
+    research_start = parse_utc(DISCOVERY_START)
+    research_end = parse_utc(DISCOVERY_END_EXCLUSIVE)
+    challenge_start = parse_utc(CHALLENGE_START)
+    challenge_end = parse_utc(CHALLENGE_END_EXCLUSIVE)
     assert_not_first_cycle_oos_overlap(
         symbol=FIRST_CYCLE_SYMBOL,
         interval=FIRST_CYCLE_INTERVAL,
@@ -748,10 +762,10 @@ def run_edge_discovery(
     discovery_features = prepare_edge_features(research)
     combined = [*research, *challenge]
     challenge_features = prepare_edge_features(combined)
-    discovery_start = parse_utc(RESEARCH_START)
-    discovery_end = parse_utc(RESEARCH_END_EXCLUSIVE)
-    challenge_start = parse_utc(VALIDATION_START)
-    challenge_end = parse_utc(VALIDATION_END_EXCLUSIVE)
+    discovery_start = parse_utc(DISCOVERY_START)
+    discovery_end = parse_utc(DISCOVERY_END_EXCLUSIVE)
+    challenge_start = parse_utc(CHALLENGE_START)
+    challenge_end = parse_utc(CHALLENGE_END_EXCLUSIVE)
 
     results = evaluate_edge_candidates(
         discovery_features,
@@ -761,7 +775,11 @@ def run_edge_discovery(
         challenge_start_ms=challenge_start,
         challenge_end_ms=challenge_end,
     )
-    long_edges = [item.candidate.name for item in results if item.classification == "LONG_EDGE_CANDIDATE"]
+    long_edges = [
+        item.candidate.name
+        for item in results
+        if item.classification == "LONG_EDGE_CANDIDATE"
+    ]
     veto_edges = [
         item.candidate.name
         for item in results
@@ -776,8 +794,8 @@ def run_edge_discovery(
         "policy_freeze": manifest,
         "source_provenance": provenance,
         "data_boundary": {
-            "discovery": f"{RESEARCH_START}/{RESEARCH_END_EXCLUSIVE}",
-            "challenge": f"{VALIDATION_START}/{VALIDATION_END_EXCLUSIVE}",
+            "discovery": f"{DISCOVERY_START}/{DISCOVERY_END_EXCLUSIVE}",
+            "challenge": f"{CHALLENGE_START}/{CHALLENGE_END_EXCLUSIVE}",
             "oos_2025": "LOCKED_NOT_ACCESSED",
         },
         "search_space": {
@@ -804,11 +822,7 @@ def run_edge_discovery(
         "oos_2025": "LOCKED_NOT_ACCESSED",
     }
     safe = _json_safe(report)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(
-        json.dumps(safe, indent=2, sort_keys=True, allow_nan=False),
-        encoding="utf-8",
-    )
+    _write_report_once(output, safe)
     return safe
 
 

@@ -11,6 +11,7 @@ from eba_trader.edge_discovery import (
     _outcome_for_event,
     _passes_challenge,
     _passes_discovery,
+    _write_report_once,
     accepted_event_indices,
     benjamini_hochberg,
     prepare_edge_features,
@@ -172,3 +173,14 @@ def test_discovery_and_challenge_gates_require_economic_and_temporal_stability()
         replace(challenge, median_base_net_signed_return=-0.001),
         discovery_pass=True,
     ) is False
+
+
+def test_m5_report_writer_never_overwrites_first_result(tmp_path) -> None:
+    report = tmp_path / "m5.json"
+    _write_report_once(report, {"decision": "FIRST"})
+
+    with pytest.raises(RuntimeError, match="already exists"):
+        _write_report_once(report, {"decision": "SECOND"})
+
+    assert '"FIRST"' in report.read_text(encoding="utf-8")
+    assert "SECOND" not in report.read_text(encoding="utf-8")
