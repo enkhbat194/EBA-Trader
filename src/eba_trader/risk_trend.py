@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from statistics import mean
-from typing import Iterable
 
 from .backtest import (
     ClosedTrade,

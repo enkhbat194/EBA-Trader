@@ -103,7 +103,9 @@ def run_final_oos(
     frozen = _verify_final_freeze(freeze_file)
     oos_cache = Path(str(frozen["oos_cache"]))
     if oos_cache.exists():
-        raise RuntimeError("OOS cache already exists before authorized final open; holdout contaminated")
+        raise RuntimeError(
+            "OOS cache already exists before authorized final open; holdout contaminated"
+        )
 
     marker_file.parent.mkdir(parents=True, exist_ok=True)
     marker = {

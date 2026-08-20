@@ -62,7 +62,12 @@ def signal_report(data_dir) -> dict[str, object]:
     }
 
 
-def risk_report(signal_path, signal_verdict_path, research_path, validation_path) -> dict[str, object]:
+def risk_report(
+    signal_path,
+    signal_verdict_path,
+    research_path,
+    validation_path,
+) -> dict[str, object]:
     base = {
         "trade_count": 40,
         "total_return": 0.06,

@@ -33,7 +33,7 @@ The 2025 OOS is locked during development. Development code also refuses to clai
 Repo development and test authoring happen outside Replit whenever possible. When a networked Linux runtime is finally needed, the preferred wrapper is:
 
 ```bash
-git pull && bash scripts/run_m2_development.sh
+git pull && bash scripts/run_m2_full_development.sh
 ```
 
 That script:
@@ -43,8 +43,9 @@ That script:
 3. installs the latest project/development dependencies;
 4. runs the complete `pytest` suite;
 5. stops immediately if any test fails;
-6. runs the locked development study only after tests pass;
-7. leaves 2025 OOS untouched.
+6. runs locked signal development evidence and screening;
+7. runs the predeclared risk-sized execution evidence and screening;
+8. leaves 2025 OOS untouched.
 
 The user should not need to manually run a chain of installation/backtest commands.
 
@@ -72,22 +73,22 @@ It:
 
 The neighborhood test is a fragility check. It does **not** authorize selecting a better-looking neighboring EMA pair for this first cycle.
 
-## Candidate freeze gate
+## Final candidate freeze gate
 
 If development evidence rejects EMA 20/50, stop the cycle and create a new hypothesis without opening 2025.
 
-If EMA 20/50 is retained:
+If both signal and risk-sized execution evidence pass:
 
 ```bash
-eba-freeze-oos-candidate
+eba-final-freeze
 ```
 
-The command accepts no EMA parameters. It:
+The command accepts no strategy/risk parameters. It:
 
-- reads `development_report.frozen_baseline`;
+- recomputes both predeclared screening layers;
+- binds signal evidence, risk evidence, verdicts, Git commit, and development dataset hashes;
 - verifies the OOS cache is still absent;
-- writes `artifacts/m2_frozen_candidate.json`;
-- stores the SHA-256 hash of the development evidence report.
+- writes `artifacts/m2_final_frozen_candidate.json`.
 
 Changing the development report after freeze invalidates the freeze. Creating an OOS cache before authorized opening also invalidates the gate.
 
@@ -96,10 +97,15 @@ Changing the development report after freeze invalidates the freeze. Creating an
 Only after the candidate freeze exists:
 
 ```bash
-eba-oos-study --confirm-frozen
+eba-final-oos --confirm-frozen
 ```
 
-The command verifies the frozen evidence/candidate, opens 2025 once, writes `artifacts/m2_trend_oos_2025.json`, and refuses reruns after the report exists.
+The command verifies the frozen evidence/candidate and clean matching Git commit, writes an open
+marker before fetching, opens 2025 once, writes `artifacts/m2_final_oos_2025.json`, and refuses
+reruns or interrupted-run retries.
+
+The earlier signal-only `eba-freeze-oos-candidate` and `eba-oos-study` commands are removed from
+public packaging and are not authoritative for promotion decisions.
 
 Retuning after OOS is opened is forbidden. A failed OOS returns the project to a **new** research cycle; 2025 must not become a tuning dataset.
 
@@ -163,7 +169,12 @@ Historical data, exact integrity gates, strict crossover/next-bar execution, cos
 ### M2B — Development evidence
 Research/validation, cost stress, parameter neighborhood, causal walk-forward, causal regime diagnostics, development review.
 
-### M2C — Frozen OOS
-Freeze the predeclared retained baseline, hash development evidence, verify OOS cache absence, open 2025 once, do not retune.
+### M2C — Risk-sized execution evidence
+Apply the deterministic ATR stop/risk sizing model to the unchanged development datasets and pass
+its predeclared cost/risk gates.
 
-M2C must pass before PAPER execution is considered.
+### M2D — Final frozen OOS
+Freeze the complete signal and execution configuration, bind evidence/dataset hashes, verify OOS
+cache absence, open 2025 once, screen it, and do not retune.
+
+M2D must pass before forward PAPER/SHADOW execution is considered.

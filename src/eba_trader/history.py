@@ -4,13 +4,15 @@ import argparse
 import csv
 import json
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Iterable
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+
+from .holdout_guard import assert_not_first_cycle_oos_overlap
 
 BINANCE_KLINES_URL = "https://data-api.binance.vision/api/v3/klines"
 INTERVAL_MS = {
@@ -107,7 +109,7 @@ def find_interval_gaps(candles: Iterable[Candle], interval: str) -> list[tuple[i
     rows = validate_candles(candles)
     expected = INTERVAL_MS[interval]
     gaps: list[tuple[int, int]] = []
-    for previous, current in zip(rows, rows[1:]):
+    for previous, current in zip(rows, rows[1:], strict=False):
         delta = current.open_time_ms - previous.open_time_ms
         if delta != expected:
             gaps.append((previous.open_time_ms, current.open_time_ms))
@@ -337,6 +339,13 @@ def download_history_cli() -> None:
 
     start_ms = parse_utc(args.start)
     end_ms = parse_utc(args.end)
+    assert_not_first_cycle_oos_overlap(
+        symbol=args.symbol,
+        interval=args.interval,
+        start_ms=start_ms,
+        end_ms=end_ms,
+        context="Generic historical downloader",
+    )
     candles = fetch_binance_klines(
         args.symbol,
         args.interval,

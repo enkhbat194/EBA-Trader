@@ -16,6 +16,12 @@ from .history import (
     save_csv,
     validate_interval_window,
 )
+from .holdout_guard import assert_not_first_cycle_oos_overlap
+from .study_policy import (
+    FIRST_CYCLE_INITIAL_CASH,
+    FIRST_CYCLE_INTERVAL,
+    FIRST_CYCLE_SYMBOL,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,6 +83,21 @@ def assert_oos_not_cached(base_dir: Path, symbol: str, interval: str) -> None:
             "Frozen 2025 OOS cache already exists. Development evidence can no longer claim "
             "LOCKED_NOT_ACCESSED; quarantine the cycle instead of silently continuing."
         )
+
+
+def _assert_development_window_allowed(
+    window: StudyWindow,
+    *,
+    symbol: str,
+    interval: str,
+) -> None:
+    assert_not_first_cycle_oos_overlap(
+        symbol=symbol,
+        interval=interval,
+        start_ms=parse_utc(window.start),
+        end_ms=parse_utc(window.end),
+        context="Development window",
+    )
 
 
 def _load_or_fetch_window(
@@ -165,6 +186,11 @@ def run_baseline_study(
             raise ValueError(
                 "The frozen out-of-sample window cannot be opened by run_baseline_study"
             )
+        _assert_development_window_allowed(
+            window,
+            symbol=symbol,
+            interval=interval,
+        )
         candles = _load_or_fetch_window(
             window,
             symbol=symbol,
@@ -196,10 +222,6 @@ def run_baseline_study(
 def run_frozen_oos_study(
     *,
     confirm_frozen: bool,
-    symbol: str = "BTCUSDT",
-    interval: str = "15m",
-    initial_cash: float = 1000.0,
-    data_dir: str | Path = "data/cache/m2",
     report_path: str | Path = "artifacts/m2_trend_oos_2025.json",
     freeze_path: str | Path = "artifacts/m2_frozen_candidate.json",
     development_report_path: str | Path = "artifacts/m2_development_evidence.json",
@@ -222,8 +244,11 @@ def run_frozen_oos_study(
     )
     fast_ema = int(frozen["fast_ema"])
     slow_ema = int(frozen["slow_ema"])
+    symbol = FIRST_CYCLE_SYMBOL
+    interval = FIRST_CYCLE_INTERVAL
+    initial_cash = FIRST_CYCLE_INITIAL_CASH
 
-    base_dir = Path(data_dir)
+    base_dir = Path(str(frozen["oos_cache"])).parent
     base_dir.mkdir(parents=True, exist_ok=True)
     candles = _load_or_fetch_window(
         OOS_WINDOW,
@@ -282,7 +307,10 @@ def baseline_study_cli() -> None:
         initial_cash=args.cash,
         refresh=args.refresh,
     )
-    print(f"study symbol={report['symbol']} interval={report['interval']} fast={report['fast_ema']} slow={report['slow_ema']}")
+    print(
+        f"study symbol={report['symbol']} interval={report['interval']} "
+        f"fast={report['fast_ema']} slow={report['slow_ema']}"
+    )
     for window_name, window in report["windows"].items():
         base = window["scenarios"]["base"]
         severe = window["scenarios"]["severe"]
@@ -301,17 +329,11 @@ def frozen_oos_cli() -> None:
     parser = argparse.ArgumentParser(
         description="Open the frozen 2025 OOS using only the pre-frozen candidate"
     )
-    parser.add_argument("--symbol", default="BTCUSDT")
-    parser.add_argument("--interval", default="15m")
-    parser.add_argument("--cash", type=float, default=1000.0)
     parser.add_argument("--confirm-frozen", action="store_true")
     args = parser.parse_args()
 
     report = run_frozen_oos_study(
         confirm_frozen=args.confirm_frozen,
-        symbol=args.symbol,
-        interval=args.interval,
-        initial_cash=args.cash,
     )
     base = report["window"]["scenarios"]["base"]
     severe = report["window"]["scenarios"]["severe"]

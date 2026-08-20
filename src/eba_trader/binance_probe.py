@@ -17,7 +17,7 @@ class BinanceProbeSettings:
     bar_type: str = "BTCUSDT.BINANCE-1-MINUTE-LAST-EXTERNAL"
 
     @classmethod
-    def from_env(cls) -> "BinanceProbeSettings":
+    def from_env(cls) -> BinanceProbeSettings:
         raw = os.getenv("EBA_BINANCE_DATA_ENV", BinanceDataEnvironment.LIVE_PUBLIC.value)
         try:
             environment = BinanceDataEnvironment(raw.lower())
@@ -51,20 +51,18 @@ def build_data_only_node(settings: BinanceProbeSettings | None = None):
     settings = settings or BinanceProbeSettings.from_env()
     api_key, api_secret = settings.validate_demo_credentials()
 
-    from nautilus_trader.adapters.binance import BINANCE
-    from nautilus_trader.adapters.binance import BinanceAccountType
-    from nautilus_trader.adapters.binance import BinanceDataClientConfig
-    from nautilus_trader.adapters.binance import BinanceLiveDataClientFactory
+    from nautilus_trader.adapters.binance import (
+        BINANCE,
+        BinanceAccountType,
+        BinanceDataClientConfig,
+        BinanceLiveDataClientFactory,
+    )
     from nautilus_trader.adapters.binance.common.enums import BinanceEnvironment
-    from nautilus_trader.config import InstrumentProviderConfig
-    from nautilus_trader.config import LoggingConfig
-    from nautilus_trader.config import TradingNodeConfig
+    from nautilus_trader.config import InstrumentProviderConfig, LoggingConfig, TradingNodeConfig
     from nautilus_trader.live.node import TradingNode
     from nautilus_trader.model.data import BarType
-    from nautilus_trader.model.identifiers import InstrumentId
-    from nautilus_trader.model.identifiers import TraderId
-    from nautilus_trader.test_kit.strategies.tester_data import DataTester
-    from nautilus_trader.test_kit.strategies.tester_data import DataTesterConfig
+    from nautilus_trader.model.identifiers import InstrumentId, TraderId
+    from nautilus_trader.test_kit.strategies.tester_data import DataTester, DataTesterConfig
 
     instrument_id = InstrumentId.from_str(settings.instrument_id)
     bar_type = BarType.from_str(settings.bar_type)

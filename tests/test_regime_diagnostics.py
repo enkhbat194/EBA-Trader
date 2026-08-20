@@ -99,4 +99,6 @@ def test_trade_diagnostics_account_for_all_closed_trades() -> None:
         threshold=1.0,
     )
     assert sum(item.trade_count for item in diagnostics.stats) == result.trade_count
-    assert abs(sum(item.total_pnl for item in diagnostics.stats) - sum(t.pnl for t in result.trades)) < 1e-9
+    diagnostic_pnl = sum(item.total_pnl for item in diagnostics.stats)
+    trade_pnl = sum(trade.pnl for trade in result.trades)
+    assert abs(diagnostic_pnl - trade_pnl) < 1e-9

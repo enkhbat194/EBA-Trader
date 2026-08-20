@@ -6,17 +6,22 @@ from pathlib import Path
 
 from .backtest import TrendBacktestConfig, run_trend_backtest
 from .history import load_csv
+from .provenance import collect_source_provenance
 from .regime_diagnostics import diagnose_trades_by_regime
 from .research import run_baseline_study
+from .study_policy import (
+    FIRST_CYCLE_FAST_EMA,
+    FIRST_CYCLE_INITIAL_CASH,
+    FIRST_CYCLE_INTERVAL,
+    FIRST_CYCLE_SLOW_EMA,
+    FIRST_CYCLE_SYMBOL,
+)
 from .validation import (
     _neighborhood_to_dict,
     _walk_forward_to_dict,
     run_parameter_neighborhood,
     run_walk_forward,
 )
-
-FIRST_CYCLE_FAST_EMA = 20
-FIRST_CYCLE_SLOW_EMA = 50
 
 
 def _regime_payload(candles: list, *, fast: int, slow: int, cash: float) -> dict[str, object]:
@@ -53,14 +58,15 @@ def _regime_payload(candles: list, *, fast: int, slow: int, cash: float) -> dict
 
 def run_development_evidence(
     *,
-    symbol: str = "BTCUSDT",
-    interval: str = "15m",
-    initial_cash: float = 1000.0,
     data_dir: str | Path = "data/cache/m2",
     report_path: str | Path = "artifacts/m2_development_evidence.json",
     refresh: bool = False,
 ) -> dict[str, object]:
     """Run the first development cycle with the predeclared EMA 20/50 baseline."""
+    provenance = collect_source_provenance(require_clean=True)
+    symbol = FIRST_CYCLE_SYMBOL
+    interval = FIRST_CYCLE_INTERVAL
+    initial_cash = FIRST_CYCLE_INITIAL_CASH
     fast_ema = FIRST_CYCLE_FAST_EMA
     slow_ema = FIRST_CYCLE_SLOW_EMA
     base_dir = Path(data_dir)
@@ -98,6 +104,7 @@ def run_development_evidence(
 
     report: dict[str, object] = {
         "phase": "development_only",
+        "source_provenance": provenance,
         "cycle": "trend_v1_predeclared_ema_20_50",
         "symbol": symbol.upper(),
         "interval": interval,
@@ -138,16 +145,10 @@ def development_evidence_cli() -> None:
             "Run the predeclared EMA 20/50 M2 development evidence without opening 2025 OOS"
         )
     )
-    parser.add_argument("--symbol", default="BTCUSDT")
-    parser.add_argument("--interval", default="15m")
-    parser.add_argument("--cash", type=float, default=1000.0)
     parser.add_argument("--refresh", action="store_true")
     args = parser.parse_args()
 
     report = run_development_evidence(
-        symbol=args.symbol,
-        interval=args.interval,
-        initial_cash=args.cash,
         refresh=args.refresh,
     )
 

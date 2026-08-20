@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import math
 from bisect import bisect_left
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from statistics import mean, median
-from typing import Iterable, Sequence
 
 from .backtest import BacktestResult
 from .history import Candle

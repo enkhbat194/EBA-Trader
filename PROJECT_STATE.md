@@ -1,6 +1,6 @@
 # EBA Trader — Project State
 
-_Last updated: 2026-08-17 (Asia/Ulaanbaatar)_
+_Last updated: 2026-08-20 (Asia/Ulaanbaatar)_
 
 This is the authoritative cross-chat continuation record.
 
@@ -68,7 +68,7 @@ Build a professional-grade autonomous trading system that validates strategies w
 - [x] BTC buy-and-hold benchmark
 - [x] total/annualized return, drawdown, expectancy, profit factor, avg win/loss, Sharpe, Sortino, exposure, costs
 - [x] base/adverse/severe cost scenarios
-- [x] earlier isolated M2 logic tests passed 10/10 before latest audit commits
+- [x] complete Python 3.12 deterministic suite passed on 2026-08-20
 
 ### M2B — Robustness/evidence tooling
 
@@ -90,6 +90,21 @@ Build a professional-grade autonomous trading system that validates strategies w
 - [x] regression tests added for strict crossover, causal evaluation boundary and no development EMA override
 - [x] methodology documented in `docs/M2B_ROBUSTNESS.md`
 
+### M2C — Risk-sized execution gate
+
+- [x] predeclared ATR 14 / 2× stop and 0.5% planned-risk Spot execution model
+- [x] deterministic daily-loss and 8% drawdown entry halts
+- [x] development evidence and screening bind the signal report and dataset hashes
+- [x] one-command `scripts/run_m2_full_development.sh` workflow
+
+### M2D — Final frozen OOS safeguards
+
+- [x] final freeze requires eligible signal and risk-execution evidence
+- [x] evidence, verdict, dataset, Git commit, and full execution configuration binding
+- [x] one-shot OOS open marker fails closed on interrupted runs
+- [x] predeclared final OOS screening only promotes to forward PAPER eligibility
+- [x] signal-only OOS console commands removed from public packaging
+
 ## Evidence-window policy
 
 Development windows:
@@ -99,8 +114,9 @@ Development windows:
 Frozen holdout:
 - OOS: `2025-01-01` → `2026-01-01` exclusive
 
-Fresh future:
-- 2026+ remains outside the first baseline cycle.
+Forward-only future:
+- 2026+ cannot be relabeled pristine historical OOS; it is reserved for evidence collected forward
+  from a later PAPER/SHADOW freeze timestamp.
 
 ### Critical OOS lock
 
@@ -111,18 +127,17 @@ The old baseline design exposed 2025 together with development data. This was co
 - [x] development study fails closed if a 2025 OOS cache file already exists
 - [x] development report records holdout cache absence
 - [x] direct OOS use through baseline function is rejected
-- [x] OOS cannot accept ad-hoc `--fast/--slow` overrides
-- [x] `eba-freeze-oos-candidate` freezes only `development_report.frozen_baseline`
-- [x] freeze file stores SHA-256 of the development evidence report
-- [x] changing development evidence after freeze invalidates the freeze
-- [x] frozen OOS requires separate `eba-oos-study --confirm-frozen`
-- [x] OOS verifies frozen candidate still matches hashed development baseline
-- [x] existing OOS report blocks rerun
+- [x] first-cycle development commands accept no market, capital, or EMA overrides
+- [x] generic downloader blocks BTCUSDT 2025 overlap across all timeframes before network access
+- [x] renamed development windows cannot overlap the date-based holdout guard
+- [x] `eba-final-freeze` binds signal plus risk evidence and exact cached development datasets
+- [x] `eba-final-oos --confirm-frozen` verifies the clean matching Git commit before opening
+- [x] existing OOS cache, open marker, or report blocks rerun
 - [x] retuning after OOS open is forbidden
 
 ## Preferred one-command development workflow
 
-`eba-development-study` is the next real-data action.
+`bash scripts/run_m2_full_development.sh` is the next real-data action in a clean tracked tree.
 
 It will:
 1. verify no 2025 OOS cache exists;
@@ -131,25 +146,26 @@ It will:
 4. run parameter-neighborhood fragility diagnostics on research data;
 5. run causal walk-forward with train-history EMA warm-up and test-boundary trading gate;
 6. run causal regime diagnostics on research and validation;
-7. write `artifacts/m2_development_evidence.json`;
-8. leave 2025 OOS `LOCKED_NOT_ACCESSED`.
+7. write and screen `artifacts/m2_development_evidence.json`;
+8. run and screen the predeclared risk-sized execution layer on the same datasets;
+9. leave 2025 OOS `LOCKED_NOT_ACCESSED`.
 
 ## Current validation caveat
 
 - M1 live public data is proven.
-- Earlier isolated M2 logic tests passed.
-- The newest strict-crossover/walk-forward/freeze/OOS-lock commits and their new tests have **not yet been executed as one complete suite in a synced Python environment**.
+- Python 3.12.14: complete deterministic suite passed (120 tests) and Ruff passed on 2026-08-20.
+- Editable packaging was verified with the authoritative development/risk/final console commands.
 - No real historical BTC development evidence report has been generated yet.
 
 ## Next tasks — strict order
 
-1. In one free networked runtime, sync/install latest repo and run full `pytest` once.
-2. Run `eba-development-study` once; capture `artifacts/m2_development_evidence.json`.
-3. Review research + validation evidence without touching 2025.
-4. If EMA 20/50 is rejected, stop this cycle and create a new hypothesis without opening 2025.
-5. If EMA 20/50 is retained, run `eba-freeze-oos-candidate` with no parameter arguments.
-6. Then and only then run `eba-oos-study --confirm-frozen` once.
-7. If OOS passes, move toward PAPER/SHADOW; if it fails, start a new research cycle without tuning against 2025.
+1. Commit/review the 2026-08-20 audit fixes so provenance can require a clean tracked tree.
+2. In one free networked Linux runtime, run `bash scripts/run_m2_full_development.sh` once.
+3. Review signal and risk-execution research/validation verdicts without touching 2025.
+4. If either layer rejects, stop this cycle and create a new hypothesis without opening 2025.
+5. If both pass, run `eba-final-freeze` with no configuration arguments.
+6. Then and only then run `eba-final-oos --confirm-frozen` once.
+7. Run `eba-final-oos-verdict`; a pass authorizes only forward PAPER/SHADOW evaluation.
 8. Mean Reversion / Breakout / Momentum only after Trend baseline is understood.
 9. Paid server only after forward evidence justifies it.
 10. Futures/crowding/liquidation remains V2+.

@@ -2,26 +2,29 @@ from __future__ import annotations
 
 import argparse
 
-from .evidence import FIRST_CYCLE_FAST_EMA, FIRST_CYCLE_SLOW_EMA
 from .research import run_baseline_study
+from .study_policy import (
+    FIRST_CYCLE_FAST_EMA,
+    FIRST_CYCLE_INITIAL_CASH,
+    FIRST_CYCLE_INTERVAL,
+    FIRST_CYCLE_SLOW_EMA,
+    FIRST_CYCLE_SYMBOL,
+)
 
 
 def baseline_study_cli() -> None:
     parser = argparse.ArgumentParser(
         description="Run the first-cycle predeclared EMA 20/50 development baseline"
     )
-    parser.add_argument("--symbol", default="BTCUSDT")
-    parser.add_argument("--interval", default="15m")
-    parser.add_argument("--cash", type=float, default=1000.0)
     parser.add_argument("--refresh", action="store_true")
     args = parser.parse_args()
 
     report = run_baseline_study(
-        symbol=args.symbol,
-        interval=args.interval,
+        symbol=FIRST_CYCLE_SYMBOL,
+        interval=FIRST_CYCLE_INTERVAL,
         fast_ema=FIRST_CYCLE_FAST_EMA,
         slow_ema=FIRST_CYCLE_SLOW_EMA,
-        initial_cash=args.cash,
+        initial_cash=FIRST_CYCLE_INITIAL_CASH,
         refresh=args.refresh,
     )
 

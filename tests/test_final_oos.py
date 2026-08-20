@@ -5,7 +5,7 @@ import json
 import pytest
 
 import eba_trader.final_oos as final_oos
-from eba_trader.history import Candle, parse_utc
+from eba_trader.history import Candle
 
 STEP = 15 * 60 * 1000
 COSTS = {

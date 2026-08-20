@@ -71,7 +71,8 @@ Possible statuses:
 - `ELIGIBLE_FOR_FROZEN_OOS`
 - `REJECT_DEVELOPMENT_CYCLE`
 
-`eba-freeze-oos-candidate` does not trust the status string alone. It recomputes the screening gates from the hashed development evidence and refuses the freeze if the evidence fails.
+`eba-final-freeze` does not trust the status strings alone. It recomputes both signal and
+risk-execution gates from their hashed evidence and refuses the freeze if either layer fails.
 
 The one-command network wrapper runs screening automatically after tests and development evidence:
 

@@ -71,7 +71,11 @@ def test_beating_btc_return_satisfies_tradeoff_even_without_drawdown_advantage()
     base["max_drawdown"] = -0.30
     base["benchmark_max_drawdown"] = -0.25
     gates = evaluate_development_report(report)
-    tradeoff = next(gate for gate in gates if gate.name == "validation_return_or_material_risk_advantage")
+    tradeoff = next(
+        gate
+        for gate in gates
+        if gate.name == "validation_return_or_material_risk_advantage"
+    )
     assert tradeoff.passed is True
 
 

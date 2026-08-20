@@ -31,7 +31,8 @@ def collect_source_provenance(
     clean = dirty_lines == ""
     if require_clean and not clean:
         raise RuntimeError(
-            "Tracked working tree is dirty. Commit or discard code changes before evidence generation."
+            "Tracked working tree is dirty. Commit or discard code changes before "
+            "evidence generation."
         )
 
     return {

@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from .study_policy import (
-    FIRST_CYCLE_INTERVAL,
     FIRST_CYCLE_SYMBOL,
     FROZEN_OOS_END_EXCLUSIVE,
     FROZEN_OOS_START,
@@ -46,8 +45,8 @@ def overlaps_first_cycle_oos(
     start_ms: int,
     end_ms: int,
 ) -> bool:
-    """Return True only for the frozen BTCUSDT/15m first-cycle holdout overlap."""
-    if symbol.upper() != FIRST_CYCLE_SYMBOL or interval != FIRST_CYCLE_INTERVAL:
+    """Return True for any BTCUSDT data overlapping the frozen first-cycle holdout."""
+    if symbol.upper() != FIRST_CYCLE_SYMBOL:
         return False
     return ranges_overlap(
         start_ms,
@@ -72,6 +71,7 @@ def assert_not_first_cycle_oos_overlap(
         end_ms=end_ms,
     ):
         raise RuntimeError(
-            f"{context} overlaps the frozen first-cycle 2025 OOS window. "
+            f"{context} overlaps the frozen first-cycle 2025 OOS window "
+            "(frozen first-cycle BTCUSDT 2025 OOS). "
             "Use only the authorized frozen OOS path after development screening and freeze."
         )

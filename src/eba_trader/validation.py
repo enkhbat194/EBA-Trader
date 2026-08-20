@@ -3,10 +3,10 @@ from __future__ import annotations
 import argparse
 import json
 import math
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from statistics import median
-from typing import Iterable, Sequence
 
 from .backtest import BacktestResult, TrendBacktestConfig, run_trend_backtest
 from .history import Candle, load_csv

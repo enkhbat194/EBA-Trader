@@ -118,9 +118,11 @@ class RiskEngine:
     def _hard_halt_reasons(self, context: RiskContext) -> list[str]:
         reasons: list[str] = []
 
-        if context.execution_mode in {ExecutionMode.MICRO_LIVE, ExecutionMode.LIVE}:
-            if not self.config.allow_live_execution:
-                reasons.append("LIVE_EXECUTION_LOCKED")
+        if (
+            context.execution_mode in {ExecutionMode.MICRO_LIVE, ExecutionMode.LIVE}
+            and not self.config.allow_live_execution
+        ):
+            reasons.append("LIVE_EXECUTION_LOCKED")
 
         if not context.data_fresh:
             reasons.append("STALE_MARKET_DATA")

@@ -45,14 +45,14 @@ def test_touching_boundary_without_overlap_is_allowed() -> None:
     )
 
 
-def test_other_symbol_or_interval_is_not_first_cycle_holdout() -> None:
+def test_other_symbol_is_not_first_cycle_holdout() -> None:
     assert not overlaps_first_cycle_oos(
         symbol="ETHUSDT",
         interval="15m",
         start_ms=FIRST_CYCLE_OOS_START_MS,
         end_ms=FIRST_CYCLE_OOS_END_MS,
     )
-    assert not overlaps_first_cycle_oos(
+    assert overlaps_first_cycle_oos(
         symbol="BTCUSDT",
         interval="1h",
         start_ms=FIRST_CYCLE_OOS_START_MS,

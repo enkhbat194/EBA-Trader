@@ -30,10 +30,10 @@ echo "[6/8] Applying signal screening"
 eba-development-verdict
 
 echo "[7/8] Running predeclared risk-sized execution evidence"
-python -m eba_trader.risk_evidence
+eba-risk-execution-study
 
 echo "[8/8] Applying risk execution screening"
-python -m eba_trader.risk_verdict
+eba-risk-execution-verdict
 
 echo
 echo "M2 development stages passed."

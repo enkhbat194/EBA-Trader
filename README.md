@@ -39,8 +39,11 @@ Build a professional-grade trading engine that can:
 
 ## Current status
 
-**Phase 0 — Bootstrap**
+**M2 — audited historical evidence pipeline**
 
-The repository is being initialized with architecture, risk policy, validation protocol and the first pure-Python domain core. Exchange execution remains disabled.
+The deterministic core, Binance public-data path, signal research pipeline, risk-sized execution
+model, predeclared screening, and one-shot final OOS safeguards are implemented. The complete
+Python 3.12 test/lint audit passed on 2026-08-20. Real historical development evidence has not yet
+been generated, and 2025 OOS remains locked. Exchange execution remains disabled.
 
 See `PROJECT_STATE.md` for the authoritative project continuation state.

@@ -150,13 +150,19 @@ def evaluate_development_report(report: dict[str, object]) -> tuple[GateResult, 
             "walk_forward_positive_expectancy",
             wf_expectancy >= MIN_WALK_FORWARD_POSITIVE_EXPECTANCY_FRACTION,
             wf_expectancy,
-            f">= {MIN_WALK_FORWARD_POSITIVE_EXPECTANCY_FRACTION:.0%} folds with positive expectancy",
+            (
+                f">= {MIN_WALK_FORWARD_POSITIVE_EXPECTANCY_FRACTION:.0%} folds with "
+                "positive expectancy"
+            ),
         ),
         GateResult(
             "walk_forward_drawdown_advantage",
             wf_risk >= MIN_WALK_FORWARD_DRAWDOWN_IMPROVEMENT_FRACTION,
             wf_risk,
-            f">= {MIN_WALK_FORWARD_DRAWDOWN_IMPROVEMENT_FRACTION:.0%} folds with shallower drawdown than BTC",
+            (
+                f">= {MIN_WALK_FORWARD_DRAWDOWN_IMPROVEMENT_FRACTION:.0%} folds with "
+                "shallower drawdown than BTC"
+            ),
         ),
         GateResult(
             "validation_return_or_material_risk_advantage",
@@ -172,6 +178,11 @@ def evaluate_development_report(report: dict[str, object]) -> tuple[GateResult, 
             ),
         ),
     )
+
+
+def development_is_eligible(report: dict[str, object]) -> bool:
+    """Return whether every predeclared development screening gate passes."""
+    return all(gate.passed for gate in evaluate_development_report(report))
 
 
 def write_development_verdict(

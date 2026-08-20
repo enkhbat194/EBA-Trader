@@ -125,7 +125,9 @@ def freeze_final_oos_candidate(
     signal_commit = str(signal["source_provenance"]["git_commit"])
     risk_commit = str(risk["source_provenance"]["git_commit"])
     if signal_commit != risk_commit:
-        raise RuntimeError("Signal and risk execution evidence were not produced from the same Git commit")
+        raise RuntimeError(
+            "Signal and risk execution evidence were not produced from the same Git commit"
+        )
     if risk.get("signal_development_report_sha256") != sha256_file(signal_file):
         raise RuntimeError("Risk evidence is not bound to the current signal evidence")
     if risk.get("signal_development_verdict_sha256") != sha256_file(signal_verdict_file):

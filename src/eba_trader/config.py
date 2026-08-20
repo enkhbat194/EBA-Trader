@@ -13,9 +13,11 @@ class AppConfig:
     live_execution_enabled: bool = False
 
     def validate(self) -> None:
-        if self.execution_mode in {ExecutionMode.MICRO_LIVE, ExecutionMode.LIVE}:
-            if not self.live_execution_enabled:
-                raise RuntimeError("Live execution is locked in V1")
+        if (
+            self.execution_mode in {ExecutionMode.MICRO_LIVE, ExecutionMode.LIVE}
+            and not self.live_execution_enabled
+        ):
+            raise RuntimeError("Live execution is locked in V1")
 
         if self.symbol != "BTCUSDT":
             raise RuntimeError("V1 scope is frozen to BTCUSDT")

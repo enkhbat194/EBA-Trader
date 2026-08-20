@@ -23,7 +23,7 @@ The final freeze snapshots the complete market and execution configuration.
 After both development layers pass and reports are reviewed:
 
 ```bash
-python -m eba_trader.final_freeze
+eba-final-freeze
 ```
 
 Output:
@@ -37,7 +37,7 @@ artifacts/m2_final_frozen_candidate.json
 Only then:
 
 ```bash
-python -m eba_trader.final_oos --confirm-frozen
+eba-final-oos --confirm-frozen
 ```
 
 Before any network fetch, the OOS runner:
@@ -76,7 +76,7 @@ The frozen OOS must meet all gates fixed before opening 2025:
 Run after the OOS report exists:
 
 ```bash
-python -m eba_trader.final_oos_verdict
+eba-final-oos-verdict
 ```
 
 Possible statuses:

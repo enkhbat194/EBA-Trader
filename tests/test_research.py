@@ -6,7 +6,7 @@ import pytest
 
 import eba_trader.research as research
 from eba_trader.freeze import file_sha256, freeze_oos_candidate
-from eba_trader.history import Candle, INTERVAL_MS
+from eba_trader.history import INTERVAL_MS, Candle
 
 STEP = INTERVAL_MS["15m"]
 
@@ -145,7 +145,6 @@ def test_frozen_oos_requires_explicit_confirmation(tmp_path) -> None:
     with pytest.raises(ValueError, match="locked"):
         research.run_frozen_oos_study(
             confirm_frozen=False,
-            data_dir=tmp_path / "data",
             report_path=tmp_path / "oos.json",
             freeze_path=tmp_path / "freeze.json",
             development_report_path=tmp_path / "development.json",
@@ -159,7 +158,6 @@ def test_frozen_oos_uses_frozen_parameters_and_blocks_rerun(tmp_path, monkeypatc
 
     report = research.run_frozen_oos_study(
         confirm_frozen=True,
-        data_dir=tmp_path / "data",
         report_path=report_path,
         freeze_path=frozen,
         development_report_path=development,
@@ -175,7 +173,6 @@ def test_frozen_oos_uses_frozen_parameters_and_blocks_rerun(tmp_path, monkeypatc
     with pytest.raises(RuntimeError, match="already exists"):
         research.run_frozen_oos_study(
             confirm_frozen=True,
-            data_dir=tmp_path / "data",
             report_path=report_path,
             freeze_path=frozen,
             development_report_path=development,
