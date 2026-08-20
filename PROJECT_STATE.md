@@ -70,8 +70,8 @@ Build a professional-grade autonomous trading system that validates strategies w
 - [x] base/adverse/severe cost scenarios
 - [x] complete Python 3.12 deterministic suite passed on 2026-08-20
 - [x] seven reproducible 2021/2023 Binance source gaps (70 candles) explicitly allowlisted and
-  reported, including four exact outage-adjacent early closes; every other anomaly remains a hard
-  failure
+  reported, including four exact outage-adjacent and one standalone early close; every other
+  anomaly remains a hard failure
 
 ### M2B — Robustness/evidence tooling
 

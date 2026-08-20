@@ -54,6 +54,11 @@ FIRST_CYCLE_ALLOWED_SOURCE_GAPS = (
     ),
 )
 
+FIRST_CYCLE_ALLOWED_STANDALONE_CLOSE_TIMES = {
+    # A reproducible Binance source timestamp anomaly without an accompanying missing range.
+    _utc_ms("2021-12-24T04:45:00"): 1640321994362,
+}
+
 
 def allowed_source_gap_ranges(symbol: str, interval: str) -> tuple[tuple[int, int], ...]:
     if symbol.upper() != FIRST_CYCLE_SYMBOL or interval != FIRST_CYCLE_INTERVAL:
@@ -65,8 +70,9 @@ def allowed_source_close_times(symbol: str, interval: str) -> dict[int, int]:
     if symbol.upper() != FIRST_CYCLE_SYMBOL or interval != FIRST_CYCLE_INTERVAL:
         return {}
     step_ms = 15 * 60 * 1000
-    return {
+    outage_close_times = {
         gap.range_ms[0] - step_ms: gap.preceding_close_time_ms
         for gap in FIRST_CYCLE_ALLOWED_SOURCE_GAPS
         if gap.preceding_close_time_ms is not None
     }
+    return outage_close_times | FIRST_CYCLE_ALLOWED_STANDALONE_CLOSE_TIMES

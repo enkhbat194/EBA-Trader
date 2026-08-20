@@ -11,5 +11,5 @@ def test_first_cycle_source_gap_allowlist_is_exact_and_scoped() -> None:
     assert missing == 70
     assert allowed_source_gap_ranges("ETHUSDT", "15m") == ()
     assert allowed_source_gap_ranges("BTCUSDT", "1h") == ()
-    assert len(allowed_source_close_times("BTCUSDT", "15m")) == 4
+    assert len(allowed_source_close_times("BTCUSDT", "15m")) == 5
     assert allowed_source_close_times("ETHUSDT", "15m") == {}
