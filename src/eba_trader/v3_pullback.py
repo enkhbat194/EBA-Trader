@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from collections import defaultdict
+from collections import defaultdict, deque
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -141,24 +141,26 @@ def rolling_prior_vwap(
         raise ValueError("window must be positive")
     bars = list(candles)
     result: list[float | None] = [None] * len(bars)
+    weighted_window: deque[float] = deque()
+    volume_window: deque[float] = deque()
     weighted_sum = 0.0
     volume_sum = 0.0
-    weighted_values: list[float] = []
-    volumes: list[float] = []
+
     for index, bar in enumerate(bars):
-        if index >= window and volume_sum > 0:
+        if len(weighted_window) == window and volume_sum > 0:
             result[index] = weighted_sum / volume_sum
 
         typical = (bar.high + bar.low + bar.close) / 3.0
         weighted = typical * bar.volume
-        weighted_values.append(weighted)
-        volumes.append(bar.volume)
+        weighted_window.append(weighted)
+        volume_window.append(bar.volume)
         weighted_sum += weighted
         volume_sum += bar.volume
 
-        if len(weighted_values) > window:
-            weighted_sum -= weighted_values[-window - 1]
-            volume_sum -= volumes[-window - 1]
+        if len(weighted_window) > window:
+            weighted_sum -= weighted_window.popleft()
+            volume_sum -= volume_window.popleft()
+
     return tuple(result)
 
 
@@ -180,11 +182,10 @@ def _contiguous_streak(bars: list[Candle], step_ms: int) -> tuple[int, ...]:
         return ()
     result = [1]
     for index in range(1, len(bars)):
-        result.append(
-            result[-1] + 1
-            if bars[index].open_time_ms - bars[index - 1].open_time_ms == step_ms
-            else 1
-        )
+        if bars[index].open_time_ms - bars[index - 1].open_time_ms == step_ms:
+            result.append(result[-1] + 1)
+        else:
+            result.append(1)
     return tuple(result)
 
 
@@ -221,18 +222,9 @@ def prepare_v3_pullback_features(
         fast = ema50_4h[index]
         slow = ema200_4h[index]
         old_index = index - cfg.regime_slope_lookback_4h
-        ready = (
-            fast is not None
-            and slow is not None
-            and old_index >= 0
-            and ema200_4h[old_index] is not None
-        )
-        valid = (
-            ready
-            and bar.close > slow
-            and fast > slow
-            and slow > ema200_4h[old_index]
-        )
+        old_slow = ema200_4h[old_index] if old_index >= 0 else None
+        ready = fast is not None and slow is not None and old_slow is not None
+        valid = ready and bar.close > slow and fast > slow and slow > old_slow
         contiguous = (
             index > 0
             and bar.open_time_ms - four_hour_bars[index - 1].open_time_ms == FOUR_HOURS_MS
@@ -276,6 +268,17 @@ def _features_ready(
     return all(value is not None for value in values)
 
 
+def _source_ready(
+    features: V3PullbackFeatures,
+    index: int,
+    cfg: V3PullbackConfig,
+) -> bool:
+    return (
+        _features_ready(features, index, cfg)
+        and features.contiguous_15m_streak[index] >= cfg.complete_15m_after_gap
+    )
+
+
 def _bull_regime(
     features: V3PullbackFeatures,
     index: int,
@@ -284,6 +287,8 @@ def _bull_regime(
     if not _features_ready(features, index, cfg):
         return False
     hour_index = features.latest_4h_index[index]
+    if hour_index is None:
+        return False
     old_index = hour_index - cfg.regime_slope_lookback_4h
     bar = features.four_hour_bars[hour_index]
     fast = features.ema50_4h[hour_index]
@@ -299,9 +304,7 @@ def _arm_eligible(
     *,
     filters_enabled: bool,
 ) -> bool:
-    if not _bull_regime(features, index, cfg):
-        return False
-    if features.contiguous_15m_streak[index] < cfg.complete_15m_after_gap:
+    if not _source_ready(features, index, cfg) or not _bull_regime(features, index, cfg):
         return False
 
     bar = features.bars[index]
@@ -334,9 +337,7 @@ def _recovery_eligible(
     *,
     filters_enabled: bool,
 ) -> bool:
-    if not _bull_regime(features, index, cfg):
-        return False
-    if features.contiguous_15m_streak[index] < cfg.complete_15m_after_gap:
+    if not _source_ready(features, index, cfg) or not _bull_regime(features, index, cfg):
         return False
     if index < cfg.recovery_high_lookback:
         return False
@@ -393,7 +394,10 @@ def run_v3_pullback_backtest(
 ) -> V3PullbackResult:
     cfg = config or BASELINE_V3_PULLBACK_CONFIG
     bars = list(candles)
+    if not bars:
+        raise ValueError("V3 requires candles")
     features = prepare_v3_pullback_features(bars, cfg)
+
     requested_start = (
         evaluation_start_ms if evaluation_start_ms is not None else bars[0].open_time_ms
     )
@@ -461,11 +465,17 @@ def run_v3_pullback_backtest(
     day_realized_pnl = 0.0
     daily_halted = False
 
-    def close_position(raw_price: float, timestamp_ms: int, reason: str, bar_index: int) -> None:
+    def close_position(
+        raw_price: float,
+        timestamp_ms: int,
+        reason: str,
+        bar_index: int,
+    ) -> None:
         nonlocal cash, quantity, total_cost, stop_out_count, target_exit_count
         nonlocal time_exit_count, regime_exit_count, day_realized_pnl, exit_bar_index
         if quantity <= 0:
             return
+
         execution_price = _sell_price(raw_price, cfg.slippage_bps)
         gross = quantity * execution_price
         fee = gross * cfg.fee_bps / 10_000.0
@@ -544,12 +554,15 @@ def run_v3_pullback_backtest(
                 + cfg.max_entry_gap_atr * pending_entry.signal_atr
             )
             invalidation_ok = bar.open > pending_entry.raw_stop
-            regime_ok = _bull_regime(features, pending_entry.signal_index, cfg)
+            source_ok = _source_ready(features, index, cfg)
+            regime_ok = _bull_regime(features, index, cfg)
             risk_veto = risk_sized and (daily_halted or max_drawdown_halted)
+
             if (
                 contiguous
                 and favorable_gap_ok
                 and invalidation_ok
+                and source_ok
                 and regime_ok
                 and not risk_veto
             ):
@@ -562,20 +575,28 @@ def run_v3_pullback_backtest(
                     fee_rate = cfg.fee_bps / 10_000.0
                     if risk_sized:
                         risk_budget = equity_at_open * cfg.risk_fraction
-                        risk_quantity = risk_budget / stop_distance if stop_distance > 0 else 0.0
+                        risk_quantity = risk_budget / stop_distance
                         notional_quantity = (
                             equity_at_open
                             * cfg.max_notional_fraction
                             / (execution_entry * (1.0 + fee_rate))
                         )
                         cash_quantity = cash / (execution_entry * (1.0 + fee_rate))
-                        entry_quantity = min(risk_quantity, notional_quantity, cash_quantity)
+                        entry_quantity = min(
+                            risk_quantity,
+                            notional_quantity,
+                            cash_quantity,
+                        )
                     else:
                         entry_quantity = cash / (execution_entry * (1.0 + fee_rate))
+
                     if entry_quantity > 0:
                         fee = entry_quantity * execution_entry * fee_rate
                         required_cash = entry_quantity * execution_entry + fee
-                        entry_slippage = entry_quantity * max(execution_entry - raw_entry, 0.0)
+                        entry_slippage = entry_quantity * max(
+                            execution_entry - raw_entry,
+                            0.0,
+                        )
                         if required_cash > cash + 1e-9:
                             raise RuntimeError("V3 Spot entry exceeded cash")
                         cash -= required_cash
@@ -607,9 +628,7 @@ def run_v3_pullback_backtest(
         if quantity > 0:
             stop_touched = bar.low <= active_stop
             target_touched = bar.high >= profit_target
-            if stop_touched and target_touched:
-                close_position(active_stop, bar.close_time_ms, "stop", index)
-            elif stop_touched:
+            if stop_touched:
                 close_position(active_stop, bar.close_time_ms, "stop", index)
             elif target_touched:
                 close_position(profit_target, bar.close_time_ms, "target", index)
@@ -669,7 +688,10 @@ def run_v3_pullback_backtest(
         arm_terminated_this_bar = False
         if arm is not None:
             arm.pullback_low = min(arm.pullback_low, bar.low)
-            if not _bull_regime(features, index, cfg):
+            if not _source_ready(features, index, cfg):
+                arm = None
+                arm_terminated_this_bar = True
+            elif not _bull_regime(features, index, cfg):
                 arm = None
                 arm_terminated_this_bar = True
             elif _recovery_eligible(
@@ -679,6 +701,8 @@ def run_v3_pullback_backtest(
                 filters_enabled=filters_enabled,
             ):
                 atr_value = features.atr_15m[index]
+                if atr_value is None or atr_value <= 0:
+                    raise RuntimeError("V3 recovery ATR unexpectedly unavailable")
                 raw_stop = arm.pullback_low - cfg.stop_buffer_atr * atr_value
                 pending_entry = _SignalIntent(
                     signal_index=index,
@@ -708,7 +732,12 @@ def run_v3_pullback_backtest(
 
     if quantity > 0:
         final_bar = bars[end_index - 1]
-        close_position(final_bar.close, final_bar.close_time_ms, "end_of_test", end_index - 1)
+        close_position(
+            final_bar.close,
+            final_bar.close_time_ms,
+            "end_of_test",
+            end_index - 1,
+        )
         prior_equity = equity_curve[-2] if len(equity_curve) >= 2 else cfg.initial_cash
         if bar_returns and prior_equity > 0:
             bar_returns[-1] = cash / prior_equity - 1.0
@@ -729,7 +758,11 @@ def run_v3_pullback_backtest(
         initial_cash=cfg.initial_cash,
         final_equity=final_equity,
         total_return=total_return,
-        annualized_return=_annualized_return(cfg.initial_cash, final_equity, evaluation_bars),
+        annualized_return=_annualized_return(
+            cfg.initial_cash,
+            final_equity,
+            evaluation_bars,
+        ),
         benchmark_return=benchmark_return,
         benchmark_max_drawdown=benchmark_drawdown,
         benchmark_relative_return=total_return - benchmark_return,
