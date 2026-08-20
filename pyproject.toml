@@ -25,6 +25,7 @@ eba-final-oos-verdict = "eba_trader.final_oos_verdict:main"
 eba-validate-trend = "eba_trader.validation:trend_validation_cli"
 eba-regime-report = "eba_trader.regime_report:regime_report_cli"
 eba-trend-v2-development = "eba_trader.trend_v2_evidence:main"
+eba-v3-development = "eba_trader.v3_pullback_evidence:main"
 
 [project.optional-dependencies]
 trading = [
