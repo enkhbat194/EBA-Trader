@@ -1,178 +1,208 @@
 # EBA Trader — Project State
 
-_Last updated: 2026-08-20 (Asia/Ulaanbaatar)_
+_Last updated: 2026-08-21 (Asia/Ulaanbaatar)_
 
 This is the authoritative cross-chat continuation record.
 
 ## Mission
 
-Build a professional-grade autonomous trading system that validates strategies with evidence, refuses low-quality trades, enforces deterministic risk limits, and only later gains exchange execution after research/paper gates pass.
+Build a professional-grade autonomous trading system that validates market edges and strategies with
+evidence, refuses low-quality trades, enforces deterministic risk limits, and only later gains
+exchange execution after research/paper gates pass.
 
-## Owner constraints
+## Owner / infrastructure constraints
 
 - The owner should not need to master a complex exchange UI.
 - Complexity belongs in the engine; future UI stays minimal.
-- Learn from historical bot failure modes instead of copying one retail strategy.
-- Preserve all state/decisions in repo for cross-chat continuity.
+- Preserve state and decisions in the repo for cross-chat continuity.
 - Bootstrap infrastructure budget is **$0 until edge evidence exists**.
-- BestCode integration is deferred; V1 stays standalone.
-- Replit is only a temporary network runtime, not the development center.
+- Replit is only a temporary runtime, not the development center.
+- Deterministic risk authority always outranks strategy or future AI recommendations.
 
-## Frozen V1
+## Core system constraints
 
 - Repo: `enkhbat194/EBA-Trader`
-- Market: BTC/USDT Spot
-- Primary exchange: Binance; backup target: OKX
-- Engine: `nautilus_trader==1.230.0`
-- Python: 3.12–3.14
-- Runtime: standalone Linux/Python
-- Paid 24/7 server: forbidden until edge evidence exists
-- Timeframes: 5m execution / 15m signal / 1h regime target
-- Strategies planned: Trend, Mean Reversion, Breakout, Momentum, NO_TRADE
-- AI: research/analysis/critique only
-- Risk authority: deterministic Risk Engine
-- Real money / futures / leverage: disabled
+- Current research market: BTC/USDT Spot
+- Primary exchange/data source: Binance; backup target: OKX
+- Engine dependency: `nautilus_trader==1.230.0`
+- Supported Python: 3.12–3.14; evidence validation target: Python 3.12
+- `NO_TRADE` is a valid first-class outcome
+- Real-money orders, futures and leverage: disabled
+- AI cannot override deterministic risk controls
 
-## Completed
+## Completed infrastructure
 
 ### M0 — Safe bootstrap
 
 - [x] architecture / strategy / risk / backtest contracts
 - [x] deterministic Risk Engine + position sizing
 - [x] LIVE/MICRO_LIVE locked by default
-- [x] baseline Regime Detector + first-class NO_TRADE
-- [x] initial deterministic tests passed
+- [x] baseline regime / `NO_TRADE` architecture
 
 ### M1 — Binance data-only pipeline
 
-- [x] NautilusTrader pinned and installed
 - [x] public Binance data mode requiring no API key
 - [x] no execution client in data path
 - [x] quote/trade/bar subscriptions
 - [x] stale-data hard veto
-- [x] Replit Python 3.12.12 runtime validated
-- [x] actual Binance BTC/USDT `QuoteTick` observed
-- [x] actual Binance BTC/USDT `TradeTick` observed
-- [x] M1 runtime connectivity **PASSED**
+- [x] actual Binance BTC/USDT QuoteTick and TradeTick observed
+- [x] M1 runtime connectivity passed
 
-### M2A — Historical/backtest plumbing
+### M2 — Historical evidence and OOS safeguards
 
-- [x] Binance public REST historical downloader
-- [x] timestamp / duplicate / OHLC / interval-gap integrity gates
-- [x] exclusive end timestamps to prevent split-boundary leakage
-- [x] Trend Following V1: long-only EMA 20/50 baseline
-- [x] strict crossover semantics: no synthetic BUY merely because fast EMA is already above slow EMA at a window boundary
-- [x] signal-at-close / execution-next-open
-- [x] optional causal `trade_start_time_ms` gate: pre-start candles may warm indicators but cannot contribute trades/equity/benchmark/exposure
-- [x] fee + slippage model
+- [x] Binance public historical downloader
+- [x] timestamp / duplicate / OHLC / interval-gap validation
+- [x] causal signal-at-close / execution-next-open semantics
+- [x] fee + slippage cost model
 - [x] BTC buy-and-hold benchmark
-- [x] total/annualized return, drawdown, expectancy, profit factor, avg win/loss, Sharpe, Sortino, exposure, costs
+- [x] return, drawdown, expectancy, profit factor, Sharpe, Sortino, exposure and cost metrics
 - [x] base/adverse/severe cost scenarios
-- [x] complete Python 3.12 deterministic suite passed on 2026-08-20
-- [x] seven reproducible 2021/2023 Binance source gaps (70 candles) explicitly allowlisted and
-  reported, including four exact outage-adjacent and one standalone early close; every other
-  anomaly remains a hard failure
-
-### M2B — Robustness/evidence tooling
-
-- [x] parameter neighborhood: fast EMA 15/20/25 × slow EMA 40/50/60
-- [x] parameter-neighborhood stability report
-- [x] neighborhood explicitly diagnostic-only for first cycle, not a tuning menu
-- [x] rolling walk-forward: default 180d train / 30d test / 30d step
-- [x] walk-forward parameter selection uses train data only
-- [x] unseen test uses full causal train history as EMA warm-up context while all trading/performance starts at test boundary
-- [x] causal regression test ensuring future test-tail changes cannot alter first-fold train selection
-- [x] causal bull/bear/range historical regime diagnostics
-- [x] trade PnL/win-rate/return breakdown by regime
-- [x] fixed same-candle regime look-ahead bug: entry uses previous fully completed candle
-- [x] regression test for same-open-timestamp leakage
-- [x] `eba-validate-trend`
-- [x] `eba-regime-report`
-- [x] one-command `eba-development-study`
-- [x] `eba-development-study` accepts no EMA override; first cycle is hard-locked to predeclared EMA 20/50
-- [x] regression tests added for strict crossover, causal evaluation boundary and no development EMA override
-- [x] methodology documented in `docs/M2B_ROBUSTNESS.md`
-
-### M2C — Risk-sized execution gate
-
-- [x] predeclared ATR 14 / 2× stop and 0.5% planned-risk Spot execution model
-- [x] deterministic daily-loss and 8% drawdown entry halts
-- [x] development evidence and screening bind the signal report and dataset hashes
-- [x] one-command `scripts/run_m2_full_development.sh` workflow
-
-### M2D — Final frozen OOS safeguards
-
-- [x] final freeze requires eligible signal and risk-execution evidence
-- [x] evidence, verdict, dataset, Git commit, and full execution configuration binding
-- [x] one-shot OOS open marker fails closed on interrupted runs
-- [x] predeclared final OOS screening only promotes to forward PAPER eligibility
-- [x] signal-only OOS console commands removed from public packaging
+- [x] parameter-neighborhood and rolling temporal stability tooling
+- [x] risk-sized execution gate
+- [x] clean Git provenance binding
+- [x] final-freeze and one-shot OOS safeguards
+- [x] generic downloader blocks BTCUSDT 2025 overlap before network access
+- [x] seven reproducible 2021/2023 Binance source gaps are explicitly allowlisted
 
 ## Evidence-window policy
 
-Development windows:
-- research: `2021-01-01` → `2024-01-01` exclusive
-- validation: `2024-01-01` → `2025-01-01` exclusive
+Development/research only:
+- `2021-01-01` → `2025-01-01` exclusive
+- 2021–2024 has now been reused across multiple development cycles and must not be described as pristine OOS.
+- New research must use temporal/rolling stability inside this development window rather than pretending 2024 is untouched validation.
 
 Frozen holdout:
-- OOS: `2025-01-01` → `2026-01-01` exclusive
+- `2025-01-01` → `2026-01-01` exclusive
+- Status: **`LOCKED_NOT_ACCESSED`**
 
-Forward-only future:
-- 2026+ cannot be relabeled pristine historical OOS; it is reserved for evidence collected forward
-  from a later PAPER/SHADOW freeze timestamp.
+Forward future:
+- 2026+ is reserved for evidence collected forward from a later PAPER/SHADOW freeze timestamp.
 
-### Critical OOS lock
+## Strategy evidence history
 
-The old baseline design exposed 2025 together with development data. This was corrected before historical study execution.
+### Trend V1 — REJECTED
 
-- [x] `eba-baseline-study` opens research + validation only
-- [x] 2025 OOS is not downloaded/exposed by preferred development study
-- [x] development study fails closed if a 2025 OOS cache file already exists
-- [x] development report records holdout cache absence
-- [x] direct OOS use through baseline function is rejected
-- [x] first-cycle development commands accept no market, capital, or EMA overrides
-- [x] generic downloader blocks BTCUSDT 2025 overlap across all timeframes before network access
-- [x] renamed development windows cannot overlap the date-based holdout guard
-- [x] `eba-final-freeze` binds signal plus risk evidence and exact cached development datasets
-- [x] `eba-final-oos --confirm-frozen` verifies the clean matching Git commit before opening
-- [x] existing OOS cache, open marker, or report blocks rerun
-- [x] retuning after OOS open is forbidden
+- Decision: `REJECT_DEVELOPMENT_CYCLE`
+- Validation return: **-45.07%**
+- Expectancy: **-$1.34/trade**
+- Profit factor: **0.770**
+- Severe-cost return: **-85.74%**
+- Neighborhood positive expectancy: **0%**
+- Risk layer: blocked
+- Record: `docs/M2_TREND_V1_DEVELOPMENT_RESULT_2026-08-20.md`
 
-## First-cycle development outcome
+### Trend V2 — REJECTED
 
-The real-data workflow ran on 2026-08-20 from clean commit `4f8f908`.
+- Decision: `REJECT_TREND_V2_SIGNAL_CYCLE`
+- Validation return: **-17.53%**
+- Maximum drawdown: **-22.90%**
+- Closed trades: **101**
+- Profit factor: **0.612**
+- Expectancy: **-$1.74/trade**
+- Positive-expectancy neighborhood variants: **0/9**
+- Rolling positive-return / positive-expectancy / PF>1 folds: **11/30** each
+- Risk layer: blocked
+- Record: `docs/M3_TREND_V2_DEVELOPMENT_RESULT_2026-08-20.md`
 
-- Signal verdict: `REJECT_DEVELOPMENT_CYCLE` (8/10 gates failed).
-- Validation base return: -45.07%; expectancy: -$1.34; profit factor: 0.770.
-- Validation severe-cost return: -85.74%.
-- Parameter-neighborhood positive expectancy: 0%.
-- Risk execution evidence/verdict: not run, blocked by rejected signal authority.
-- 2025 OOS: `LOCKED_NOT_ACCESSED`.
-- Full record: `docs/M2_TREND_V1_DEVELOPMENT_RESULT_2026-08-20.md`.
+### V3 Bull Pullback Recovery — REJECTED
 
-## Current validation caveat
+Final pushed implementation branch head before M5:
+`dfbddf944a462d499e4a9917ad842794c4319266`
 
-- M1 live public data is proven.
-- Python 3.12.14: complete deterministic suite passed (124 tests) and Ruff passed on 2026-08-20.
-- Editable packaging was verified with the authoritative development/risk/final console commands.
-- Real historical signal evidence was generated and rejected; no risk or OOS evidence was opened.
+- Decision: `REJECT_V3_SIGNAL_CYCLE`
+- Full pytest before evidence: **157 passed**
+- Ruff: **passed**
+- Validation return: **-13.73%**
+- Maximum drawdown: **-14.64%**
+- Closed trades: **79**
+- Profit factor: **0.612**
+- Expectancy: **-$1.74/trade**
+- Positive-expectancy neighborhood variants: **0/9**
+- Rolling folds with trades: **21/30**
+- Rolling positive-return / positive-expectancy / PF>1 folds: **4/30** each
+- Gates: **7 PASS / 14 FAIL / 13 BLOCKED**
+- Risk-sized layer: blocked, not run
+- Record: `docs/M4_V3_DEVELOPMENT_RESULT_2026-08-21.md`
 
-## Next tasks — strict order
+V1, V2, and V3 are retired for promotion. Do not rescue them with post-result parameter retuning.
 
-1. Trend V2 policy is frozen by `docs/M3_TREND_V2_POLICY_FREEZE.json`; do not change parameters.
-2. Implement causal indicator/resampling/entry/exit/risk tests before evidence.
-3. Use only 2021–2024 development data for the new cycle; keep 2025 locked.
-4. Keep Mean Reversion / Breakout / Momentum sequencing explicit and independently screened.
-5. Paid server only after forward evidence justifies it.
-6. Futures/crowding/liquidation remains a later scope.
+## M5 — Price/Volume Edge Discovery V1 — CLOSED / NO STABLE EDGE
+
+Feature branch: `edge-discovery-engine`
+
+Final implementation/result commit:
+`64cbcf27bca4534c1ecf4d173f20ac75f69203fd`
+
+Decision: **`NO_STABLE_EDGE_FOUND`**
+
+M5 changed the research method from strategy-first to edge-first:
+
+`predeclare market events -> measure forward returns -> control costs/multiple testing -> require
+cross-year stability -> development challenge -> only then consider a strategy hypothesis`
+
+Frozen M5 search:
+
+- 24 predeclared price/volume event candidates
+- 3 causal forward horizons: 4 / 16 / 48 15m bars
+- 72 total discovery hypothesis tests
+- Base research friction: 30 bps round trip
+- Severe research friction: 70 bps round trip
+- yearly stability required in 2021, 2022, 2023
+- daily aggregation before significance screening
+- Benjamini-Hochberg FDR correction across all 72 tests, q <= 0.10
+- no candidate could auto-generate or deploy a strategy
+
+Final M5 result:
+
+- Full pytest: **167 passed**
+- Ruff: **PASS**
+- `LONG_EDGE_CANDIDATE`: **0**
+- `NO_TRADE_VETO_CANDIDATE`: **0**
+- `OBSERVATION_ONLY`: **24**
+- Discovery-passing horizons: **0/72**
+- 2024 challenge-passing horizons: **0/72**
+- 2025 OOS: **`LOCKED_NOT_ACCESSED`**
+- Evidence SHA-256: `a535d7c79576d92e0979a18f52b718d62885097953f0883bc1ac9f5b74595279`
+- Record: `docs/M5_EDGE_DISCOVERY_RESULT_2026-08-21.md`
+
+M5 is retired as a frozen search cycle. Do not rescue it by changing thresholds, adding post-result filters, reversing failed signs, or rerunning it under altered rules.
+
+## M6 — Derivatives Information Edge Discovery — NEXT
+
+M6 must add materially new information rather than more price/volume threshold tuning.
+
+Primary candidate inputs for provenance audit:
+
+- Binance BTCUSDT USDⓈ-M perpetual funding-rate history
+- Binance BTCUSDT USDⓈ-M premium-index klines
+- BTCUSDT perpetual-versus-spot basis derived only if both source series have complete, auditable timestamps
+- futures activity/volume features only if historical coverage and fields are reproducible
+
+Open interest is excluded from M6 until long-horizon historical provenance is independently demonstrated. News, macro, liquidation feeds, order-book history, and AI remain later research families.
+
+### M6 strict order
+
+1. Create a separately versioned derivatives-data audit branch from the closed M5 state.
+2. Implement public-data download/cache code with the existing 2025 holdout guard applied before any network request.
+3. Audit exact 2021–2024 coverage, timestamps, duplicates, gaps, source semantics, and reproducibility for each proposed derivatives series.
+4. Record dataset hashes and reject any source that cannot provide reproducible historical coverage.
+5. Do **not** freeze an edge search space until the data audit is complete.
+6. After the audit, predeclare a small derivatives-informed search space and temporal validation protocol before examining candidate forward-return results.
+7. Use 2021–2024 only as development data with rolling/walk-forward stability; do not relabel 2024 pristine OOS.
+8. Keep 2025 `LOCKED_NOT_ACCESSED` throughout M6 development.
+9. If M6 finds no stable edge, stop that family without rescue tuning.
+10. AI strategy routing remains future architecture only after multiple deterministic strategies/edges earn evidence.
 
 ## Explicitly forbidden now
 
+- opening or downloading the 2025 BTC holdout
+- changing or rerunning M5 to rescue failed candidates
+- using 2024 as if it were pristine OOS
 - paid permanent VPS
 - real-money orders
-- futures / leverage
+- futures / leverage / short execution
 - copy trading
-- martingale
+- martingale / averaging down
 - AI-controlled order submission
 - strategy self-deployment
 - API withdrawal permission
