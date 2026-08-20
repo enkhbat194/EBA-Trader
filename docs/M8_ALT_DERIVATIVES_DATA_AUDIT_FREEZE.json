@@ -1,0 +1,37 @@
+{
+  "cycle": "m8_alt_derivatives_data_audit_v1",
+  "status": "FROZEN_PRE_AUDIT",
+  "frozen_at": "2026-08-21",
+  "base_git_commit": "dcc59076b56e5b9356207bf0042d11990c387a11",
+  "protocol_document": "docs/M8_ALT_DERIVATIVES_DATA_AUDIT_PROTOCOL.md",
+  "protocol_sha256": "18fda0ce27e81e64a496be4fd439b0b5c2479a2534028ca8ec0dfc676fd671c6",
+  "audit_start": "2021-01-01T00:00:00Z",
+  "audit_end_exclusive": "2025-01-01T00:00:00Z",
+  "primary_sources": [
+    "binance_usdm_daily_metrics_btcusdt_5m",
+    "bybit_linear_btcusdt_1h_kline",
+    "bybit_linear_btcusdt_1h_open_interest",
+    "bybit_linear_btcusdt_1h_account_ratio",
+    "bybit_linear_btcusdt_funding_history"
+  ],
+  "secondary_sources": [
+    "binance_usdm_daily_bookDepth_btcusdt",
+    "binance_usdm_daily_liquidationSnapshot_btcusdt"
+  ],
+  "binance_metrics_min_coverage": 0.995,
+  "binance_metrics_max_missing_slots": 288,
+  "bybit_kline_min_coverage": 0.999,
+  "bybit_kline_max_missing_hours": 6,
+  "bybit_positioning_min_coverage": 0.995,
+  "bybit_positioning_max_missing_hours": 24,
+  "cross_exchange_min_hourly_alignment": 0.99,
+  "book_depth_partial_start": "2023-01-01T00:00:00Z",
+  "book_depth_min_daily_file_coverage": 0.99,
+  "liquidation_min_daily_file_coverage": 0.99,
+  "oos_2025": "LOCKED_NOT_ACCESSED",
+  "forward_returns": "forbidden",
+  "strategy_generation": "forbidden",
+  "paid_vendor_substitution": "forbidden_under_this_contract",
+  "ai_module": "excluded",
+  "live_execution": "forbidden"
+}
