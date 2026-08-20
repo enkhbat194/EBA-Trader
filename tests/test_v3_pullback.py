@@ -10,6 +10,7 @@ from eba_trader.v3_pullback import (
     V3PullbackFeatures,
     _arm_eligible,
     _recovery_eligible,
+    _source_ready,
     resample_complete_4h,
     rolling_prior_vwap,
     run_v3_pullback_backtest,
@@ -148,6 +149,15 @@ def test_recovery_requires_local_high_reclaim_and_volume_filter() -> None:
     assert _recovery_eligible(low_volume, 3, config, filters_enabled=False) is True
 
 
+def test_source_ready_requires_post_gap_contiguous_rebuild() -> None:
+    features, config = _eligible_features()
+    config = replace(config, complete_15m_after_gap=3)
+    gapped = replace(features, contiguous_15m_streak=(1, 2, 1, 2))
+
+    assert _source_ready(gapped, 2, config) is False
+    assert _source_ready(features, 2, config) is True
+
+
 def _execution_features(bars: tuple[Candle, ...], atr_value: float) -> V3PullbackFeatures:
     size = len(bars)
     return V3PullbackFeatures(
@@ -201,6 +211,56 @@ def test_entry_is_next_open_and_same_bar_stop_target_uses_stop_first(monkeypatch
     assert trade.trade.entry_price == pytest.approx(100.5)
     assert trade.exit_reason == "stop"
     assert trade.trade.exit_price == pytest.approx(98.75)
+
+
+def test_pending_entry_is_cancelled_when_source_health_breaks(monkeypatch) -> None:
+    bars = (
+        _bar(0, open_price=100.0, high=100.5, low=99.0, close=99.5),
+        _bar(1, open_price=99.5, high=101.0, low=99.2, close=100.5),
+        _bar(2, open_price=100.5, high=102.0, low=100.0, close=101.0),
+        _bar(3, open_price=101.0, high=102.0, low=100.0, close=101.0),
+    )
+    _patch_single_setup(monkeypatch, bars, 1.0)
+    monkeypatch.setattr(v3, "_source_ready", lambda features, index, config: index != 2)
+
+    result = run_v3_pullback_backtest(bars, _small_config())
+
+    assert result.trade_count == 0
+
+
+def test_armed_setup_is_cancelled_immediately_on_source_gap(monkeypatch) -> None:
+    bars = (
+        _bar(0, close=99.0),
+        _bar(1, close=99.0),
+        _bar(2, close=101.0),
+        _bar(3, close=101.0),
+    )
+    monkeypatch.setattr(
+        v3,
+        "prepare_v3_pullback_features",
+        lambda supplied, config: _execution_features(tuple(supplied), 1.0),
+    )
+    monkeypatch.setattr(v3, "_features_ready", lambda features, index, config: True)
+    monkeypatch.setattr(v3, "_bull_regime", lambda features, index, config: True)
+    monkeypatch.setattr(
+        v3,
+        "_source_ready",
+        lambda features, index, config: index != 1,
+    )
+    monkeypatch.setattr(
+        v3,
+        "_arm_eligible",
+        lambda features, index, config, filters_enabled: index == 0,
+    )
+    monkeypatch.setattr(
+        v3,
+        "_recovery_eligible",
+        lambda features, index, config, filters_enabled: index == 2,
+    )
+
+    result = run_v3_pullback_backtest(bars, _small_config(arm_lifetime_bars=8))
+
+    assert result.trade_count == 0
 
 
 def test_risk_sizing_obeys_risk_and_notional_caps(monkeypatch) -> None:
