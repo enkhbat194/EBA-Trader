@@ -1,33 +1,34 @@
 # EBA Trader — Project State
 
-_Last updated: 2026-08-20 (Asia/Ulaanbaatar)_
+_Last updated: 2026-08-21 (Asia/Ulaanbaatar)_
 
 This is the authoritative cross-chat continuation record.
 
 ## Mission
 
-Build a professional-grade autonomous trading system that validates strategies with evidence, refuses low-quality trades, enforces deterministic risk limits, and only later gains exchange execution after research/paper gates pass.
+Build a professional-grade autonomous trading system that validates market edges and strategies with
+evidence, refuses low-quality trades, enforces deterministic risk limits, and only later gains
+exchange execution after research/paper gates pass.
 
-## Owner constraints
+## Owner / infrastructure constraints
 
 - The owner should not need to master a complex exchange UI.
 - Complexity belongs in the engine; future UI stays minimal.
-- Learn from historical bot failure modes instead of copying one retail strategy.
 - Preserve state and decisions in the repo for cross-chat continuity.
 - Bootstrap infrastructure budget is **$0 until edge evidence exists**.
 - Replit is only a temporary runtime, not the development center.
+- Deterministic risk authority always outranks strategy or future AI recommendations.
 
 ## Core system constraints
 
 - Repo: `enkhbat194/EBA-Trader`
-- Market under current research: BTC/USDT Spot
+- Current research market: BTC/USDT Spot
 - Primary exchange/data source: Binance; backup target: OKX
 - Engine dependency: `nautilus_trader==1.230.0`
 - Supported Python: 3.12–3.14; evidence validation target: Python 3.12
-- Risk authority: deterministic Risk Engine
 - `NO_TRADE` is a valid first-class outcome
 - Real-money orders, futures and leverage: disabled
-- AI/news/funding/basis inputs: later overlay only after a deterministic baseline earns evidence
+- AI cannot override deterministic risk controls
 
 ## Completed infrastructure
 
@@ -61,26 +62,27 @@ Build a professional-grade autonomous trading system that validates strategies w
 - [x] clean Git provenance binding
 - [x] final-freeze and one-shot OOS safeguards
 - [x] generic downloader blocks BTCUSDT 2025 overlap before network access
-- [x] seven reproducible 2021/2023 Binance source gaps are explicitly documented/allowlisted; every other unexpected gap remains a hard failure
+- [x] seven reproducible 2021/2023 Binance source gaps are explicitly allowlisted
 
 ## Evidence-window policy
 
-Development only:
-- Research: `2021-01-01` → `2024-01-01` exclusive
-- Validation: `2024-01-01` → `2025-01-01` exclusive
+Development discovery/research:
+- `2021-01-01` → `2024-01-01` exclusive
+
+Fixed reused development challenge:
+- `2024-01-01` → `2025-01-01` exclusive
+- This is **not pristine OOS** after V1/V2/V3 development.
 
 Frozen holdout:
-- OOS: `2025-01-01` → `2026-01-01` exclusive
+- `2025-01-01` → `2026-01-01` exclusive
 - Status: **`LOCKED_NOT_ACCESSED`**
 
 Forward future:
-- 2026+ is reserved for evidence collected forward from a later PAPER/SHADOW freeze timestamp; it cannot be relabeled pristine historical OOS.
+- 2026+ is reserved for evidence collected forward from a later PAPER/SHADOW freeze timestamp.
 
 ## Strategy evidence history
 
 ### Trend V1 — REJECTED
-
-Real development evidence was run on 2026-08-20.
 
 - Decision: `REJECT_DEVELOPMENT_CYCLE`
 - Validation return: **-45.07%**
@@ -88,92 +90,115 @@ Real development evidence was run on 2026-08-20.
 - Profit factor: **0.770**
 - Severe-cost return: **-85.74%**
 - Neighborhood positive expectancy: **0%**
-- Risk layer: blocked, not run
-- 2025 OOS: `LOCKED_NOT_ACCESSED`
+- Risk layer: blocked
 - Record: `docs/M2_TREND_V1_DEVELOPMENT_RESULT_2026-08-20.md`
 
 ### Trend V2 — REJECTED
 
-Frozen regime-filtered volatility-aware breakout cycle was implemented and tested on 2021–2024 development data.
-
-- Result commit: `0c108182eb778688570950ee92e0c13d1a16d4e7`
 - Decision: `REJECT_TREND_V2_SIGNAL_CYCLE`
 - Validation return: **-17.53%**
 - Maximum drawdown: **-22.90%**
 - Closed trades: **101**
 - Profit factor: **0.612**
 - Expectancy: **-$1.74/trade**
-- 9 parameter-neighborhood variants with positive expectancy: **0/9**
-- Rolling positive-return / positive-expectancy / PF>1 folds: **11/30 (36.67%)** each
-- Signal gates: 9 PASS / 14 FAIL
-- Risk gates: 13 BLOCKED, not run
-- 2025 OOS: `LOCKED_NOT_ACCESSED`
+- Positive-expectancy neighborhood variants: **0/9**
+- Rolling positive-return / positive-expectancy / PF>1 folds: **11/30** each
+- Risk layer: blocked
 - Record: `docs/M3_TREND_V2_DEVELOPMENT_RESULT_2026-08-20.md`
 
-Trend V1 and Trend V2 are retired for promotion. Do not rescue them by post-result parameter retuning.
+### V3 Bull Pullback Recovery — REJECTED
 
-## M4 — V3 Bull Pullback Recovery
+Final pushed implementation branch head before M5:
+`dfbddf944a462d499e4a9917ad842794c4319266`
 
-Feature branch: `v3-bull-pullback-recovery`
+- Decision: `REJECT_V3_SIGNAL_CYCLE`
+- Full pytest before evidence: **157 passed**
+- Ruff: **passed**
+- Validation return: **-13.73%**
+- Maximum drawdown: **-14.64%**
+- Closed trades: **79**
+- Profit factor: **0.612**
+- Expectancy: **-$1.74/trade**
+- Positive-expectancy neighborhood variants: **0/9**
+- Rolling folds with trades: **21/30**
+- Rolling positive-return / positive-expectancy / PF>1 folds: **4/30** each
+- Gates: **7 PASS / 14 FAIL / 13 BLOCKED**
+- Risk-sized layer: blocked, not run
+- Record: `docs/M4_V3_DEVELOPMENT_RESULT_2026-08-21.md`
 
-Status: **FROZEN + IMPLEMENTED, RUNTIME VALIDATION PENDING**
+V1, V2, and V3 are retired for promotion. Do not rescue them with post-result parameter retuning.
 
-V3 is materially different from V1/V2:
+## M5 — Edge Discovery Engine
 
-`4h bull regime -> bounded 15m pullback below prior 24h rolling VWAP -> recovery confirmation -> next 15m open entry`
+Feature branch: `edge-discovery-engine`
 
-Frozen baseline includes:
-- 4h EMA50/EMA200 bull regime with rising EMA200
-- 15m ATR14
-- prior 96-bar rolling VWAP and median volume
-- 0.75–2.25 ATR pullback envelope
-- 3-bar local-high recovery confirmation
-- source-gap recovery veto
-- swing-low + 0.25 ATR stop buffer
-- stop-distance acceptance 0.75–3.0 ATR
-- fixed 2R target
-- 24-bar time exit
-- 0.35% planned risk/trade in risk-sized layer
-- 50% notional cap
-- 1.5% UTC daily realized-loss entry halt
-- 8% mark-to-market drawdown halt
+Status: **PRICE/VOLUME V1 SEARCH SPACE FROZEN + IMPLEMENTATION IN PROGRESS**
 
-Completed on the V3 branch:
-- [x] hypothesis contract frozen by SHA-256
-- [x] 34 predeclared pass/fail gates
-- [x] policy/constants module
-- [x] causal 4h resampling / ATR / VWAP / volume / recovery engine
-- [x] next-open execution, stop/target, time/regime exit logic
-- [x] source-gap fail-closed behavior for armed and pending setups
-- [x] signal/allocation and risk-sized execution paths
-- [x] 9-variant robustness neighborhood
-- [x] rolling 180d-context / 30d-test temporal stability
-- [x] regime-only recovery control
-- [x] V3 evidence/verdict report generator
-- [x] `eba-v3-development` command
-- [x] Windows and Bash one-command development runners
+M5 changes the research method:
+
+`predeclare market events -> measure forward returns -> control costs/multiple testing -> require
+cross-year stability -> fixed 2024 challenge -> only then consider a new strategy hypothesis`
+
+M5 Price/Volume V1 frozen design:
+
+- discovery uses 2021–2023 only;
+- 2024 is a fixed reused development challenge;
+- 2025 remains locked;
+- 24 predeclared event candidates;
+- 3 causal forward horizons: 4 / 16 / 48 15m bars;
+- 72 total discovery hypothesis tests;
+- signal at completed 15m close, hypothetical measurement starts at next 15m open;
+- source-gap-reset ATR/VWAP/volume features;
+- event cooldown: 4 bars;
+- Base research friction: 30 bps round trip;
+- Severe research friction: 70 bps round trip;
+- yearly stability required in 2021, 2022, 2023;
+- daily aggregation used before significance screening;
+- Benjamini-Hochberg FDR correction across all 72 discovery tests, q <= 0.10;
+- positive-direction survivors classify as `LONG_EDGE_CANDIDATE`;
+- negative-direction survivors classify as `NO_TRADE_VETO_CANDIDATE` only, never short authority;
+- no candidate can auto-generate or deploy V4.
+
+Completed on the M5 branch:
+
+- [x] `docs/M5_EDGE_DISCOVERY_PROTOCOL.md`
+- [x] `docs/M5_EDGE_DISCOVERY_FREEZE.json`
+- [x] `src/eba_trader/edge_discovery_policy.py`
+- [x] `src/eba_trader/edge_discovery.py`
+- [x] policy and causal/statistical unit tests
+- [x] `eba-edge-discovery` CLI entry
+- [x] Windows and Bash one-command runners
 - [x] GitHub Actions Python 3.12 pytest/Ruff workflow
+- [x] M5 worklog
 
-Important: the latest complete branch has **not yet been proven green by a full runtime pytest/Ruff execution after the final bundled edits**. No V3 historical evidence result is claimed yet.
+## M5 next tasks — strict order
 
-## V3 next tasks — strict order
-
-1. Run full repository pytest on the latest V3 branch with Python 3.12.
+1. Run full repository pytest on Python 3.12.
 2. Run Ruff on the same commit.
-3. Fix only implementation defects; frozen V3 parameters/gates must not change.
-4. On a clean tracked tree, run `scripts/run_v3_development.ps1` on Windows or `scripts/run_v3_development.sh` on Bash/Linux.
-5. That runner may use only the frozen 2021–2024 datasets and must verify their hashes.
-6. If any signal gate 1–21 fails: reject V3 and leave risk gates 22–34 blocked.
-7. Run the risk-sized layer only if every signal gate passes.
-8. Even if all 34 development gates pass, do **not** open 2025 automatically; first perform a separate final-freeze review.
+3. Fix implementation defects only; do not change the frozen 24 candidates, thresholds or gates.
+4. Commit a green implementation.
+5. On a clean tracked tree run `scripts/run_edge_discovery.ps1` on Windows.
+6. The runner may read only the frozen 2021–2024 development datasets.
+7. Preserve the first complete JSON result; the runner refuses to overwrite it.
+8. If nothing survives, record `NO_STABLE_EDGE_FOUND`; do not invent a rescue filter.
+9. If candidates survive, audit them before writing any V4 strategy contract.
+10. Do not open 2025.
+
+## Later research, not in Price/Volume V1
+
+Funding/basis can be added only as a separately versioned edge-discovery family with explicit
+historical-data provenance. Open-interest, liquidation, order-book, news/macro and AI inputs remain
+later scope and must not contaminate the frozen M5 Price/Volume V1 run.
 
 ## Explicitly forbidden now
 
 - opening or downloading the 2025 BTC holdout
-- changing V3 parameters after seeing V3 development evidence
+- changing the M5 frozen search after seeing its first complete result
+- using 2024 as if it were pristine OOS
+- automatically turning an observed sign reversal into a new candidate
 - paid permanent VPS
 - real-money orders
-- futures / leverage
+- futures / leverage / short execution
 - copy trading
 - martingale / averaging down
 - AI-controlled order submission
