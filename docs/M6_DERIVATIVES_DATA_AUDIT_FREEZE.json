@@ -1,0 +1,34 @@
+{
+  "cycle": "m6_derivatives_data_audit_v1",
+  "status": "FROZEN_PRE_AUDIT",
+  "frozen_at": "2026-08-21",
+  "base_git_commit": "79d7dddda43a8e4a12f3dfd841822abef0e70c2d",
+  "protocol_document": "docs/M6_DERIVATIVES_DATA_AUDIT_PROTOCOL.md",
+  "protocol_sha256": "e5ef3f512c815138d2d25e72c25dd9f946a51039190ec6d0aacc05a8f15bb785",
+  "symbol": "BTCUSDT",
+  "interval": "15m",
+  "audit_start": "2021-01-01T00:00:00Z",
+  "audit_end_exclusive": "2025-01-01T00:00:00Z",
+  "expected_15m_slots": 140256,
+  "core_sources": {
+    "funding_rate_history": "/fapi/v1/fundingRate",
+    "premium_index_15m": "/fapi/v1/premiumIndexKlines",
+    "perpetual_futures_15m": "/fapi/v1/klines",
+    "index_price_15m": "/fapi/v1/indexPriceKlines"
+  },
+  "retention_blocked": {
+    "open_interest_statistics": {
+      "endpoint": "/futures/data/openInterestHist",
+      "documented_retention": "latest_1_month"
+    },
+    "basis": {
+      "endpoint": "/futures/data/basis",
+      "documented_retention": "latest_30_days"
+    }
+  },
+  "oos_2025": "LOCKED_NOT_ACCESSED",
+  "strategy_generation": "forbidden",
+  "parameter_edge_search": "forbidden_until_audit_pass",
+  "ai_module": "excluded",
+  "live_execution": "forbidden"
+}
