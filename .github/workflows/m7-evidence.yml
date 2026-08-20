@@ -1,0 +1,79 @@
+name: M7 one-shot frozen evidence
+
+on:
+  pull_request:
+    branches:
+      - m6-derivatives-data-audit
+    paths:
+      - .github/workflows/m7-evidence.yml
+
+permissions:
+  contents: read
+
+jobs:
+  frozen-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact M7 branch head
+        uses: actions/checkout@v4
+        with:
+          ref: m7-funding-futures-edge-discovery
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project
+        run: python -m pip install -e '.[dev]'
+
+      - name: Verify clean provenance and frozen policy
+        run: |
+          test -z "$(git status --porcelain --untracked-files=no)"
+          git log -1 --oneline
+          python - <<'PY'
+          from eba_trader.m7_funding_flow_policy import verify_m7_freeze
+          manifest = verify_m7_freeze()
+          assert manifest['status'] == 'FROZEN_PREDECLARED_NOT_RUN'
+          assert manifest['candidate_count'] == 12
+          assert manifest['hypothesis_test_count'] == 36
+          assert manifest['oos_2025'] == 'LOCKED_NOT_ACCESSED'
+          print('M7 freeze verified')
+          PY
+
+      - name: Seed and exact-hash verify frozen 2021-2024 inputs
+        run: python -m eba_trader.m7_seed
+
+      - name: Run first frozen M7 evidence
+        run: python -m eba_trader.m7_funding_flow
+
+      - name: Print frozen result summary
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          path = Path('artifacts/m7_funding_futures_edge_discovery.json')
+          report = json.loads(path.read_text(encoding='utf-8'))
+          summary = report['classification_summary']
+          print('decision:', report['decision'])
+          print('LONG_EDGE_CANDIDATE:', summary['long_edge_candidates'])
+          print('NO_TRADE_VETO_CANDIDATE:', summary['no_trade_veto_candidates'])
+          print('passing_candidate_horizons:', summary['passing_candidate_horizons'])
+          print('oos_2025:', report['oos_2025'])
+          print('sha256:', hashlib.sha256(path.read_bytes()).hexdigest())
+          PY
+
+      - name: Upload immutable M7 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: m7-funding-futures-edge-discovery-first-result
+          path: |
+            artifacts/m7_funding_futures_edge_discovery.json
+            data/cache/m7/input_seed_manifest.json
+          if-no-files-found: error
+          retention-days: 30
