@@ -1,9 +1,6 @@
-name: M6 one-shot historical derivatives audit
+name: M6 historical derivatives audit
 
 on:
-  pull_request:
-    paths:
-      - .github/workflows/m6-historical-audit.yml
   workflow_dispatch:
 
 permissions:
