@@ -9,7 +9,7 @@ V3_PULLBACK_POLICY_VERSION = 1
 V3_PULLBACK_POLICY_NAME = "v3_bull_pullback_recovery"
 V3_PULLBACK_POLICY_DOCUMENT = Path("docs/M4_V3_BULL_PULLBACK_RECOVERY_HYPOTHESIS.md")
 V3_PULLBACK_FREEZE_MANIFEST = Path("docs/M4_V3_BULL_PULLBACK_RECOVERY_POLICY_FREEZE.json")
-V3_PULLBACK_POLICY_SHA256 = "e10448c974bc6ff74cabe9f2ca0616f67c78c212457bd2fa198af7776b805feb"
+V3_PULLBACK_POLICY_SHA256 = "408782f52fc78837f9207bffed322dda1d7bb118586ed8c9acf6dcddce75d85d"
 
 V3_RESEARCH_SHA256 = "253c6ae35856e58e35df17eaa71caeea5caaa3681c38dd7214a2872afccd8d63"
 V3_VALIDATION_SHA256 = "3a96b6b668cfacb0fefabb8665675d4ca589cc712b0681fb57e7a13356eda0f2"
@@ -106,13 +106,19 @@ def sha256_file(path: str | Path) -> str:
     return digest.hexdigest()
 
 
+def sha256_policy_document(path: str | Path) -> str:
+    """Hash policy text with canonical LF newlines on every supported platform."""
+    content = Path(path).read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return hashlib.sha256(content).hexdigest()
+
+
 def verify_v3_pullback_policy_freeze(root: str | Path = ".") -> dict[str, object]:
     base = Path(root)
     document = base / V3_PULLBACK_POLICY_DOCUMENT
     manifest_path = base / V3_PULLBACK_FREEZE_MANIFEST
     if not document.is_file() or not manifest_path.is_file():
         raise FileNotFoundError("V3 policy document or freeze manifest is missing")
-    actual = sha256_file(document)
+    actual = sha256_policy_document(document)
     if actual != V3_PULLBACK_POLICY_SHA256:
         raise RuntimeError("V3 policy document changed after freeze")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))

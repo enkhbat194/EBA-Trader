@@ -9,6 +9,7 @@ from eba_trader.v3_pullback_policy import (
     V3_PULLBACK_POLICY_NAME,
     V3_PULLBACK_POLICY_SHA256,
     V3PullbackConfig,
+    sha256_policy_document,
     verify_v3_pullback_policy_freeze,
 )
 
@@ -37,6 +38,15 @@ def test_v3_freeze_manifest_matches_policy_document() -> None:
     assert manifest["gate_count"] == 34
     assert manifest["oos_2025"] == "LOCKED_NOT_ACCESSED"
     assert manifest["ai_module"] == "excluded"
+
+
+def test_v3_policy_hash_is_portable_across_line_endings(tmp_path) -> None:
+    lf = tmp_path / "policy_lf.md"
+    crlf = tmp_path / "policy_crlf.md"
+    lf.write_bytes(b"alpha\nbeta\n")
+    crlf.write_bytes(b"alpha\r\nbeta\r\n")
+
+    assert sha256_policy_document(lf) == sha256_policy_document(crlf)
 
 
 def test_v3_policy_rejects_invalid_pullback_envelope() -> None:
