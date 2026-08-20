@@ -89,17 +89,14 @@ Record: `docs/M6_DERIVATIVES_DATA_AUDIT_RESULT_2026-08-21.md`
 M6 added no strategy. It audited whether materially new USD-M derivatives information was clean
 enough for 2021–2024 research.
 
-### Acquisition
+### Acquisition and result
 
 - Direct `fapi.binance.com` from GitHub-hosted Azure returned HTTP 451; no proxy/bypass used.
 - Completed audit used official `data.binance.vision` monthly USD-M archives.
 - Every present ZIP was verified against Binance Vision `.CHECKSUM` before parsing.
 - 48/48 monthly files existed for each audited family.
 - 2025 remained `LOCKED_NOT_ACCESSED`.
-
-### Frozen result
-
-Decision: **`M6_DERIVATIVES_DATA_AUDIT_FAIL`**
+- decision: **`M6_DERIVATIVES_DATA_AUDIT_FAIL`**
 
 | Source | Rows | Coverage / cadence | Result |
 |---|---:|---|---|
@@ -109,54 +106,82 @@ Decision: **`M6_DERIVATIVES_DATA_AUDIT_FAIL`**
 | Index-price 15m | 139,103 | 99.17793%, max gap 48h | FAIL |
 | Premium/futures/index intersection | 138,621 | 98.83427% | FAIL |
 
-Frozen kline requirement was >=99.90% coverage and <=12h maximum missing run. The thresholds are not
-relaxed after observing the result.
+Frozen kline requirement was >=99.90% coverage and <=12h maximum missing run. The thresholds were not
+relaxed after observing the result. Only funding and perpetual-futures activity were permitted into a
+new search cycle; failed premium/index families stayed excluded.
 
-Dataset SHA-256:
-- funding: `73b9decde0d54a0609d55ccfd49131a6e825416b595d728457bb01a968b55fd6`
-- futures: `3c97c9b59ded32595f129a480a23e920823c0edbbf2e4f32c5d66e5020e35947`
-- premium: `807eba68834c016e89358feb40ee3bd1457216fe6e3121e232c83af7e2bc7bfb`
-- index: `76201859297ec3ff18aa9a507e78ced7dd17b114ff097b8fb1529047f3b39603`
+## M7 Funding + Futures Activity Edge Discovery — CLOSED / NO STABLE EDGE
 
-Completed historical audit provenance:
-- source commit: `8a8b5c7d83d6be4bac69c8aea82c123f670e6e0f`
-- Actions run: `32422829081`
-- evidence artifact ID: `9426328736`
-- artifact ZIP SHA-256: `d241e991131a7e0d32dc514cc88aa63aabd943d7f2d79e79cc2add0887bb1a4d`
+Branch: `m7-funding-futures-edge-discovery`
+Result record: `docs/M7_FUNDING_FUTURES_EDGE_DISCOVERY_RESULT_2026-08-21.md`
 
-### What M6 taught us
+M7 used only the M6-PASS derivatives families plus frozen Spot outcome data. The search was frozen
+before results:
 
-The four-source contract is rejected and cannot be rescued by weakening gates. However, funding and
-perpetual-futures 15m price/activity independently passed their predeclared data-quality gates before
-any forward-return edge search. Therefore they may be used in a **new separately frozen research
-cycle**. Failed premium/index families are excluded from that next cycle.
+- 12 predeclared derivatives-specific candidates
+- horizons: 4 / 16 / 48 15m bars
+- 36 total discovery tests
+- Base round-trip cost: 30 bps
+- Severe round-trip cost: 70 bps
+- same-direction unconditional Spot baseline uplift required: >=10 bps
+- BH-FDR q <= 0.10 across all 36 tests
+- cross-year economic/uplift stability required in 2021, 2022 and 2023
+- 2024 used only as reused development challenge
 
-Open-interest REST history and Binance REST basis remain excluded from long-horizon research because
-their documented retention is too short. A future archival source would require a separate audit.
+Pre-evidence validation:
 
-## Next cycle — M7 Funding + Futures Activity Edge Discovery
+- deterministic tests: **191 passed**
+- Ruff: **PASS**
+- implementation-only fix commit: `67d10f26cfd4b5f7f8691c629a22d9328d21db57`
 
-Strict order:
+First complete frozen evidence:
 
-1. Branch from the closed M6 state; do not modify the M6 result.
-2. Use only M6-PASS derivatives families: funding and perpetual futures 15m activity.
-3. Existing validated Spot data may be used only for causal spot-return outcome measurement or an
-   explicitly predeclared perpetual-versus-Spot derived feature; known Spot source gaps remain hard
-   resets.
-4. Predeclare a small, derivatives-specific candidate search before examining forward-return results.
-5. Apply transaction-cost stress, cross-year/temporal stability and multiple-testing correction.
-6. Treat 2021–2024 entirely as development; 2025 stays locked.
-7. If no edge survives, close M7 without rescue tuning.
-8. Only a surviving robust edge may lead to a separately frozen strategy contract.
-9. Future AI Strategy Router may choose only among deterministic strategies that have already passed
-   research/paper gates; deterministic Risk Engine remains superior authority.
+- evidence workflow commit: `bbc6df7caf2bbf191710d3b975824e4d90980668`
+- Actions run: `32424800002`
+- decision: **`NO_STABLE_DERIVATIVES_EDGE_FOUND`**
+- `LONG_EDGE_CANDIDATE`: **0**
+- `NO_TRADE_VETO_CANDIDATE`: **0**
+- `OBSERVATION_ONLY`: **12**
+- discovery-passing candidate/horizons: **0/36**
+- final discovery + challenge passing candidate/horizons: **0/36**
+- evidence SHA-256: `0c341876395f573b6c82bb14a91763c2387b34a51d28066b30e773ceede20bf6`
+- evidence artifact ID: `9427083252`
+- 2025 OOS: **`LOCKED_NOT_ACCESSED`**
+
+Key M7 diagnostics across 36 discovery tests:
+
+- positive Base mean: 3/36
+- positive Severe mean: 0/36
+- positive Base median: 0/36
+- >=10 bps baseline uplift: 12/36
+- yearly stability gate: 0/36
+- BH-FDR q <=0.10: 0/36
+
+M7 is closed. The three positive-mean observations remain observations only and must not be promoted,
+retuned or reversed into a strategy after the result.
+
+## Next research decision
+
+Do **not** create another price/volume/funding threshold search by minor parameter variation. M5 and M7
+show that these predeclared families did not produce a cost-robust, temporally stable edge under the
+current evidence standard.
+
+Any next cycle must add materially new information or methodology and first prove historical data
+provenance. Candidate research families include independently archived open interest, liquidation
+history, order-book/microstructure history, cross-venue information, or macro/news state. No next
+family may weaken prior gates merely to obtain a survivor.
+
+Future AI Strategy Router remains later architecture: it may route only among deterministic strategies
+that have already passed research and paper/shadow gates. The deterministic Risk Engine remains the
+superior authority and `NO_TRADE` remains valid.
 
 ## Explicitly forbidden now
 
 - opening/downloading/inspecting 2025 BTC holdout
-- retuning V1/V2/V3/M5/M6 after their result
+- retuning V1/V2/V3/M5/M6/M7 after their results
 - treating 2024 as pristine OOS
-- using failed M6 premium/index families in M7
+- using failed M6 premium/index families as if they passed
+- promoting any M7 observation into a strategy without a new frozen contract
 - real-money orders
 - futures/leverage/short execution
 - copy trading, martingale, averaging down
