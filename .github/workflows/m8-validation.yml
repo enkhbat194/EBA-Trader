@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - m8-alt-derivatives-data-audit
+  pull_request:
+    branches:
+      - m7-funding-futures-edge-discovery
   workflow_dispatch:
 
 permissions:
