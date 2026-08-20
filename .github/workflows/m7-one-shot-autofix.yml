@@ -38,6 +38,20 @@ jobs:
         run: |
           python -m ruff check --fix --unsafe-fixes src/eba_trader/m7_funding_flow.py src/eba_trader/m7_seed.py tests/test_m7_funding_flow.py tests/test_m7_funding_flow_policy.py || true
           python -m ruff format src/eba_trader/m7_funding_flow.py src/eba_trader/m7_seed.py tests/test_m7_funding_flow.py tests/test_m7_funding_flow_policy.py
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/eba_trader/m7_seed.py')
+          text = path.read_text(encoding='utf-8')
+          old = '                f"M7 frozen {dataset.name} hash mismatch after checksum-verified archive seed: {actual}"\n'
+          new = (
+              '                f"M7 frozen {dataset.name} hash mismatch after checksum-verified "\n'
+              '                f"archive seed: {actual}"\n'
+          )
+          if old not in text:
+              raise SystemExit('Expected M7 seed lint target was not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
 
       - name: Full deterministic tests
         run: python -m pytest -q
