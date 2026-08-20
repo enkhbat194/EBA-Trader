@@ -6,203 +6,159 @@ This is the authoritative cross-chat continuation record.
 
 ## Mission
 
-Build a professional-grade autonomous trading system that validates market edges and strategies with
-evidence, refuses low-quality trades, enforces deterministic risk limits, and only later gains
-exchange execution after research/paper gates pass.
+Build an autonomous research-first trading system that only promotes deterministic strategies after
+reproducible edge evidence, keeps `NO_TRADE` first-class, and always lets deterministic risk controls
+overrule any future AI/router decision.
 
-## Owner / infrastructure constraints
-
-- The owner should not need to master a complex exchange UI.
-- Complexity belongs in the engine; future UI stays minimal.
-- Preserve state and decisions in the repo for cross-chat continuity.
-- Bootstrap infrastructure budget is **$0 until edge evidence exists**.
-- Replit is only a temporary runtime, not the development center.
-- Deterministic risk authority always outranks strategy or future AI recommendations.
-
-## Core system constraints
+## Hard constraints
 
 - Repo: `enkhbat194/EBA-Trader`
-- Current research market: BTC/USDT Spot
-- Primary exchange/data source: Binance; backup target: OKX
-- Engine dependency: `nautilus_trader==1.230.0`
-- Supported Python: 3.12–3.14; evidence validation target: Python 3.12
-- `NO_TRADE` is a valid first-class outcome
-- Real-money orders, futures and leverage: disabled
-- AI cannot override deterministic risk controls
+- Current market focus: BTC/USDT Spot; derivatives data is research input only
+- Python evidence target: 3.12
+- Real-money orders, leverage, futures execution and short execution: disabled
+- AI order submission / self-deployment: disabled
+- 2021-01-01 through 2025-01-01 exclusive is development/research data
+- 2024 is reused development data, not pristine OOS
+- Frozen 2025 holdout: **`LOCKED_NOT_ACCESSED`**
+- Do not rescue failed cycles with post-result parameter tuning
 
 ## Completed infrastructure
 
-### M0 — Safe bootstrap
+- M0 safe bootstrap, deterministic Risk Engine, LIVE locks
+- M1 public Binance data pipeline and stale-data veto
+- M2 historical downloader, integrity checks, causal next-open semantics, fees/slippage, benchmarks,
+  robustness tooling, provenance binding, final-freeze/OOS safeguards
+- known 2021/2023 Binance Spot source gaps explicitly allowlisted; unexpected gaps fail closed
 
-- [x] architecture / strategy / risk / backtest contracts
-- [x] deterministic Risk Engine + position sizing
-- [x] LIVE/MICRO_LIVE locked by default
-- [x] baseline regime / `NO_TRADE` architecture
-
-### M1 — Binance data-only pipeline
-
-- [x] public Binance data mode requiring no API key
-- [x] no execution client in data path
-- [x] quote/trade/bar subscriptions
-- [x] stale-data hard veto
-- [x] actual Binance BTC/USDT QuoteTick and TradeTick observed
-- [x] M1 runtime connectivity passed
-
-### M2 — Historical evidence and OOS safeguards
-
-- [x] Binance public historical downloader
-- [x] timestamp / duplicate / OHLC / interval-gap validation
-- [x] causal signal-at-close / execution-next-open semantics
-- [x] fee + slippage cost model
-- [x] BTC buy-and-hold benchmark
-- [x] return, drawdown, expectancy, profit factor, Sharpe, Sortino, exposure and cost metrics
-- [x] base/adverse/severe cost scenarios
-- [x] parameter-neighborhood and rolling temporal stability tooling
-- [x] risk-sized execution gate
-- [x] clean Git provenance binding
-- [x] final-freeze and one-shot OOS safeguards
-- [x] generic downloader blocks BTCUSDT 2025 overlap before network access
-- [x] seven reproducible 2021/2023 Binance source gaps are explicitly allowlisted
-
-## Evidence-window policy
-
-Development/research only:
-- `2021-01-01` → `2025-01-01` exclusive
-- 2021–2024 has now been reused across multiple development cycles and must not be described as pristine OOS.
-- New research must use temporal/rolling stability inside this development window rather than pretending 2024 is untouched validation.
-
-Frozen holdout:
-- `2025-01-01` → `2026-01-01` exclusive
-- Status: **`LOCKED_NOT_ACCESSED`**
-
-Forward future:
-- 2026+ is reserved for evidence collected forward from a later PAPER/SHADOW freeze timestamp.
-
-## Strategy evidence history
+## Closed strategy/search cycles
 
 ### Trend V1 — REJECTED
 
-- Decision: `REJECT_DEVELOPMENT_CYCLE`
-- Validation return: **-45.07%**
-- Expectancy: **-$1.34/trade**
-- Profit factor: **0.770**
-- Severe-cost return: **-85.74%**
-- Neighborhood positive expectancy: **0%**
-- Risk layer: blocked
-- Record: `docs/M2_TREND_V1_DEVELOPMENT_RESULT_2026-08-20.md`
+- return: -45.07%
+- expectancy: -$1.34/trade
+- PF: 0.770
+- severe return: -85.74%
+- neighborhood positive expectancy: 0%
+- risk layer blocked
 
 ### Trend V2 — REJECTED
 
-- Decision: `REJECT_TREND_V2_SIGNAL_CYCLE`
-- Validation return: **-17.53%**
-- Maximum drawdown: **-22.90%**
-- Closed trades: **101**
-- Profit factor: **0.612**
-- Expectancy: **-$1.74/trade**
-- Positive-expectancy neighborhood variants: **0/9**
-- Rolling positive-return / positive-expectancy / PF>1 folds: **11/30** each
-- Risk layer: blocked
-- Record: `docs/M3_TREND_V2_DEVELOPMENT_RESULT_2026-08-20.md`
+- return: -17.53%
+- MDD: -22.90%
+- 101 trades
+- PF: 0.612
+- expectancy: -$1.74/trade
+- positive-expectancy neighborhood: 0/9
+- rolling positive return/expectancy/PF>1: 11/30 each
+- risk layer blocked
 
 ### V3 Bull Pullback Recovery — REJECTED
 
-Final pushed implementation branch head before M5:
-`dfbddf944a462d499e4a9917ad842794c4319266`
+- final branch head before M5: `dfbddf944a462d499e4a9917ad842794c4319266`
+- pytest: 157 PASS; Ruff PASS
+- return: -13.73%
+- MDD: -14.64%
+- 79 trades
+- PF: 0.612
+- expectancy: -$1.74/trade
+- neighborhood: 0/9
+- rolling positive return/expectancy/PF>1: 4/30 each
+- gates: 7 PASS / 14 FAIL / 13 BLOCKED
+- risk layer blocked
 
-- Decision: `REJECT_V3_SIGNAL_CYCLE`
-- Full pytest before evidence: **157 passed**
-- Ruff: **passed**
-- Validation return: **-13.73%**
-- Maximum drawdown: **-14.64%**
-- Closed trades: **79**
-- Profit factor: **0.612**
-- Expectancy: **-$1.74/trade**
-- Positive-expectancy neighborhood variants: **0/9**
-- Rolling folds with trades: **21/30**
-- Rolling positive-return / positive-expectancy / PF>1 folds: **4/30** each
-- Gates: **7 PASS / 14 FAIL / 13 BLOCKED**
-- Risk-sized layer: blocked, not run
-- Record: `docs/M4_V3_DEVELOPMENT_RESULT_2026-08-21.md`
+### M5 Price/Volume Edge Discovery V1 — CLOSED / NO STABLE EDGE
 
-V1, V2, and V3 are retired for promotion. Do not rescue them with post-result parameter retuning.
+Branch: `edge-discovery-engine`
+Final implementation/result commit: `64cbcf27bca4534c1ecf4d173f20ac75f69203fd`
 
-## M5 — Price/Volume Edge Discovery V1 — CLOSED / NO STABLE EDGE
+- pytest: 167 PASS; Ruff PASS
+- frozen search: 24 candidates × 3 horizons = 72 tests
+- `LONG_EDGE_CANDIDATE`: 0
+- `NO_TRADE_VETO_CANDIDATE`: 0
+- discovery-passing horizons: 0/72
+- 2024 challenge-passing horizons: 0/72
+- decision: `NO_STABLE_EDGE_FOUND`
+- evidence SHA-256: `a535d7c79576d92e0979a18f52b718d62885097953f0883bc1ac9f5b74595279`
+- record: `docs/M5_EDGE_DISCOVERY_RESULT_2026-08-21.md`
 
-Feature branch: `edge-discovery-engine`
+## M6 Derivatives Historical Data Audit — CLOSED / FULL CONTRACT FAIL
 
-Final implementation/result commit:
-`64cbcf27bca4534c1ecf4d173f20ac75f69203fd`
+Branch: `m6-derivatives-data-audit`
+Record: `docs/M6_DERIVATIVES_DATA_AUDIT_RESULT_2026-08-21.md`
 
-Decision: **`NO_STABLE_EDGE_FOUND`**
+M6 added no strategy. It audited whether materially new USD-M derivatives information was clean
+enough for 2021–2024 research.
 
-M5 changed the research method from strategy-first to edge-first:
+### Acquisition
 
-`predeclare market events -> measure forward returns -> control costs/multiple testing -> require
-cross-year stability -> development challenge -> only then consider a strategy hypothesis`
+- Direct `fapi.binance.com` from GitHub-hosted Azure returned HTTP 451; no proxy/bypass used.
+- Completed audit used official `data.binance.vision` monthly USD-M archives.
+- Every present ZIP was verified against Binance Vision `.CHECKSUM` before parsing.
+- 48/48 monthly files existed for each audited family.
+- 2025 remained `LOCKED_NOT_ACCESSED`.
 
-Frozen M5 search:
+### Frozen result
 
-- 24 predeclared price/volume event candidates
-- 3 causal forward horizons: 4 / 16 / 48 15m bars
-- 72 total discovery hypothesis tests
-- Base research friction: 30 bps round trip
-- Severe research friction: 70 bps round trip
-- yearly stability required in 2021, 2022, 2023
-- daily aggregation before significance screening
-- Benjamini-Hochberg FDR correction across all 72 tests, q <= 0.10
-- no candidate could auto-generate or deploy a strategy
+Decision: **`M6_DERIVATIVES_DATA_AUDIT_FAIL`**
 
-Final M5 result:
+| Source | Rows | Coverage / cadence | Result |
+|---|---:|---|---|
+| Funding rate | 4,383 | median 8h cadence | PASS |
+| Perpetual futures 15m | 140,256 | 100.000% | PASS |
+| Premium-index 15m | 139,582 | 99.51945%, max gap 96h | FAIL |
+| Index-price 15m | 139,103 | 99.17793%, max gap 48h | FAIL |
+| Premium/futures/index intersection | 138,621 | 98.83427% | FAIL |
 
-- Full pytest: **167 passed**
-- Ruff: **PASS**
-- `LONG_EDGE_CANDIDATE`: **0**
-- `NO_TRADE_VETO_CANDIDATE`: **0**
-- `OBSERVATION_ONLY`: **24**
-- Discovery-passing horizons: **0/72**
-- 2024 challenge-passing horizons: **0/72**
-- 2025 OOS: **`LOCKED_NOT_ACCESSED`**
-- Evidence SHA-256: `a535d7c79576d92e0979a18f52b718d62885097953f0883bc1ac9f5b74595279`
-- Record: `docs/M5_EDGE_DISCOVERY_RESULT_2026-08-21.md`
+Frozen kline requirement was >=99.90% coverage and <=12h maximum missing run. The thresholds are not
+relaxed after observing the result.
 
-M5 is retired as a frozen search cycle. Do not rescue it by changing thresholds, adding post-result filters, reversing failed signs, or rerunning it under altered rules.
+Dataset SHA-256:
+- funding: `73b9decde0d54a0609d55ccfd49131a6e825416b595d728457bb01a968b55fd6`
+- futures: `3c97c9b59ded32595f129a480a23e920823c0edbbf2e4f32c5d66e5020e35947`
+- premium: `807eba68834c016e89358feb40ee3bd1457216fe6e3121e232c83af7e2bc7bfb`
+- index: `76201859297ec3ff18aa9a507e78ced7dd17b114ff097b8fb1529047f3b39603`
 
-## M6 — Derivatives Information Edge Discovery — NEXT
+Completed historical audit provenance:
+- source commit: `8a8b5c7d83d6be4bac69c8aea82c123f670e6e0f`
+- Actions run: `32422829081`
+- evidence artifact ID: `9426328736`
+- artifact ZIP SHA-256: `d241e991131a7e0d32dc514cc88aa63aabd943d7f2d79e79cc2add0887bb1a4d`
 
-M6 must add materially new information rather than more price/volume threshold tuning.
+### What M6 taught us
 
-Primary candidate inputs for provenance audit:
+The four-source contract is rejected and cannot be rescued by weakening gates. However, funding and
+perpetual-futures 15m price/activity independently passed their predeclared data-quality gates before
+any forward-return edge search. Therefore they may be used in a **new separately frozen research
+cycle**. Failed premium/index families are excluded from that next cycle.
 
-- Binance BTCUSDT USDⓈ-M perpetual funding-rate history
-- Binance BTCUSDT USDⓈ-M premium-index klines
-- BTCUSDT perpetual-versus-spot basis derived only if both source series have complete, auditable timestamps
-- futures activity/volume features only if historical coverage and fields are reproducible
+Open-interest REST history and Binance REST basis remain excluded from long-horizon research because
+their documented retention is too short. A future archival source would require a separate audit.
 
-Open interest is excluded from M6 until long-horizon historical provenance is independently demonstrated. News, macro, liquidation feeds, order-book history, and AI remain later research families.
+## Next cycle — M7 Funding + Futures Activity Edge Discovery
 
-### M6 strict order
+Strict order:
 
-1. Create a separately versioned derivatives-data audit branch from the closed M5 state.
-2. Implement public-data download/cache code with the existing 2025 holdout guard applied before any network request.
-3. Audit exact 2021–2024 coverage, timestamps, duplicates, gaps, source semantics, and reproducibility for each proposed derivatives series.
-4. Record dataset hashes and reject any source that cannot provide reproducible historical coverage.
-5. Do **not** freeze an edge search space until the data audit is complete.
-6. After the audit, predeclare a small derivatives-informed search space and temporal validation protocol before examining candidate forward-return results.
-7. Use 2021–2024 only as development data with rolling/walk-forward stability; do not relabel 2024 pristine OOS.
-8. Keep 2025 `LOCKED_NOT_ACCESSED` throughout M6 development.
-9. If M6 finds no stable edge, stop that family without rescue tuning.
-10. AI strategy routing remains future architecture only after multiple deterministic strategies/edges earn evidence.
+1. Branch from the closed M6 state; do not modify the M6 result.
+2. Use only M6-PASS derivatives families: funding and perpetual futures 15m activity.
+3. Existing validated Spot data may be used only for causal spot-return outcome measurement or an
+   explicitly predeclared perpetual-versus-Spot derived feature; known Spot source gaps remain hard
+   resets.
+4. Predeclare a small, derivatives-specific candidate search before examining forward-return results.
+5. Apply transaction-cost stress, cross-year/temporal stability and multiple-testing correction.
+6. Treat 2021–2024 entirely as development; 2025 stays locked.
+7. If no edge survives, close M7 without rescue tuning.
+8. Only a surviving robust edge may lead to a separately frozen strategy contract.
+9. Future AI Strategy Router may choose only among deterministic strategies that have already passed
+   research/paper gates; deterministic Risk Engine remains superior authority.
 
 ## Explicitly forbidden now
 
-- opening or downloading the 2025 BTC holdout
-- changing or rerunning M5 to rescue failed candidates
-- using 2024 as if it were pristine OOS
-- paid permanent VPS
+- opening/downloading/inspecting 2025 BTC holdout
+- retuning V1/V2/V3/M5/M6 after their result
+- treating 2024 as pristine OOS
+- using failed M6 premium/index families in M7
 - real-money orders
-- futures / leverage / short execution
-- copy trading
-- martingale / averaging down
-- AI-controlled order submission
-- strategy self-deployment
+- futures/leverage/short execution
+- copy trading, martingale, averaging down
+- AI-controlled order submission or strategy self-deployment
 - API withdrawal permission
