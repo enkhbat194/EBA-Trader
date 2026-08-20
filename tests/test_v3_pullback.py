@@ -258,7 +258,7 @@ def test_armed_setup_is_cancelled_immediately_on_source_gap(monkeypatch) -> None
         lambda features, index, config, filters_enabled: index == 2,
     )
 
-    result = run_v3_pullback_backtest(bars, _small_config(arm_lifetime_bars=8))
+    result = run_v3_pullback_backtest(bars, _small_config())
 
     assert result.trade_count == 0
 
