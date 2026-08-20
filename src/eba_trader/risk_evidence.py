@@ -6,7 +6,7 @@ import math
 from collections.abc import Mapping
 from pathlib import Path
 
-from .data_policy import allowed_source_gap_ranges
+from .data_policy import allowed_source_close_times, allowed_source_gap_ranges
 from .execution_policy import (
     EXECUTION_POLICY_NAME,
     EXECUTION_POLICY_VERSION,
@@ -85,6 +85,10 @@ def _load_exact_window(path: Path, *, start: str, end: str):
         parse_utc(start),
         parse_utc(end),
         allowed_missing_ranges=allowed_source_gap_ranges(
+            FIRST_CYCLE_SYMBOL,
+            FIRST_CYCLE_INTERVAL,
+        ),
+        allowed_close_times=allowed_source_close_times(
             FIRST_CYCLE_SYMBOL,
             FIRST_CYCLE_INTERVAL,
         ),

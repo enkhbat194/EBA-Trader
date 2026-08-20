@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .backtest import BacktestResult, TrendBacktestConfig, run_trend_backtest
-from .data_policy import allowed_source_gap_ranges
+from .data_policy import allowed_source_close_times, allowed_source_gap_ranges
 from .freeze import load_frozen_candidate
 from .history import (
     INTERVAL_MS,
@@ -123,6 +123,7 @@ def _load_or_fetch_window(
             start_ms,
             end_ms,
             allowed_missing_ranges=allowed_source_gap_ranges(symbol, interval),
+            allowed_close_times=allowed_source_close_times(symbol, interval),
         )
         save_csv(candles, csv_path)
         return candles
@@ -134,6 +135,7 @@ def _load_or_fetch_window(
         start_ms,
         end_ms,
         allowed_missing_ranges=allowed_source_gap_ranges(symbol, interval),
+        allowed_close_times=allowed_source_close_times(symbol, interval),
     )
 
 
@@ -220,6 +222,15 @@ def run_baseline_study(
             initial_cash=initial_cash,
         )
         gaps = find_interval_gaps(candles, interval)
+        close_exceptions = [
+            {
+                "open_time_ms": candle.open_time_ms,
+                "actual_close_time_ms": candle.close_time_ms,
+                "standard_close_time_ms": candle.open_time_ms + INTERVAL_MS[interval] - 1,
+            }
+            for candle in candles
+            if candle.close_time_ms != candle.open_time_ms + INTERVAL_MS[interval] - 1
+        ]
         window_report[window.name] = {
             "start": window.start,
             "end_exclusive": window.end,
@@ -235,6 +246,7 @@ def run_baseline_study(
                 }
                 for previous, current in gaps
             ],
+            "source_close_time_exceptions": close_exceptions,
             "scenarios": scenarios,
         }
 

@@ -123,7 +123,8 @@ Every opened dataset must pass:
 
 The Binance public source has seven reproducible BTCUSDT/15m outage ranges in the 2021–2023
 research window (70 absent source candles total). Their exact timestamps are frozen in
-`data_policy.py`; reports disclose them. Any other gap remains a hard failure. The 2024 validation
+`data_policy.py`; four outage-adjacent early-close timestamps are frozen there as well. Reports
+disclose both. Any other gap or close-time anomaly remains a hard failure. The 2024 validation
 window has complete 35,136-candle coverage.
 
 All window end timestamps are exclusive to prevent boundary leakage.

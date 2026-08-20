@@ -4,7 +4,7 @@ import argparse
 import csv
 import json
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -123,6 +123,7 @@ def validate_interval_window(
     end_ms: int,
     *,
     allowed_missing_ranges: Iterable[tuple[int, int]] = (),
+    allowed_close_times: Mapping[int, int] | None = None,
 ) -> list[Candle]:
     """Validate exact [start_ms, end_ms) coverage for a fixed-interval dataset."""
     if interval not in INTERVAL_MS:
@@ -162,9 +163,11 @@ def validate_interval_window(
             "after allowed source gaps"
         )
 
+    close_time_exceptions = allowed_close_times or {}
     for candle in rows:
         expected_close = candle.open_time_ms + step - 1
-        if candle.close_time_ms != expected_close:
+        allowed_close = close_time_exceptions.get(candle.open_time_ms)
+        if candle.close_time_ms != expected_close and candle.close_time_ms != allowed_close:
             raise RuntimeError(
                 f"Candle at {candle.open_time_ms} closes at {candle.close_time_ms}, "
                 f"expected {expected_close} for {interval}"

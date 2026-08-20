@@ -179,6 +179,30 @@ def test_exact_window_rejects_wrong_close_timestamp() -> None:
         validate_interval_window(rows, "15m", 0, 4 * STEP)
 
 
+def test_exact_window_accepts_only_explicitly_allowed_close_timestamp() -> None:
+    rows = [candle(index * STEP, 100 + index) for index in range(4)]
+    early = rows[1]
+    rows[1] = Candle(
+        open_time_ms=early.open_time_ms,
+        open=early.open,
+        high=early.high,
+        low=early.low,
+        close=early.close,
+        volume=early.volume,
+        close_time_ms=early.close_time_ms - 123,
+        quote_volume=early.quote_volume,
+        trade_count=early.trade_count,
+    )
+    validated = validate_interval_window(
+        rows,
+        "15m",
+        0,
+        4 * STEP,
+        allowed_close_times={early.open_time_ms: early.close_time_ms - 123},
+    )
+    assert len(validated) == 4
+
+
 def test_exact_window_rejects_misaligned_boundaries() -> None:
     rows = [candle(0, 100), candle(STEP, 101)]
     with pytest.raises(ValueError, match="align"):
