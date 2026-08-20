@@ -24,9 +24,11 @@ class V3PullbackConfig:
     rolling_vwap_bars: int = 96
     min_pullback_depth_atr: float = 0.75
     max_pullback_depth_atr: float = 2.25
+    max_true_range_atr: float = 3.00
     arm_lifetime_bars: int = 8
     recovery_high_lookback: int = 3
     min_volume_ratio: float = 1.00
+    recovery_vwap_buffer_atr: float = 0.25
     max_entry_gap_atr: float = 0.50
     stop_buffer_atr: float = 0.25
     min_stop_distance_atr: float = 0.75
@@ -62,14 +64,16 @@ class V3PullbackConfig:
             raise ValueError("Pullback depth envelope is invalid")
         if self.min_volume_ratio <= 0:
             raise ValueError("Volume ratio must be positive")
-        atr_multiples = (
+        multiples = (
+            self.max_true_range_atr,
+            self.recovery_vwap_buffer_atr,
             self.max_entry_gap_atr,
             self.stop_buffer_atr,
             self.min_stop_distance_atr,
             self.max_stop_distance_atr,
             self.target_r,
         )
-        if any(value <= 0 for value in atr_multiples):
+        if any(value <= 0 for value in multiples):
             raise ValueError("V3 ATR/R multiples must be positive")
         if self.min_stop_distance_atr >= self.max_stop_distance_atr:
             raise ValueError("Stop-distance envelope is invalid")
