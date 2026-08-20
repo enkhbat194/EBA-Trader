@@ -6,6 +6,11 @@ on:
       - m7-funding-futures-edge-discovery
     paths:
       - .github/workflows/m7-one-shot-autofix.yml
+  pull_request:
+    branches:
+      - m6-derivatives-data-audit
+    paths:
+      - .github/workflows/m7-one-shot-autofix.yml
 
 permissions:
   contents: write
