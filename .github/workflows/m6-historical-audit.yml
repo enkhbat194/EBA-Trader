@@ -6,6 +6,9 @@ on:
       - m6-derivatives-data-audit
     paths:
       - .github/workflows/m6-historical-audit.yml
+  pull_request:
+    paths:
+      - .github/workflows/m6-historical-audit.yml
   workflow_dispatch:
 
 permissions:
