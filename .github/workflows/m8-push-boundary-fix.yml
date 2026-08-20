@@ -1,0 +1,87 @@
+name: M8 push one-shot boundary fix
+
+on:
+  push:
+    branches:
+      - m8-alt-derivatives-data-audit
+    paths:
+      - .github/workflows/m8-push-boundary-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v4
+        with:
+          ref: m8-alt-derivatives-data-audit
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project
+        run: python -m pip install -e '.[dev]'
+
+      - name: Fix exact-start metrics boundary and add regression test
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          source = Path('src/eba_trader/m8_alt_data_audit.py')
+          text = source.read_text(encoding='utf-8')
+          old = '''            timestamp_ms = _parse_timestamp(values["create_time"])
+            if not start_ms < timestamp_ms < end_ms:
+                raise ValueError("metrics timestamp outside frozen window")
+            metric = BinanceMetric(
+'''
+          new = '''            timestamp_ms = _parse_timestamp(values["create_time"])
+            if timestamp_ms == start_ms:
+                continue
+            if not start_ms < timestamp_ms < end_ms:
+                raise ValueError("metrics timestamp outside frozen window")
+            metric = BinanceMetric(
+'''
+          if old not in text:
+              raise SystemExit('Expected M8 metrics boundary target not found')
+          source.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          tests = Path('tests/test_m8_alt_data_audit.py')
+          test_text = tests.read_text(encoding='utf-8')
+          marker = 'def test_metrics_parser_ignores_exact_audit_start_boundary()'
+          if marker not in test_text:
+              test_text += '''\n\ndef test_metrics_parser_ignores_exact_audit_start_boundary() -> None:\n    header = list(audit.METRICS_COLUMNS)\n    start = parse_utc("2021-01-01T00:00:00Z")\n    end = parse_utc("2021-01-01T00:10:00Z")\n    rows, exact, conflicting = audit.parse_binance_metrics_rows(\n        [header, _metrics_csv_row("2021-01-01 00:00:00")],\n        start_ms=start,\n        end_ms=end,\n    )\n    assert rows == []\n    assert exact == 0\n    assert conflicting == 0\n'''
+              tests.write_text(test_text, encoding='utf-8')
+          PY
+          python -m ruff format src/eba_trader/m8_alt_data_audit.py tests/test_m8_alt_data_audit.py
+
+      - name: Full deterministic tests
+        run: python -m pytest -q
+
+      - name: Full Ruff
+        run: python -m ruff check .
+
+      - name: Verify frozen protocol unchanged
+        run: |
+          python - <<'PY'
+          from eba_trader.m8_alt_data_policy import verify_m8_audit_freeze
+          manifest = verify_m8_audit_freeze()
+          assert manifest['status'] == 'FROZEN_PRE_AUDIT'
+          assert manifest['forward_returns'] == 'forbidden'
+          assert manifest['oos_2025'] == 'LOCKED_NOT_ACCESSED'
+          PY
+
+      - name: Commit implementation-only fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/eba_trader/m8_alt_data_audit.py tests/test_m8_alt_data_audit.py
+          git commit -m 'Fix M8 metrics start boundary without changing freeze'
+          git push origin HEAD:m8-alt-derivatives-data-audit
