@@ -1,0 +1,29 @@
+{
+  "cycle": "m5_edge_discovery_price_volume_v1",
+  "status": "FROZEN_PREDECLARED_SEARCH_SPACE",
+  "frozen_at": "2026-08-21",
+  "protocol_document": "docs/M5_EDGE_DISCOVERY_PROTOCOL.md",
+  "protocol_sha256": "da522bce26c8c560e36672267cca2a9a9763dfae9e03b7fbe503254f626453b8",
+  "base_git_commit": "dfbddf944a462d499e4a9917ad842794c4319266",
+  "discovery_data": {
+    "path": "data/cache/m2/btcusdt_15m_research.csv",
+    "start": "2021-01-01",
+    "end_exclusive": "2024-01-01",
+    "sha256": "253c6ae35856e58e35df17eaa71caeea5caaa3681c38dd7214a2872afccd8d63"
+  },
+  "challenge_data": {
+    "path": "data/cache/m2/btcusdt_15m_validation.csv",
+    "start": "2024-01-01",
+    "end_exclusive": "2025-01-01",
+    "sha256": "3a96b6b668cfacb0fefabb8665675d4ca589cc712b0681fb57e7a13356eda0f2"
+  },
+  "candidate_count": 24,
+  "horizons_bars": [4, 16, 48],
+  "hypothesis_test_count": 72,
+  "event_cooldown_bars": 4,
+  "fdr_q_threshold": 0.10,
+  "parameter_changes_after_first_run": "forbidden",
+  "strategy_generation": "forbidden",
+  "ai_module": "excluded",
+  "oos_2025": "LOCKED_NOT_ACCESSED"
+}
