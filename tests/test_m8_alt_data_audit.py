@@ -90,9 +90,7 @@ def test_bybit_hourly_auditors_pass_complete_short_fixture(
     monkeypatch.setattr(audit, "BYBIT_POSITIONING_MAX_MISSING_HOURS", 0)
     start = parse_utc(audit.AUDIT_START)
     times = [start + index * audit.HOUR_MS for index in range(4)]
-    klines = [
-        audit.BybitKline(time, 100, 102, 99, 101, 10, 1000) for time in times
-    ]
+    klines = [audit.BybitKline(time, 100, 102, 99, 101, 10, 1000) for time in times]
     oi = [audit.BybitOpenInterest(time, 1000 + index) for index, time in enumerate(times)]
     ratios = [audit.BybitAccountRatio(time, 0.51, 0.49) for time in times]
     assert audit.audit_bybit_kline(klines)["status"] == "PASS"

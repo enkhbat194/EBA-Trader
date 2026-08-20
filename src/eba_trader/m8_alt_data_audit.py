@@ -290,12 +290,11 @@ def _expected_slots(start_ms: int, end_ms: int, step_ms: int) -> int:
 def _normalized_hash(rows: Iterable[object]) -> str:
     digest = hashlib.sha256()
     for row in rows:
-        if hasattr(row, "__dataclass_fields__"):
-            payload = asdict(row)
-        else:
-            payload = row
+        payload = asdict(row) if hasattr(row, "__dataclass_fields__") else row
         digest.update(
-            json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+            json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode(
+                "utf-8"
+            )
         )
         digest.update(b"\n")
     return digest.hexdigest()
@@ -342,9 +341,7 @@ def parse_binance_metrics_rows(
                 timestamp_ms=timestamp_ms,
                 sum_open_interest=float(values["sum_open_interest"]),
                 sum_open_interest_value=float(values["sum_open_interest_value"]),
-                count_toptrader_long_short_ratio=float(
-                    values["count_toptrader_long_short_ratio"]
-                ),
+                count_toptrader_long_short_ratio=float(values["count_toptrader_long_short_ratio"]),
                 sum_toptrader_long_short_ratio=float(values["sum_toptrader_long_short_ratio"]),
                 count_long_short_ratio=float(values["count_long_short_ratio"]),
                 sum_taker_long_short_vol_ratio=float(values["sum_taker_long_short_vol_ratio"]),
@@ -429,7 +426,7 @@ def audit_binance_metrics(
     timestamps = [item.timestamp_ms for item in metrics]
     unique = len(timestamps) == len(set(timestamps))
     aligned = all(timestamp % FIVE_MIN_MS == 0 for timestamp in timestamps)
-    ordered = all(left < right for left, right in zip(timestamps, timestamps[1:]))
+    ordered = all(left < right for left, right in zip(timestamps, timestamps[1:], strict=False))
     finite_positive = all(
         all(
             math.isfinite(value) and value > 0
@@ -685,7 +682,7 @@ def _hourly_common(
     missing = _max_missing_run(timestamps, start_ms, end_ms, HOUR_MS)
     unique = len(timestamps) == len(set(timestamps))
     aligned = all(timestamp % HOUR_MS == 0 for timestamp in timestamps)
-    ordered = all(left < right for left, right in zip(timestamps, timestamps[1:]))
+    ordered = all(left < right for left, right in zip(timestamps, timestamps[1:], strict=False))
     _ = min_coverage, max_missing
     return expected, coverage, missing, unique, aligned, ordered
 
@@ -812,13 +809,13 @@ def audit_bybit_funding(
     end_ms = parse_utc(AUDIT_END_EXCLUSIVE)
     timestamps = [item.timestamp_ms for item in rows]
     unique = len(timestamps) == len(set(timestamps))
-    ordered = all(left < right for left, right in zip(timestamps, timestamps[1:]))
+    ordered = all(left < right for left, right in zip(timestamps, timestamps[1:], strict=False))
     values_valid = all(
         math.isfinite(item.funding_rate) and abs(item.funding_rate) <= 0.05 for item in rows
     )
     positive_gaps = [
         right - left
-        for left, right in zip(timestamps, timestamps[1:])
+        for left, right in zip(timestamps, timestamps[1:], strict=False)
         if right > left
     ]
     max_gap_hours = max(positive_gaps, default=0) / HOUR_MS
@@ -923,8 +920,7 @@ def _parse_book_depth_day(rows: list[list[str]], date_text: str) -> dict[str, ob
     data = rows[1:] if has_header else rows
     if has_header:
         indices = {
-            name: header.index(name)
-            for name in ("timestamp", "percentage", "depth", "notional")
+            name: header.index(name) for name in ("timestamp", "percentage", "depth", "notional")
         }
     else:
         indices = {"timestamp": 0, "percentage": 1, "depth": 2, "notional": 3}
@@ -964,7 +960,7 @@ def _parse_book_depth_day(rows: list[list[str]], date_text: str) -> dict[str, ob
     unique_snapshots = sorted(set(timestamps))
     within_limit = 0
     cadence = 0
-    for left, right in zip(unique_snapshots, unique_snapshots[1:]):
+    for left, right in zip(unique_snapshots, unique_snapshots[1:], strict=False):
         gap = right - left
         if gap <= 0:
             continue
@@ -1057,8 +1053,7 @@ def _audit_daily_archive(
     results: list[tuple[str, bool, bool, dict[str, object]]] = []
     with ThreadPoolExecutor(max_workers=workers) as executor:
         futures = {
-            executor.submit(_daily_archive_worker, family, date, parser): date
-            for date in dates
+            executor.submit(_daily_archive_worker, family, date, parser): date for date in dates
         }
         for future in as_completed(futures):
             results.append(future.result())
@@ -1121,7 +1116,9 @@ def audit_binance_book_depth(*, workers: int = 8) -> dict[str, object]:
         parser=_parse_book_depth_day,
         workers=workers,
     )
-    file_coverage = audited.existing_files / audited.expected_files if audited.expected_files else 0.0
+    file_coverage = (
+        audited.existing_files / audited.expected_files if audited.expected_files else 0.0
+    )
     cadence_ratio = (
         audited.cadence_within_limit / audited.cadence_observations
         if audited.cadence_observations
@@ -1150,11 +1147,12 @@ def audit_binance_liquidation(*, workers: int = 8) -> dict[str, object]:
         parser=_parse_liquidation_day,
         workers=workers,
     )
-    file_coverage = audited.existing_files / audited.expected_files if audited.expected_files else 0.0
+    file_coverage = (
+        audited.existing_files / audited.expected_files if audited.expected_files else 0.0
+    )
     end_ms = parse_utc(AUDIT_END_EXCLUSIVE)
     edge_ok = (
-        audited.last_timestamp_ms is not None
-        and 0 <= end_ms - audited.last_timestamp_ms <= DAY_MS
+        audited.last_timestamp_ms is not None and 0 <= end_ms - audited.last_timestamp_ms <= DAY_MS
     )
     passed = (
         file_coverage >= LIQUIDATION_MIN_DAILY_FILE_COVERAGE
@@ -1193,7 +1191,9 @@ def _write_report_once(path: Path, payload: dict[str, object]) -> None:
         with path.open("x", encoding="utf-8") as handle:
             handle.write(json.dumps(payload, indent=2, sort_keys=True, allow_nan=False))
     except FileExistsError as error:
-        raise RuntimeError("M8 audit report already exists; preserve the first frozen audit") from error
+        raise RuntimeError(
+            "M8 audit report already exists; preserve the first frozen audit"
+        ) from error
 
 
 def run_m8_data_audit(
@@ -1235,8 +1235,7 @@ def run_m8_data_audit(
     liquidation_report = audit_binance_liquidation(workers=workers)
 
     positioning_pass = (
-        bybit_oi_report.get("status") == "PASS"
-        or bybit_ratio_report.get("status") == "PASS"
+        bybit_oi_report.get("status") == "PASS" or bybit_ratio_report.get("status") == "PASS"
     )
     eligible = (
         metrics_report.get("status") == "FULL_WINDOW_PASS"
