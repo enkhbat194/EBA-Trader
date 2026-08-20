@@ -1,11 +1,6 @@
 name: M6 one-shot historical derivatives audit
 
 on:
-  push:
-    branches:
-      - m6-derivatives-data-audit
-    paths:
-      - .github/workflows/m6-historical-audit.yml
   pull_request:
     paths:
       - .github/workflows/m6-historical-audit.yml
@@ -40,12 +35,25 @@ jobs:
           test -z "$(git status --porcelain --untracked-files=no)"
           git log -1 --oneline
 
-      - name: Run M6 historical derivatives audit
-        run: python -m eba_trader.derivatives_audit
+      - name: Seed checksum-verified Binance Vision archives
+        run: python -m eba_trader.derivatives_archive_seed
 
-      - name: Print audit summary
+      - name: Run M6 historical derivatives audit from verified cache
+        run: python -m eba_trader.derivatives_audit --no-download
+
+      - name: Print archive and audit summary
         if: always()
         run: |
+          if [ -f data/cache/m6/binance_vision_manifest.json ]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path('data/cache/m6/binance_vision_manifest.json').read_text())
+          for name, section in manifest['datasets'].items():
+              print('archive', name, 'rows=', section['total_rows'], 'verified=', section['verified_files'], 'missing=', section['missing_files'])
+          print('archive_oos_2025:', manifest['oos_2025'])
+          PY
+          fi
           if [ -f artifacts/m6_derivatives_data_audit.json ]; then
             python - <<'PY'
           import json
@@ -57,7 +65,7 @@ jobs:
           print('oos_2025:', report['oos_2025'])
           PY
           else
-            echo 'No M6 report was produced.'
+            echo 'No M6 audit report was produced.'
           fi
 
       - name: Upload M6 audit evidence
@@ -65,6 +73,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: m6-derivatives-data-audit
-          path: artifacts/m6_derivatives_data_audit.json
+          path: |
+            artifacts/m6_derivatives_data_audit.json
+            data/cache/m6/binance_vision_manifest.json
           if-no-files-found: ignore
           retention-days: 30
