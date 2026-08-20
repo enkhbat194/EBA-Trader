@@ -1,0 +1,54 @@
+name: M8 one-shot implementation autofix
+
+on:
+  pull_request:
+    branches:
+      - m7-funding-futures-edge-discovery
+    paths:
+      - .github/workflows/m8-one-shot-autofix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  autofix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact M8 branch
+        uses: actions/checkout@v4
+        with:
+          ref: m8-alt-derivatives-data-audit
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project
+        run: python -m pip install -e '.[dev]'
+
+      - name: Mechanical implementation-only fixes
+        run: |
+          python -m ruff check --fix --unsafe-fixes src/eba_trader/m8_alt_data_audit.py tests/test_m8_alt_data_audit.py tests/test_m8_alt_data_policy.py || true
+          python -m ruff format src/eba_trader/m8_alt_data_audit.py tests/test_m8_alt_data_audit.py tests/test_m8_alt_data_policy.py
+
+      - name: Full deterministic tests
+        run: python -m pytest -q
+
+      - name: Full Ruff
+        run: python -m ruff check .
+
+      - name: Commit mechanical fixes
+        run: |
+          if git diff --quiet; then
+            echo 'No autofix changes needed.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/eba_trader/m8_alt_data_audit.py tests/test_m8_alt_data_audit.py tests/test_m8_alt_data_policy.py
+          git commit -m 'Fix M8 implementation lint without changing audit freeze'
+          git push origin HEAD:m8-alt-derivatives-data-audit
