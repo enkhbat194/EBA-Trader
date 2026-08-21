@@ -5,15 +5,13 @@ from eba_trader.providers import CredentialEnvelope
 def test_demo_session_round_trip_is_memory_only_token_lookup() -> None:
     store = DemoSessionStore(ttl_seconds=60)
     credentials = CredentialEnvelope(
-        api_key="spot-key",
-        api_secret="spot-secret",
-        futures_api_key="futures-key",
-        futures_api_secret="futures-secret",
+        api_key="demo-key",
+        api_secret="demo-secret",
     )
     token = store.create(credentials)
     assert token
-    assert "spot-key" not in token
-    assert "futures-key" not in token
+    assert "demo-key" not in token
+    assert "demo-secret" not in token
     assert store.get(token) == credentials
 
 
