@@ -48,7 +48,7 @@ After entry, the position is closed at the earlier of:
 
 The convergence exit threshold is fixed at `0.0010` for every configuration.
 
-Funding records with `entry_time <= funding_time < exit_time` are included in PnL. A short perpetual receives positive funding and pays negative funding. Historical funding mark price is used when available; the already-audited completed perpetual close fallback may be used otherwise.
+Funding records with `entry_time < funding_time < exit_time` are included in PnL. A short perpetual receives positive funding and pays negative funding. Historical funding mark price is used when available; the already-audited completed perpetual close fallback may be used otherwise.
 
 ## Frozen search surface
 
