@@ -1,7 +1,30 @@
 const providerProfiles = [
-  { id: 'binance-demo', provider: 'binance', name: 'Binance', environment: 'DEMO', status: 'disconnected', detail: 'Spot + USD-M Testnet not connected', accountLabel: null, balances: {} },
-  { id: 'mt5-demo', provider: 'metatrader5', name: 'MetaTrader 5', environment: 'DEMO', status: 'scaffolded', detail: 'Broker bridge coming next' },
-  { id: 'mt4-demo', provider: 'metatrader4', name: 'MetaTrader 4', environment: 'DEMO', status: 'scaffolded', detail: 'EA / bridge coming next' },
+  {
+    id: 'binance-demo',
+    provider: 'binance',
+    name: 'Binance',
+    environment: 'DEMO',
+    status: 'disconnected',
+    detail: 'Unified Demo not connected',
+    accountLabel: null,
+    balances: {},
+  },
+  {
+    id: 'mt5-demo',
+    provider: 'metatrader5',
+    name: 'MetaTrader 5',
+    environment: 'DEMO',
+    status: 'scaffolded',
+    detail: 'Broker bridge coming next',
+  },
+  {
+    id: 'mt4-demo',
+    provider: 'metatrader4',
+    name: 'MetaTrader 4',
+    environment: 'DEMO',
+    status: 'scaffolded',
+    detail: 'EA / bridge coming next',
+  },
 ];
 
 const navButtons = [...document.querySelectorAll('[data-nav]')];
@@ -11,8 +34,6 @@ const providerSelect = document.getElementById('providerSelect');
 const connectionResult = document.getElementById('connectionResult');
 const apiKeyInput = document.getElementById('apiKey');
 const apiSecretInput = document.getElementById('apiSecret');
-const futuresApiKeyInput = document.getElementById('futuresApiKey');
-const futuresApiSecretInput = document.getElementById('futuresApiSecret');
 const mtServerInput = document.getElementById('mtServer');
 const mtLoginInput = document.getElementById('mtLogin');
 const mtPasswordInput = document.getElementById('mtPassword');
@@ -51,7 +72,7 @@ function navigate(target) {
   document.querySelectorAll('.bottom-nav [data-nav]').forEach((button) => {
     button.classList.toggle('active', button.dataset.nav === target);
   });
-  window.scrollTo({ top: 0, behavior: 'instant' });
+  window.scrollTo({ top: 0, behavior: 'auto' });
 }
 
 navButtons.forEach((button) => button.addEventListener('click', () => navigate(button.dataset.nav)));
@@ -75,17 +96,21 @@ function connectedBinanceProfile() {
 }
 
 function formatUsd(value) {
+  if (!Number.isFinite(Number(value))) return '—';
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(value);
+  }).format(Number(value));
 }
 
 function formatPrice(value) {
   if (!Number.isFinite(Number(value))) return '—';
-  return `$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `$${Number(value).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 function formatBps(value) {
@@ -145,7 +170,7 @@ function syncBotAvailability() {
     startBot.textContent = 'CONNECT BINANCE DEMO';
     botStatus.textContent = 'BOT LOCKED';
     balanceValue.textContent = '—';
-    balanceDetail.textContent = 'Connect Spot + USD-M Demo';
+    balanceDetail.textContent = 'Connect Binance Unified Demo';
     todayPnlValue.textContent = '—';
     todayPnlDetail.textContent = 'No paper session';
     return;
@@ -245,15 +270,9 @@ async function postJson(path, payload) {
   return body;
 }
 
-async function callConnectionTest(provider, credentials) {
-  return postJson('/api/connections/test', { provider, environment: 'demo', credentials });
-}
-
 function clearCredentialInputs() {
   apiKeyInput.value = '';
   apiSecretInput.value = '';
-  futuresApiKeyInput.value = '';
-  futuresApiSecretInput.value = '';
   mtServerInput.value = '';
   mtLoginInput.value = '';
   mtPasswordInput.value = '';
@@ -278,7 +297,7 @@ function applyDemoSnapshot(result) {
     netEdgeValue.textContent = '—';
     netEdgeValue.className = 'negative';
     expectedNetValue.textContent = '—';
-    expectedNetDetail.textContent = 'No executable Testnet delivery snapshot';
+    expectedNetDetail.textContent = 'No executable Demo delivery snapshot';
     spotBuyValue.textContent = '—';
     futuresSellValue.textContent = '—';
     grossEdgeValue.textContent = '—';
@@ -323,18 +342,14 @@ async function testConnection() {
 
   let credentials;
   if (provider === 'binance') {
-    const missingSpot = !apiKeyInput.value.trim() || !apiSecretInput.value.trim();
-    const missingFutures = !futuresApiKeyInput.value.trim() || !futuresApiSecretInput.value.trim();
-    if (missingSpot || missingFutures) {
+    if (!apiKeyInput.value.trim() || !apiSecretInput.value.trim()) {
       connectionResult.classList.add('bad');
-      connectionResult.textContent = 'Spot and USD-M Futures Testnet API keys/secrets are all required.';
+      connectionResult.textContent = 'Binance Demo API key and secret are required.';
       return;
     }
     credentials = {
       apiKey: apiKeyInput.value.trim(),
       apiSecret: apiSecretInput.value.trim(),
-      futuresApiKey: futuresApiKeyInput.value.trim(),
-      futuresApiSecret: futuresApiSecretInput.value.trim(),
     };
   } else {
     if (!mtServerInput.value.trim() || !mtLoginInput.value.trim() || !mtPasswordInput.value) {
@@ -350,21 +365,27 @@ async function testConnection() {
   }
 
   try {
-    const result = await callConnectionTest(provider, credentials);
+    const result = await postJson('/api/connections/test', {
+      provider,
+      environment: 'demo',
+      credentials,
+    });
     const sessionReady = provider !== 'binance' ? result.ok : Boolean(result.ok && result.sessionToken);
     connectionResult.classList.add(sessionReady ? 'good' : 'bad');
     connectionResult.textContent = sessionReady
       ? result.message
       : (result.message || 'Demo session was not created');
+
     const profile = providerProfiles.find((item) => item.provider === provider);
     if (profile) {
       profile.status = sessionReady ? 'connected' : 'error';
       profile.accountLabel = sessionReady ? result.accountLabel : null;
       profile.balances = sessionReady && result.balances ? result.balances : {};
       profile.detail = sessionReady
-        ? `Spot + USD-M Demo connected${result.latencyMs ? ` · ${result.latencyMs} ms` : ''}`
+        ? `Unified Demo connected${result.latencyMs ? ` · ${result.latencyMs} ms` : ''}`
         : connectionResult.textContent;
     }
+
     if (provider === 'binance') {
       demoSessionToken = sessionReady ? result.sessionToken : null;
       if (!sessionReady) {
@@ -372,22 +393,23 @@ async function testConnection() {
         clearScannerTimer();
       }
     }
+
     renderConnections();
     if (sessionReady && provider === 'binance') await refreshDemoSnapshot();
   } catch (error) {
     connectionResult.classList.add('bad');
     connectionResult.textContent = error instanceof Error ? error.message : 'Connection test failed';
-    if (provider === 'binance') {
-      demoSessionToken = null;
-      paperBotRunning = false;
-      clearScannerTimer();
-    }
     const profile = providerProfiles.find((item) => item.provider === provider);
     if (profile) {
       profile.status = 'error';
       profile.accountLabel = null;
       profile.balances = {};
       profile.detail = connectionResult.textContent;
+    }
+    if (provider === 'binance') {
+      demoSessionToken = null;
+      paperBotRunning = false;
+      clearScannerTimer();
     }
     renderConnections();
   } finally {
@@ -422,8 +444,8 @@ stopBot.addEventListener('click', () => {
   syncBotAvailability();
 });
 
-resetOpportunity('Connect both Binance Demo environments to start scanning.');
 renderConnections();
+resetOpportunity('Connect Binance Unified Demo to start scanning');
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
