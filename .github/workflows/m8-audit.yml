@@ -1,78 +1,18 @@
-name: M8 one-shot frozen historical data audit complete attempt
+name: M8 frozen historical data audit — CLOSED
 
 on:
-  pull_request:
-    branches:
-      - m7-funding-futures-edge-discovery
-    paths:
-      - .github/workflows/m8-audit.yml
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  frozen-audit:
+  closed:
+    if: ${{ false }}
     runs-on: ubuntu-latest
-    timeout-minutes: 60
     steps:
-      - name: Checkout exact M8 branch head
-        uses: actions/checkout@v4
-        with:
-          ref: m8-alt-derivatives-data-audit
-          fetch-depth: 0
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-
-      - name: Install project
-        run: python -m pip install -e '.[dev]'
-
-      - name: Verify clean frozen audit implementation
-        run: |
-          test -z "$(git status --porcelain --untracked-files=no)"
-          python -m pytest -q
-          python -m ruff check .
-          python - <<'PY'
-          from eba_trader.m8_alt_data_policy import verify_m8_audit_freeze
-          manifest = verify_m8_audit_freeze()
-          assert manifest['status'] == 'FROZEN_PRE_AUDIT'
-          assert manifest['audit_end_exclusive'] == '2025-01-01T00:00:00Z'
-          assert manifest['oos_2025'] == 'LOCKED_NOT_ACCESSED'
-          assert manifest['forward_returns'] == 'forbidden'
-          print('M8 frozen audit contract verified')
-          PY
-
-      - name: Run first complete frozen M8 audit
-        run: python -m eba_trader.m8_alt_data_runner --workers 12
-
-      - name: Print immutable audit summary
-        run: |
-          python - <<'PY'
-          import hashlib
-          import json
-          from pathlib import Path
-
-          path = Path('artifacts/m8_alt_derivatives_data_audit.json')
-          report = json.loads(path.read_text(encoding='utf-8'))
-          primary = report['primary']
-          secondary = report['secondary']
-          print('decision:', report['decision'])
-          for key, value in primary.items():
-              print(key, value['status'])
-          for key, value in secondary.items():
-              print(key, value['status'])
-          print('forward_returns:', report['forward_returns'])
-          print('oos_2025:', report['oos_2025'])
-          print('sha256:', hashlib.sha256(path.read_bytes()).hexdigest())
-          PY
-
-      - name: Upload first complete M8 audit evidence
-        uses: actions/upload-artifact@v4
-        with:
-          name: m8-alt-derivatives-data-audit-first-complete-result
-          path: artifacts/m8_alt_derivatives_data_audit.json
-          if-no-files-found: error
-          retention-days: 30
+      - run: |
+          echo 'M8 historical audit is closed.'
+          echo 'Authoritative run: 32433740347'
+          echo 'Evidence SHA-256: 1bcfd0f44917d608b0d0c413d22aa7ce851e55ee4d54b1b81f87f588682a887f'
+          echo 'Do not rerun or weaken the frozen M8 contract.'
