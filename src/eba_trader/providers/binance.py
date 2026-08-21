@@ -4,15 +4,14 @@ import hashlib
 import hmac
 import json
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 
 from .base import (
-    ConnectionProfile,
     ConnectionState,
     ConnectionTestResult,
-    CredentialEnvelope,
     ProviderAdapter,
     ProviderCapability,
     ProviderEnvironment,
