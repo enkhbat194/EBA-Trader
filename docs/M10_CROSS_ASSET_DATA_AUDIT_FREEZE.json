@@ -1,0 +1,20 @@
+{
+  "audit_end_exclusive": "2025-01-01T00:00:00Z",
+  "audit_start": "2021-01-01T00:00:00Z",
+  "ai_module": "excluded",
+  "cycle": "m10_cross_asset_data_audit_v1",
+  "expected_monthly_archives": 48,
+  "expected_slots": 140256,
+  "forward_returns": "forbidden",
+  "interval": "15m",
+  "live_execution": "forbidden",
+  "max_missing_run_bars": 12,
+  "min_coverage": 0.9995,
+  "oos_2025": "LOCKED_NOT_ACCESSED",
+  "protocol_sha256": "4f8a66bcb6cddbcd666191ec03e8b673f6a5cfeddfb7b937e8461e31ed05892d",
+  "risk_sizing": "forbidden",
+  "source": "binance_vision_spot_monthly_klines_with_checksum",
+  "status": "FROZEN_PRE_AUDIT",
+  "strategy_generation": "forbidden",
+  "symbol": "ETHUSDT"
+}
