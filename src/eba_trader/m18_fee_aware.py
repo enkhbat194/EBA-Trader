@@ -20,12 +20,12 @@ from .m18_fee_policy import (
     FUTURES_COMMISSION_ENDPOINT,
     FUTURES_DEPTH_ENDPOINT,
     FUTURES_EXCHANGE_INFO_ENDPOINT,
-    M18ExecutionPolicy,
     RECV_WINDOW_MS,
     SPOT_BASE_URL,
     SPOT_COMMISSION_ENDPOINT,
     SPOT_DEPTH_ENDPOINT,
     SPOT_SYMBOL,
+    M18ExecutionPolicy,
 )
 
 Side = Literal["BUY", "SELL"]
@@ -288,7 +288,10 @@ def evaluate_cash_carry_snapshot(
         )
 
     stale: list[str] = []
-    if now_ms < spot_book.received_at_ms or now_ms - spot_book.received_at_ms > policy.max_quote_age_ms:
+    if (
+        now_ms < spot_book.received_at_ms
+        or now_ms - spot_book.received_at_ms > policy.max_quote_age_ms
+    ):
         stale.append("STALE_SPOT_BOOK")
     if (
         now_ms < futures_book.received_at_ms
@@ -483,7 +486,12 @@ class BinanceReadOnlyClient:
         )
         return parse_futures_commission(payload)
 
-    def spot_book(self, symbol: str = SPOT_SYMBOL, *, limit: int = DEFAULT_DEPTH_LIMIT) -> BookSnapshot:
+    def spot_book(
+        self,
+        symbol: str = SPOT_SYMBOL,
+        *,
+        limit: int = DEFAULT_DEPTH_LIMIT,
+    ) -> BookSnapshot:
         payload = self._public_get(
             SPOT_BASE_URL,
             SPOT_DEPTH_ENDPOINT,
