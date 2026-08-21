@@ -1,0 +1,11 @@
+{
+  "name": "EBA Trader",
+  "short_name": "EBA Trader",
+  "description": "Demo-first multi-provider trading and execution-economics dashboard",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#070b10",
+  "theme_color": "#080d12",
+  "orientation": "portrait-primary",
+  "icons": []
+}
