@@ -1,5 +1,5 @@
 const providerProfiles = [
-  { id: 'binance-demo', provider: 'binance', name: 'Binance', environment: 'DEMO', status: 'disconnected', detail: 'Demo API not connected' },
+  { id: 'binance-demo', provider: 'binance', name: 'Binance', environment: 'DEMO', status: 'disconnected', detail: 'Spot Testnet API not connected' },
   { id: 'mt5-demo', provider: 'metatrader5', name: 'MetaTrader 5', environment: 'DEMO', status: 'scaffolded', detail: 'Broker bridge coming next' },
   { id: 'mt4-demo', provider: 'metatrader4', name: 'MetaTrader 4', environment: 'DEMO', status: 'scaffolded', detail: 'EA / bridge coming next' },
 ];
@@ -19,6 +19,15 @@ const mtFields = document.getElementById('mtFields');
 const dialogTitle = document.getElementById('dialogTitle');
 const startBot = document.getElementById('startBot');
 const stopBot = document.getElementById('stopBot');
+const botStatus = document.getElementById('botStatus');
+const balanceValue = document.getElementById('balanceValue');
+const balanceDetail = document.getElementById('balanceDetail');
+const todayPnlValue = document.getElementById('todayPnlValue');
+const todayPnlDetail = document.getElementById('todayPnlDetail');
+const expectedNetValue = document.getElementById('expectedNetValue');
+const expectedNetDetail = document.getElementById('expectedNetDetail');
+
+let paperBotRunning = false;
 
 function navigate(target) {
   screens.forEach((screen) => screen.classList.toggle('active', screen.dataset.screen === target));
@@ -34,6 +43,52 @@ function providerIcon(provider) {
   if (provider === 'binance') return 'B';
   if (provider === 'metatrader5') return '5';
   return '4';
+}
+
+function hasConnectedBinanceDemo() {
+  return providerProfiles.some(
+    (profile) => profile.provider === 'binance' && profile.environment === 'DEMO' && profile.status === 'connected',
+  );
+}
+
+function syncBotAvailability() {
+  const connected = hasConnectedBinanceDemo();
+  if (!connected) paperBotRunning = false;
+
+  if (!connected) {
+    startBot.disabled = true;
+    stopBot.disabled = true;
+    startBot.textContent = 'CONNECT BINANCE DEMO';
+    botStatus.textContent = 'BOT LOCKED';
+    balanceValue.textContent = '—';
+    balanceDetail.textContent = 'Connect Binance Demo';
+    todayPnlValue.textContent = '—';
+    todayPnlDetail.textContent = 'No paper session';
+    expectedNetValue.textContent = '—';
+    expectedNetDetail.textContent = 'Waiting for fee-aware snapshot';
+    return;
+  }
+
+  balanceValue.textContent = '—';
+  balanceDetail.textContent = 'Connected · balance sync pending';
+  expectedNetValue.textContent = '—';
+  expectedNetDetail.textContent = 'Waiting for fee-aware snapshot';
+
+  if (paperBotRunning) {
+    startBot.disabled = true;
+    stopBot.disabled = false;
+    startBot.textContent = '● PAPER BOT RUNNING';
+    botStatus.textContent = 'PAPER RUNNING';
+    todayPnlValue.textContent = '$0.00';
+    todayPnlDetail.textContent = 'Paper session active';
+  } else {
+    startBot.disabled = false;
+    stopBot.disabled = true;
+    startBot.textContent = '▶ START PAPER BOT';
+    botStatus.textContent = 'BOT OFF';
+    todayPnlValue.textContent = '—';
+    todayPnlDetail.textContent = 'No paper session';
+  }
 }
 
 function renderConnections() {
@@ -61,6 +116,7 @@ function renderConnections() {
       dialog.showModal();
     });
   });
+  syncBotAvailability();
 }
 
 function updateProviderFields() {
@@ -103,7 +159,7 @@ async function testConnection() {
   if (provider === 'binance') {
     if (!apiKeyInput.value.trim() || !apiSecretInput.value.trim()) {
       connectionResult.classList.add('bad');
-      connectionResult.textContent = 'Demo API key and secret are required.';
+      connectionResult.textContent = 'Spot Testnet API key and secret are required.';
       return;
     }
     credentials = { apiKey: apiKeyInput.value.trim(), apiSecret: apiSecretInput.value.trim() };
@@ -135,6 +191,12 @@ async function testConnection() {
   } catch (error) {
     connectionResult.classList.add('bad');
     connectionResult.textContent = error instanceof Error ? error.message : 'Connection test failed';
+    const profile = providerProfiles.find((item) => item.provider === provider);
+    if (profile) {
+      profile.status = 'error';
+      profile.detail = connectionResult.textContent;
+      renderConnections();
+    }
   } finally {
     credentials = null;
   }
@@ -153,14 +215,17 @@ dialog.addEventListener('close', () => {
 });
 
 startBot.addEventListener('click', () => {
-  startBot.disabled = true;
-  stopBot.disabled = false;
-  startBot.textContent = '● PAPER BOT RUNNING';
+  if (!hasConnectedBinanceDemo()) {
+    syncBotAvailability();
+    return;
+  }
+  paperBotRunning = true;
+  syncBotAvailability();
 });
+
 stopBot.addEventListener('click', () => {
-  startBot.disabled = false;
-  stopBot.disabled = true;
-  startBot.textContent = '▶ START PAPER BOT';
+  paperBotRunning = false;
+  syncBotAvailability();
 });
 
 renderConnections();
