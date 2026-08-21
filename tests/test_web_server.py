@@ -10,6 +10,7 @@ from eba_trader.providers import (
 from eba_trader.web_server import (
     parse_connection_request,
     run_connection_test,
+    run_demo_disconnect_request,
     run_demo_snapshot_request,
 )
 
@@ -143,3 +144,16 @@ def test_demo_snapshot_request_rejects_missing_session() -> None:
     store = DemoSessionStore(ttl_seconds=60)
     with pytest.raises(PermissionError, match="missing or expired"):
         run_demo_snapshot_request({"sessionToken": "bad-token"}, session_store=store)
+
+
+def test_demo_disconnect_revokes_ram_session() -> None:
+    store = DemoSessionStore(ttl_seconds=60)
+    token = store.create(CredentialEnvelope(api_key="demo-key", api_secret="demo-secret"))
+    assert store.get(token) is not None
+    result = run_demo_disconnect_request({"sessionToken": token}, session_store=store)
+    assert result == {
+        "ok": True,
+        "state": "disconnected",
+        "liveExecutionAllowed": False,
+    }
+    assert store.get(token) is None
