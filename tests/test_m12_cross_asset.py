@@ -104,7 +104,11 @@ def test_event_cooldown_is_four_signal_bars() -> None:
 
 def test_outcome_uses_next_btc_open_and_subtracts_frozen_costs() -> None:
     btc = tuple(
-        _btc_bar(index, open_price=100.0 if index != 1 else 101.0, close=104.0 if index == 4 else 100.0)
+        _btc_bar(
+            index,
+            open_price=100.0 if index != 1 else 101.0,
+            close=104.0 if index == 4 else 100.0,
+        )
         for index in range(8)
     )
     outcome = _outcome_for_signal(
