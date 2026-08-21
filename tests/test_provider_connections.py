@@ -23,7 +23,7 @@ def _manager() -> ConnectionManager:
 
 def test_demo_is_first_class_binance_environment() -> None:
     endpoints = BINANCE_ENDPOINTS[ProviderEnvironment.DEMO]
-    assert endpoints.spot_rest == "https://demo-api.binance.com"
+    assert endpoints.spot_rest == "https://testnet.binance.vision"
     assert endpoints.futures_rest == "https://testnet.binancefuture.com"
 
 
