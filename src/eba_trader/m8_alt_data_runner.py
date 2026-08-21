@@ -16,9 +16,9 @@ def _normalize_metric_row_for_audit(row: list[str]) -> list[str]:
     """Turn malformed frozen metric values into deterministic failing sentinels.
 
     The audit contract requires every frozen numeric metric to be finite and strictly positive.
-    Official archives contain occasional blank values. Those rows must make the audit fail, not crash
-    the audit before a complete evidence report can be produced. A zero sentinel preserves the row
-    timestamp while guaranteeing the unchanged positivity gate fails.
+    Official archives contain occasional blank values. Those rows must make the audit fail,
+    not crash the audit before a complete evidence report can be produced. A zero sentinel
+    preserves the row timestamp while guaranteeing the unchanged positivity gate fails.
     """
     normalized = list(row)
     if len(normalized) < _METRIC_VALUE_END:
