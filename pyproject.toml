@@ -35,6 +35,7 @@ eba-m8-data-audit = "eba_trader.m8_alt_data_runner:main"
 eba-m9-edge-discovery = "eba_trader.m9_bookdepth:main"
 eba-m10-cross-asset-audit = "eba_trader.m10_cross_asset_audit:main"
 eba-m11-eth-perpetual-audit = "eba_trader.m11_eth_perpetual_audit:main"
+eba-m12-cross-asset-edge = "eba_trader.m12_cross_asset:main"
 
 [project.optional-dependencies]
 trading = [
