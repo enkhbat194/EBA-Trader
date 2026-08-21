@@ -1,0 +1,86 @@
+name: M15 one-shot basis convergence evidence
+
+on:
+  pull_request:
+    types: [labeled]
+    branches:
+      - m14-market-neutral-funding-carry
+
+permissions:
+  contents: read
+
+jobs:
+  frozen-evidence:
+    if: >-
+      github.event.label.name == 'documentation' &&
+      github.event.pull_request.head.ref == 'm15-market-neutral-basis-convergence'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout exact M15 branch head
+        uses: actions/checkout@v4
+        with:
+          ref: m15-market-neutral-basis-convergence
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project
+        run: python -m pip install -e '.[dev]'
+
+      - name: Verify clean frozen M15 implementation
+        run: |
+          test -z "$(git status --porcelain --untracked-files=no)"
+          python -m pytest -q
+          python -m ruff check .
+          python - <<'PY'
+          from eba_trader.m15_basis_policy import verify_m15_freeze
+          manifest = verify_m15_freeze()
+          assert manifest['status'] == 'FROZEN_PREDECLARED_NOT_RUN'
+          assert manifest['configuration_count'] == 9
+          assert manifest['oos_2025'] == 'LOCKED_NOT_ACCESSED'
+          assert manifest['leverage'] == 'forbidden'
+          assert manifest['naked_short'] == 'forbidden'
+          print('M15 frozen evidence contract verified')
+          PY
+
+      - name: Seed exact frozen BTC inputs
+        run: |
+          python - <<'PY'
+          from eba_trader.m7_seed import ensure_m7_frozen_inputs
+          manifest = ensure_m7_frozen_inputs(workers=8)
+          assert manifest['oos_2025'] == 'LOCKED_NOT_ACCESSED'
+          print('BTC Spot/futures/funding frozen inputs verified')
+          PY
+
+      - name: Run first complete frozen M15 evidence
+        run: python -m eba_trader.m15_basis
+
+      - name: Print immutable M15 summary
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          path = Path('artifacts/m15_market_neutral_basis_convergence.json')
+          report = json.loads(path.read_text(encoding='utf-8'))
+          print('decision:', report['decision'])
+          print('MARKET_NEUTRAL_BASIS_CANDIDATE:', report['search']['market_neutral_basis_candidates'])
+          print('discovery_passing_configs:', report['search']['discovery_passing_configs'])
+          print('challenge_passing_configs:', report['search']['challenge_passing_configs'])
+          print('oos_2025:', report['oos_2025'])
+          print('evidence_sha256:', hashlib.sha256(path.read_bytes()).hexdigest())
+          PY
+
+      - name: Upload first complete M15 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: m15-basis-convergence-first-result
+          path: artifacts/m15_market_neutral_basis_convergence.json
+          if-no-files-found: error
+          retention-days: 30
