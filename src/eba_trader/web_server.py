@@ -36,7 +36,9 @@ def _provider_kind(raw: Any) -> ProviderKind:
         raise ValueError("unsupported provider") from exc
 
 
-def parse_connection_request(payload: dict[str, Any]) -> tuple[ConnectionProfile, CredentialEnvelope]:
+def parse_connection_request(
+    payload: dict[str, Any],
+) -> tuple[ConnectionProfile, CredentialEnvelope]:
     provider = _provider_kind(payload.get("provider"))
     environment_raw = str(payload.get("environment", "demo"))
     try:
