@@ -1,0 +1,168 @@
+const providerProfiles = [
+  { id: 'binance-demo', provider: 'binance', name: 'Binance', environment: 'DEMO', status: 'disconnected', detail: 'Demo API not connected' },
+  { id: 'mt5-demo', provider: 'metatrader5', name: 'MetaTrader 5', environment: 'DEMO', status: 'scaffolded', detail: 'Broker bridge coming next' },
+  { id: 'mt4-demo', provider: 'metatrader4', name: 'MetaTrader 4', environment: 'DEMO', status: 'scaffolded', detail: 'EA / bridge coming next' },
+];
+
+const navButtons = [...document.querySelectorAll('[data-nav]')];
+const screens = [...document.querySelectorAll('.screen')];
+const dialog = document.getElementById('connectionDialog');
+const form = document.getElementById('connectionForm');
+const providerSelect = document.getElementById('providerSelect');
+const connectionResult = document.getElementById('connectionResult');
+const apiKeyInput = document.getElementById('apiKey');
+const apiSecretInput = document.getElementById('apiSecret');
+const mtServerInput = document.getElementById('mtServer');
+const mtLoginInput = document.getElementById('mtLogin');
+const mtPasswordInput = document.getElementById('mtPassword');
+const binanceFields = document.getElementById('binanceFields');
+const mtFields = document.getElementById('mtFields');
+const dialogTitle = document.getElementById('dialogTitle');
+const startBot = document.getElementById('startBot');
+const stopBot = document.getElementById('stopBot');
+
+function navigate(target) {
+  screens.forEach((screen) => screen.classList.toggle('active', screen.dataset.screen === target));
+  document.querySelectorAll('.bottom-nav [data-nav]').forEach((button) => {
+    button.classList.toggle('active', button.dataset.nav === target);
+  });
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+navButtons.forEach((button) => button.addEventListener('click', () => navigate(button.dataset.nav)));
+
+function providerIcon(provider) {
+  if (provider === 'binance') return 'B';
+  if (provider === 'metatrader5') return '5';
+  return '4';
+}
+
+function renderConnections() {
+  const markup = providerProfiles.map((profile) => `
+    <article class="connection-card" data-connection="${profile.id}">
+      <div class="provider-icon ${profile.provider}">${providerIcon(profile.provider)}</div>
+      <div class="connection-copy">
+        <strong>${profile.name} <span class="pill demo">${profile.environment}</span></strong>
+        <small>${profile.detail}</small>
+      </div>
+      <span class="connection-status ${profile.status === 'connected' ? 'connected' : ''}">${profile.status.toUpperCase()}</span>
+    </article>
+  `).join('');
+  document.getElementById('connectionList').innerHTML = markup;
+  document.getElementById('homeConnections').innerHTML = markup;
+  const online = providerProfiles.filter((profile) => profile.status === 'connected').length;
+  document.getElementById('connectionSummary').textContent = `${online} CONNECTION${online === 1 ? '' : 'S'}`;
+
+  document.querySelectorAll('[data-connection]').forEach((card) => {
+    card.addEventListener('click', () => {
+      const profile = providerProfiles.find((item) => item.id === card.dataset.connection);
+      if (!profile) return;
+      providerSelect.value = profile.provider;
+      updateProviderFields();
+      dialog.showModal();
+    });
+  });
+}
+
+function updateProviderFields() {
+  const provider = providerSelect.value;
+  const isBinance = provider === 'binance';
+  binanceFields.hidden = !isBinance;
+  mtFields.hidden = isBinance;
+  dialogTitle.textContent = isBinance
+    ? 'Binance Demo'
+    : `${provider === 'metatrader5' ? 'MetaTrader 5' : 'MetaTrader 4'} Demo`;
+  connectionResult.className = 'connection-result';
+  connectionResult.textContent = 'Not tested';
+}
+
+providerSelect.addEventListener('change', updateProviderFields);
+document.getElementById('addConnection').addEventListener('click', () => {
+  providerSelect.value = 'binance';
+  updateProviderFields();
+  dialog.showModal();
+});
+
+async function testConnection() {
+  const provider = providerSelect.value;
+  connectionResult.className = 'connection-result';
+  connectionResult.textContent = 'Testing…';
+
+  let credentials;
+  if (provider === 'binance') {
+    if (!apiKeyInput.value.trim() || !apiSecretInput.value.trim()) {
+      connectionResult.classList.add('bad');
+      connectionResult.textContent = 'Demo API key and secret are required.';
+      return;
+    }
+    credentials = { apiKey: apiKeyInput.value.trim(), apiSecret: apiSecretInput.value.trim() };
+  } else {
+    if (!mtServerInput.value.trim() || !mtLoginInput.value.trim() || !mtPasswordInput.value) {
+      connectionResult.classList.add('bad');
+      connectionResult.textContent = 'Broker server, login and password are required.';
+      return;
+    }
+    credentials = {
+      server: mtServerInput.value.trim(),
+      login: mtLoginInput.value.trim(),
+      password: mtPasswordInput.value,
+    };
+  }
+
+  try {
+    if (!window.EBA_PROVIDER_BRIDGE?.testConnection) {
+      connectionResult.classList.add('bad');
+      connectionResult.textContent = 'UI ready. Secure backend connection test is not deployed yet.';
+      return;
+    }
+    const result = await window.EBA_PROVIDER_BRIDGE.testConnection({ provider, environment: 'demo', credentials });
+    connectionResult.classList.add(result.ok ? 'good' : 'bad');
+    connectionResult.textContent = result.message;
+    const profile = providerProfiles.find((item) => item.provider === provider);
+    if (profile) {
+      profile.status = result.ok ? 'connected' : 'error';
+      profile.detail = result.ok ? `Demo connected${result.latencyMs ? ` · ${result.latencyMs} ms` : ''}` : result.message;
+      renderConnections();
+    }
+  } catch (error) {
+    connectionResult.classList.add('bad');
+    connectionResult.textContent = error instanceof Error ? error.message : 'Connection test failed';
+  } finally {
+    credentials = null;
+  }
+}
+
+document.getElementById('testConnection').addEventListener('click', testConnection);
+
+form.addEventListener('close', () => {
+  apiKeyInput.value = '';
+  apiSecretInput.value = '';
+  mtServerInput.value = '';
+  mtLoginInput.value = '';
+  mtPasswordInput.value = '';
+});
+
+dialog.addEventListener('close', () => {
+  apiKeyInput.value = '';
+  apiSecretInput.value = '';
+  mtPasswordInput.value = '';
+  connectionResult.className = 'connection-result';
+  connectionResult.textContent = 'Not tested';
+});
+
+startBot.addEventListener('click', () => {
+  startBot.disabled = true;
+  stopBot.disabled = false;
+  startBot.textContent = '● PAPER BOT RUNNING';
+});
+stopBot.addEventListener('click', () => {
+  startBot.disabled = false;
+  stopBot.disabled = true;
+  startBot.textContent = '▶ START PAPER BOT';
+});
+
+renderConnections();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+}
