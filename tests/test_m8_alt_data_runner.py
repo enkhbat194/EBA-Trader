@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from eba_trader import m8_alt_data_audit as core
 from eba_trader.history import parse_utc
-from eba_trader.m8_alt_data_runner import parse_binance_metrics_rows_with_frozen_boundary
+from eba_trader.m8_alt_data_runner import (
+    fetch_bybit_windowed_with_endpoint_params,
+    parse_binance_metrics_rows_with_frozen_boundary,
+)
 
 
 def _row(timestamp: str, *, oi: str = "100", taker_ratio: str = "1.05") -> list[str]:
@@ -89,3 +92,49 @@ def test_malformed_metric_value_becomes_explicit_nonpositive_audit_failure() -> 
     assert report["all_metric_fields_finite_and_positive"] is False
     assert exact == 0
     assert conflicting == 0
+
+
+def test_bybit_kline_uses_start_end_parameter_names(monkeypatch) -> None:
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    def fake_request(path: str, params: dict[str, object]) -> dict[str, object]:
+        calls.append((path, params))
+        return {"result": {"list": [], "nextPageCursor": ""}}
+
+    monkeypatch.setattr(core, "_request_json", fake_request)
+    fetch_bybit_windowed_with_endpoint_params(
+        "/v5/market/kline",
+        start_ms=1_000,
+        end_ms=2_000,
+        chunk_ms=1_000,
+        base_params={"category": "linear", "symbol": "BTCUSDT"},
+        limit=1000,
+    )
+    _, params = calls[0]
+    assert params["start"] == 1_000
+    assert params["end"] == 1_999
+    assert "startTime" not in params
+    assert "endTime" not in params
+
+
+def test_bybit_positioning_uses_start_time_end_time_parameter_names(monkeypatch) -> None:
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    def fake_request(path: str, params: dict[str, object]) -> dict[str, object]:
+        calls.append((path, params))
+        return {"result": {"list": [], "nextPageCursor": ""}}
+
+    monkeypatch.setattr(core, "_request_json", fake_request)
+    fetch_bybit_windowed_with_endpoint_params(
+        "/v5/market/open-interest",
+        start_ms=1_000,
+        end_ms=2_000,
+        chunk_ms=1_000,
+        base_params={"category": "linear", "symbol": "BTCUSDT"},
+        limit=200,
+    )
+    _, params = calls[0]
+    assert params["startTime"] == 1_000
+    assert params["endTime"] == 1_999
+    assert "start" not in params
+    assert "end" not in params
