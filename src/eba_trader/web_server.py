@@ -66,7 +66,7 @@ def parse_connection_request(payload: dict[str, Any]) -> tuple[ConnectionProfile
     return profile, credentials
 
 
-def test_connection_payload(payload: dict[str, Any]) -> dict[str, Any]:
+def run_connection_test(payload: dict[str, Any]) -> dict[str, Any]:
     profile, credentials = parse_connection_request(payload)
     manager = build_default_manager()
     manager.upsert_profile(profile)
@@ -144,7 +144,7 @@ class EBARequestHandler(SimpleHTTPRequestHandler):
             payload = json.loads(self.rfile.read(content_length).decode("utf-8"))
             if not isinstance(payload, dict):
                 raise ValueError("JSON object required")
-            result = test_connection_payload(payload)
+            result = run_connection_test(payload)
         except (json.JSONDecodeError, ValueError) as exc:
             self._json_response(
                 HTTPStatus.BAD_REQUEST,
