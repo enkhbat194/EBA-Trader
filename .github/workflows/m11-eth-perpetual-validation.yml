@@ -1,0 +1,51 @@
+name: M11 ETH perpetual data audit validation
+
+on:
+  pull_request:
+    branches:
+      - m10-cross-asset-data-audit
+    paths:
+      - "src/eba_trader/m11_eth_perpetual_*.py"
+      - "tests/test_m11_eth_perpetual_audit.py"
+      - "docs/M11_ETH_PERPETUAL_DATA_AUDIT_*"
+      - "scripts/run_m11_eth_perpetual_audit.*"
+      - "pyproject.toml"
+      - ".github/workflows/m11-eth-perpetual-validation.yml"
+      - ".github/workflows/m11-eth-perpetual-evidence.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project
+        run: python -m pip install -e '.[dev]'
+
+      - name: Verify M11 frozen contract
+        run: |
+          python - <<'PY'
+          from eba_trader.m11_eth_perpetual_policy import verify_m11_freeze
+          manifest = verify_m11_freeze()
+          assert manifest['status'] == 'FROZEN_PRE_AUDIT'
+          assert manifest['forward_returns'] == 'forbidden'
+          assert manifest['strategy_generation'] == 'forbidden'
+          assert manifest['oos_2025'] == 'LOCKED_NOT_ACCESSED'
+          print('M11 frozen audit contract verified')
+          PY
+
+      - name: Run deterministic tests
+        run: python -m pytest -q
+
+      - name: Run Ruff
+        run: python -m ruff check .
