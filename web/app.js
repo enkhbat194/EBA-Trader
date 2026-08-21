@@ -42,6 +42,7 @@ const mtFields = document.getElementById('mtFields');
 const dialogTitle = document.getElementById('dialogTitle');
 const startBot = document.getElementById('startBot');
 const stopBot = document.getElementById('stopBot');
+const disconnectDemo = document.getElementById('disconnectDemo');
 const botStatus = document.getElementById('botStatus');
 const balanceValue = document.getElementById('balanceValue');
 const balanceDetail = document.getElementById('balanceDetail');
@@ -81,6 +82,12 @@ function providerIcon(provider) {
   if (provider === 'binance') return 'B';
   if (provider === 'metatrader5') return '5';
   return '4';
+}
+
+function escapeHtml(value) {
+  const element = document.createElement('span');
+  element.textContent = String(value ?? '');
+  return element.innerHTML;
 }
 
 function hasConnectedBinanceDemo() {
@@ -209,19 +216,20 @@ function syncBotAvailability() {
 
 function renderConnections() {
   const markup = providerProfiles.map((profile) => `
-    <article class="connection-card" data-connection="${profile.id}">
-      <div class="provider-icon ${profile.provider}">${providerIcon(profile.provider)}</div>
+    <article class="connection-card" data-connection="${escapeHtml(profile.id)}">
+      <div class="provider-icon ${profile.provider}">${escapeHtml(providerIcon(profile.provider))}</div>
       <div class="connection-copy">
-        <strong>${profile.name} <span class="pill demo">${profile.environment}</span></strong>
-        <small>${profile.detail}</small>
+        <strong>${escapeHtml(profile.name)} <span class="pill demo">${escapeHtml(profile.environment)}</span></strong>
+        <small>${escapeHtml(profile.detail)}</small>
       </div>
-      <span class="connection-status ${profile.status === 'connected' ? 'connected' : ''}">${profile.status.toUpperCase()}</span>
+      <span class="connection-status ${profile.status === 'connected' ? 'connected' : ''}">${escapeHtml(profile.status.toUpperCase())}</span>
     </article>
   `).join('');
   document.getElementById('connectionList').innerHTML = markup;
   document.getElementById('homeConnections').innerHTML = markup;
   const online = providerProfiles.filter((profile) => profile.status === 'connected').length;
   document.getElementById('connectionSummary').textContent = `${online} CONNECTION${online === 1 ? '' : 'S'}`;
+  disconnectDemo.hidden = !hasConnectedBinanceDemo();
 
   document.querySelectorAll('[data-connection]').forEach((card) => {
     card.addEventListener('click', () => {
@@ -240,6 +248,7 @@ function updateProviderFields() {
   const isBinance = provider === 'binance';
   binanceFields.hidden = !isBinance;
   mtFields.hidden = isBinance;
+  disconnectDemo.hidden = !(isBinance && hasConnectedBinanceDemo());
   dialogTitle.textContent = isBinance
     ? 'Binance Demo'
     : `${provider === 'metatrader5' ? 'MetaTrader 5' : 'MetaTrader 4'} Demo`;
@@ -419,6 +428,24 @@ async function testConnection() {
 }
 
 document.getElementById('testConnection').addEventListener('click', testConnection);
+
+disconnectDemo.addEventListener('click', async () => {
+  const token = demoSessionToken;
+  if (!token) {
+    lockDemoSession('Unified Demo disconnected');
+    return;
+  }
+  try {
+    await postJson('/api/demo/disconnect', { sessionToken: token });
+    lockDemoSession('Unified Demo disconnected');
+    connectionResult.className = 'connection-result good';
+    connectionResult.textContent = 'Demo session disconnected.';
+  } catch (error) {
+    lockDemoSession('Disconnected locally · server session will expire automatically');
+    connectionResult.className = 'connection-result bad';
+    connectionResult.textContent = error instanceof Error ? error.message : 'Disconnect failed';
+  }
+});
 
 dialog.addEventListener('close', () => {
   clearCredentialInputs();
