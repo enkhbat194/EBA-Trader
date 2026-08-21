@@ -7,8 +7,8 @@ import pytest
 from eba_trader.derivatives_audit import DerivativeKline
 from eba_trader.m16_delivery_audit import (
     ArchiveFileAudit,
-    audit_contract_rows,
     archive_url,
+    audit_contract_rows,
 )
 from eba_trader.m16_delivery_policy import (
     EXPECTED_SLOTS,
