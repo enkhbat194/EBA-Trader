@@ -26,7 +26,7 @@ class BinanceEndpointSet:
 
 BINANCE_ENDPOINTS = {
     ProviderEnvironment.DEMO: BinanceEndpointSet(
-        spot_rest="https://demo-api.binance.com",
+        spot_rest="https://testnet.binance.vision",
         futures_rest="https://testnet.binancefuture.com",
     ),
     ProviderEnvironment.LIVE: BinanceEndpointSet(
