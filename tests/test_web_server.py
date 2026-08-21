@@ -9,13 +9,20 @@ def test_parse_demo_binance_connection_request() -> None:
         {
             "provider": "binance",
             "environment": "demo",
-            "credentials": {"apiKey": "key", "apiSecret": "secret"},
+            "credentials": {
+                "apiKey": "spot-key",
+                "apiSecret": "spot-secret",
+                "futuresApiKey": "futures-key",
+                "futuresApiSecret": "futures-secret",
+            },
         }
     )
     assert profile.provider is ProviderKind.BINANCE
     assert profile.environment is ProviderEnvironment.DEMO
-    assert credentials.api_key == "key"
-    assert credentials.api_secret == "secret"
+    assert credentials.api_key == "spot-key"
+    assert credentials.api_secret == "spot-secret"
+    assert credentials.futures_api_key == "futures-key"
+    assert credentials.futures_api_secret == "futures-secret"
 
 
 def test_live_connection_request_is_hard_locked() -> None:
@@ -51,5 +58,6 @@ def test_mt5_scaffold_response_does_not_claim_success() -> None:
     assert result["ok"] is False
     assert result["provider"] == "metatrader5"
     assert result["environment"] == "demo"
+    assert result["balances"] == {}
     assert result["liveExecutionAllowed"] is False
     assert "not activated" in result["message"].lower()
