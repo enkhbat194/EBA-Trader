@@ -1,5 +1,5 @@
 const providerProfiles = [
-  { id: 'binance-demo', provider: 'binance', name: 'Binance', environment: 'DEMO', status: 'disconnected', detail: 'Spot Testnet API not connected', accountLabel: null, balances: {} },
+  { id: 'binance-demo', provider: 'binance', name: 'Binance', environment: 'DEMO', status: 'disconnected', detail: 'Spot + USD-M Testnet not connected', accountLabel: null, balances: {} },
   { id: 'mt5-demo', provider: 'metatrader5', name: 'MetaTrader 5', environment: 'DEMO', status: 'scaffolded', detail: 'Broker bridge coming next' },
   { id: 'mt4-demo', provider: 'metatrader4', name: 'MetaTrader 4', environment: 'DEMO', status: 'scaffolded', detail: 'EA / bridge coming next' },
 ];
@@ -11,6 +11,8 @@ const providerSelect = document.getElementById('providerSelect');
 const connectionResult = document.getElementById('connectionResult');
 const apiKeyInput = document.getElementById('apiKey');
 const apiSecretInput = document.getElementById('apiSecret');
+const futuresApiKeyInput = document.getElementById('futuresApiKey');
+const futuresApiSecretInput = document.getElementById('futuresApiSecret');
 const mtServerInput = document.getElementById('mtServer');
 const mtLoginInput = document.getElementById('mtLogin');
 const mtPasswordInput = document.getElementById('mtPassword');
@@ -76,7 +78,7 @@ function syncBotAvailability() {
     startBot.textContent = 'CONNECT BINANCE DEMO';
     botStatus.textContent = 'BOT LOCKED';
     balanceValue.textContent = '—';
-    balanceDetail.textContent = 'Connect Binance Demo';
+    balanceDetail.textContent = 'Connect Spot + USD-M Demo';
     todayPnlValue.textContent = '—';
     todayPnlDetail.textContent = 'No paper session';
     expectedNetValue.textContent = '—';
@@ -85,15 +87,17 @@ function syncBotAvailability() {
   }
 
   const profile = connectedBinanceProfile();
-  const usdt = Number(profile?.balances?.USDT);
-  if (Number.isFinite(usdt)) {
-    balanceValue.textContent = formatUsd(usdt);
-    balanceDetail.textContent = profile?.accountLabel
-      ? `Spot Testnet · ${profile.accountLabel}`
-      : 'Spot Testnet USDT';
+  const spotUsdt = Number(profile?.balances?.spot?.USDT);
+  const usdmUsdt = Number(profile?.balances?.usdm?.USDT);
+  const hasSpot = Number.isFinite(spotUsdt);
+  const hasUsdm = Number.isFinite(usdmUsdt);
+
+  if (hasSpot && hasUsdm) {
+    balanceValue.textContent = formatUsd(spotUsdt + usdmUsdt);
+    balanceDetail.textContent = `Spot ${formatUsd(spotUsdt)} · USD-M ${formatUsd(usdmUsdt)}`;
   } else {
     balanceValue.textContent = '—';
-    balanceDetail.textContent = 'Connected · no USDT balance returned';
+    balanceDetail.textContent = 'Connected · balance data incomplete';
   }
   expectedNetValue.textContent = '—';
   expectedNetDetail.textContent = 'Waiting for fee-aware snapshot';
@@ -181,12 +185,19 @@ async function testConnection() {
 
   let credentials;
   if (provider === 'binance') {
-    if (!apiKeyInput.value.trim() || !apiSecretInput.value.trim()) {
+    const missingSpot = !apiKeyInput.value.trim() || !apiSecretInput.value.trim();
+    const missingFutures = !futuresApiKeyInput.value.trim() || !futuresApiSecretInput.value.trim();
+    if (missingSpot || missingFutures) {
       connectionResult.classList.add('bad');
-      connectionResult.textContent = 'Spot Testnet API key and secret are required.';
+      connectionResult.textContent = 'Spot and USD-M Futures Testnet API keys/secrets are all required.';
       return;
     }
-    credentials = { apiKey: apiKeyInput.value.trim(), apiSecret: apiSecretInput.value.trim() };
+    credentials = {
+      apiKey: apiKeyInput.value.trim(),
+      apiSecret: apiSecretInput.value.trim(),
+      futuresApiKey: futuresApiKeyInput.value.trim(),
+      futuresApiSecret: futuresApiSecretInput.value.trim(),
+    };
   } else {
     if (!mtServerInput.value.trim() || !mtLoginInput.value.trim() || !mtPasswordInput.value) {
       connectionResult.classList.add('bad');
@@ -210,7 +221,7 @@ async function testConnection() {
       profile.accountLabel = result.ok ? result.accountLabel : null;
       profile.balances = result.ok && result.balances ? result.balances : {};
       profile.detail = result.ok
-        ? `Demo connected${result.latencyMs ? ` · ${result.latencyMs} ms` : ''}`
+        ? `Spot + USD-M Demo connected${result.latencyMs ? ` · ${result.latencyMs} ms` : ''}`
         : result.message;
       renderConnections();
     }
@@ -235,6 +246,8 @@ document.getElementById('testConnection').addEventListener('click', testConnecti
 dialog.addEventListener('close', () => {
   apiKeyInput.value = '';
   apiSecretInput.value = '';
+  futuresApiKeyInput.value = '';
+  futuresApiSecretInput.value = '';
   mtServerInput.value = '';
   mtLoginInput.value = '';
   mtPasswordInput.value = '';
