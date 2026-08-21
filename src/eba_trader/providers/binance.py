@@ -26,8 +26,8 @@ class BinanceEndpointSet:
 
 BINANCE_ENDPOINTS = {
     ProviderEnvironment.DEMO: BinanceEndpointSet(
-        spot_rest="https://testnet.binance.vision",
-        futures_rest="https://testnet.binancefuture.com",
+        spot_rest="https://demo-api.binance.com",
+        futures_rest="https://demo-fapi.binance.com",
     ),
     ProviderEnvironment.LIVE: BinanceEndpointSet(
         spot_rest="https://api.binance.com",
@@ -83,12 +83,11 @@ def _parse_usdm_balances(payload: dict[str, object]) -> dict[str, float]:
 
 
 class BinanceProviderAdapter(ProviderAdapter):
-    """Read-only Binance Spot + USD-M connection adapter.
+    """Read-only Binance Spot + USD-M provider adapter.
 
-    Demo mode is the default product path. Spot Testnet and USD-M Futures
-    Testnet credentials are kept separate because the environments can issue
-    independent API keys. This class contains no order, cancel, transfer,
-    withdrawal, or leverage-changing methods.
+    Binance Demo Trading is the default product path. One Demo API key/secret is
+    used for both Spot Demo and USD-M Futures Demo endpoints. This class contains
+    no order, cancel, transfer, withdrawal, or leverage-changing methods.
     """
 
     @property
@@ -106,14 +105,7 @@ class BinanceProviderAdapter(ProviderAdapter):
             return ConnectionTestResult(
                 ok=False,
                 state=ConnectionState.ERROR,
-                message="Spot API key and secret are required",
-                capabilities=self.capabilities,
-            )
-        if not self.credentials.futures_api_key or not self.credentials.futures_api_secret:
-            return ConnectionTestResult(
-                ok=False,
-                state=ConnectionState.ERROR,
-                message="USD-M Futures API key and secret are required",
+                message="Binance Demo API key and secret are required",
                 capabilities=self.capabilities,
             )
 
@@ -130,8 +122,8 @@ class BinanceProviderAdapter(ProviderAdapter):
             futures_payload = self._signed_get(
                 endpoints.futures_rest,
                 "/fapi/v3/account",
-                api_key=self.credentials.futures_api_key,
-                api_secret=self.credentials.futures_api_secret,
+                api_key=self.credentials.api_key,
+                api_secret=self.credentials.api_secret,
             )
         except Exception as exc:  # network/API failures are returned to the UI, not raised
             return ConnectionTestResult(
