@@ -36,6 +36,30 @@ BINANCE_ENDPOINTS = {
 }
 
 
+def _parse_balances(payload: dict[str, object]) -> dict[str, float]:
+    raw_balances = payload.get("balances")
+    if not isinstance(raw_balances, list):
+        return {}
+
+    balances: dict[str, float] = {}
+    for item in raw_balances:
+        if not isinstance(item, dict):
+            continue
+        asset = str(item.get("asset", "")).strip()
+        if not asset:
+            continue
+        try:
+            free = float(item.get("free", 0.0))
+            locked = float(item.get("locked", 0.0))
+        except (TypeError, ValueError):
+            continue
+        total = free + locked
+        if total < 0:
+            continue
+        balances[asset] = total
+    return balances
+
+
 class BinanceProviderAdapter(ProviderAdapter):
     """Read-only Binance connection adapter.
 
@@ -87,6 +111,7 @@ class BinanceProviderAdapter(ProviderAdapter):
             latency_ms=latency_ms,
             account_label=account_label,
             capabilities=self.capabilities,
+            balances=_parse_balances(payload),
         )
 
     def _signed_get(
