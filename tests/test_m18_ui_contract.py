@@ -29,23 +29,24 @@ def test_ui_keeps_live_and_secret_storage_locked() -> None:
     assert "environment: 'demo'" in javascript
 
 
-def test_binance_demo_form_requires_both_testnet_credential_sets() -> None:
+def test_binance_demo_form_uses_one_unified_credential_pair() -> None:
     html = (WEB_ROOT / "index.html").read_text(encoding="utf-8")
     javascript = (WEB_ROOT / "app.js").read_text(encoding="utf-8")
-    assert "Spot Testnet API Key" in html
-    assert "Spot Testnet API Secret" in html
-    assert "USD-M Futures Testnet API Key" in html
-    assert "USD-M Futures Testnet API Secret" in html
-    assert "futuresApiKey" in javascript
-    assert "futuresApiSecret" in javascript
-    assert "Spot and USD-M Futures Testnet API keys/secrets are all required." in javascript
+    assert "Binance Demo API Key" in html
+    assert "Binance Demo API Secret" in html
+    assert "One Demo key is used for both Spot and USD-M Futures" in html
+    assert "futuresApiKey" not in html
+    assert "futuresApiSecret" not in html
+    assert "futuresApiKey" not in javascript
+    assert "futuresApiSecret" not in javascript
+    assert "Binance Demo API key and secret are required." in javascript
 
 
 def test_binance_demo_secret_fields_are_cleared_after_request() -> None:
     javascript = (WEB_ROOT / "app.js").read_text(encoding="utf-8")
     assert "function clearCredentialInputs()" in javascript
-    assert "futuresApiKeyInput.value = '';" in javascript
-    assert "futuresApiSecretInput.value = '';" in javascript
+    assert "apiKeyInput.value = '';" in javascript
+    assert "apiSecretInput.value = '';" in javascript
     assert "credentials = null;" in javascript
 
 
