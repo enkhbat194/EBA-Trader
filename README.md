@@ -1,49 +1,63 @@
 # EBA Trader
 
-EBA Trader is a research-first autonomous trading system project.
+EBA Trader is a research-first, provider-independent trading system with deterministic risk control.
 
-## Mission
+Current active engineering branch: `m18-fee-aware-execution-economics`  
+Current validation PR: #14  
+Current mode: **Demo / read-only paper scanner**  
+Live execution: **LOCKED**
 
-Build a professional-grade trading engine that can:
+## Open the Demo app
 
-1. read live market data,
-2. classify the current market regime,
-3. select among validated strategies,
-4. reject low-quality setups with `NO_TRADE`,
-5. enforce deterministic risk limits,
-6. measure every decision against benchmarks,
-7. learn through research and validation without allowing unvalidated AI output to control real capital.
+The GitHub repository is the source of truth. Render is used only as a temporary Python runtime so the mobile PWA can be opened from a phone.
 
-## V1 scope (frozen)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fenkhbat194%2FEBA-Trader%2Ftree%2Fm18-fee-aware-execution-economics)
 
-- Market: `BTC/USDT`
-- Venue target: Binance
-- Product: Spot only
-- Core engine target: NautilusTrader
-- Timeframes: 5m execution, 15m signal, 1h regime
-- Strategies: Trend Following, Mean Reversion, Breakout, Momentum, NO_TRADE
-- Modes: Backtest -> Paper -> Shadow -> Micro-Live (future gated stage)
-- Futures/leverage: disabled in V1
-- Live-money execution: disabled until validation gates are passed
+The repository already contains `render.yaml`. The Demo Blueprint uses the Free plan, Singapore region, Python 3.12.14, `/api/health`, and deploy-after-CI-pass behavior.
 
-## Non-negotiable design rules
+**Do not put Binance API keys in GitHub or Render settings.** After the app is running, create a key inside **Binance Demo Trading** and paste that Demo key/secret only into the in-app Binance connection form.
 
-- AI is an analyst/researcher/critic, not the final risk authority.
-- The Risk Engine is deterministic code.
-- A strategy is not promoted because a backtest looks profitable.
-- Fees, slippage, latency assumptions, out-of-sample tests and walk-forward tests are required.
-- `NO_TRADE` is a first-class decision.
-- Exchange adapters must not leak venue-specific logic into strategy code.
-- API keys must never be committed to Git.
-- Withdrawal permission must never be required by the bot.
+## M18.1 app
 
-## Current status
+The approved mobile-first PWA includes:
 
-**M2 — audited historical evidence pipeline**
+- Dashboard / Home;
+- Opportunities;
+- Positions;
+- History;
+- Settings / Connections;
+- Binance, MetaTrader 5 and MetaTrader 4 provider boundaries;
+- Binance Unified Demo Trading connection;
+- 30-minute RAM-only Demo credential session;
+- account balance display after successful Demo connection;
+- fee-aware BTC Spot ↔ USD-M quarterly opportunity scanner;
+- deterministic `NO_TRADE` / `PAPER_CANDIDATE` output;
+- explicit Demo session disconnect;
+- `LIVE 🔒` hard lock.
 
-The deterministic core, Binance public-data path, signal research pipeline, risk-sized execution
-model, predeclared screening, and one-shot final OOS safeguards are implemented. The complete
-Python 3.12 test/lint audit passed on 2026-08-20. Real historical development evidence has not yet
-been generated, and 2025 OOS remains locked. Exchange execution remains disabled.
+## Binance Unified Demo Trading
 
-See `PROJECT_STATE.md` for the authoritative project continuation state.
+The current Demo integration uses one Binance Demo Trading API key/secret for both:
+
+- Spot Demo: `https://demo-api.binance.com`;
+- USD-M Futures Demo: `https://demo-fapi.binance.com`.
+
+Connection and scanning are read-only. Current code contains no order, cancel, withdrawal, transfer, or leverage-change methods.
+
+## Safety rules
+
+- AI is not the final risk authority.
+- The deterministic Risk Engine remains superior to strategy/AI/execution layers.
+- `NO_TRADE` is a valid decision.
+- API secrets must never be committed to Git.
+- Browser persistent storage is not used for Demo credentials or session tokens.
+- API responses are not cached by the PWA service worker.
+- Live environment requests are rejected by the backend.
+- Real-money Binance credentials are not approved for M18.1.
+- 2025 OOS remains `LOCKED_NOT_ACCESSED`.
+
+## Research status
+
+Historical research cycles M2-M17 did **not** earn promotion to a live profitable strategy. M18/M18.1 are execution-cost and app infrastructure, not a profitability claim.
+
+See [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) for the authoritative cross-chat project checkpoint and [`docs/M18_DEMO_DEPLOYMENT.md`](docs/M18_DEMO_DEPLOYMENT.md) for Demo deployment details.
