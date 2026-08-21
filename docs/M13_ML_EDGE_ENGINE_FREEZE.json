@@ -1,0 +1,31 @@
+{
+  "cycle": "m13_ml_edge_engine_v1",
+  "status": "FROZEN_PREDECLARED_NOT_RUN",
+  "protocol_sha256": "a5cddd7375801426c6ac92050eca49431d7eeaa14b2f63f8cb089d0ddce7f2e8",
+  "base_git_commit": "3bb82523b51ec438dd528f3888a55ed548bd2848",
+  "input_sha256": {
+    "btc_spot_research_2021_2023": "253c6ae35856e58e35df17eaa71caeea5caaa3681c38dd7214a2872afccd8d63",
+    "btc_spot_challenge_2024": "3a96b6b668cfacb0fefabb8665675d4ca589cc712b0681fb57e7a13356eda0f2",
+    "btc_usdm_15m_2021_2024": "3c97c9b59ded32595f129a480a23e920823c0edbbf2e4f32c5d66e5020e35947",
+    "btc_funding_2021_2024": "73b9decde0d54a0609d55ccfd49131a6e825416b595d728457bb01a968b55fd6",
+    "eth_usdm_15m_2021_2024": "69855dcaf2f34c2a529ddb7f83964fa61b39ed0a27ae8796a6c0eaafd5b744f5"
+  },
+  "feature_count": 19,
+  "model_families": ["logistic", "hist_gb"],
+  "probability_gates": [0.6, 0.65],
+  "horizons_bars": [4, 16, 48],
+  "hypothesis_test_count": 12,
+  "sample_stride_bars": 4,
+  "base_round_trip_cost_bps": 30.0,
+  "severe_round_trip_cost_bps": 70.0,
+  "fdr_q_threshold": 0.1,
+  "discovery_prediction_years": [2022, 2023],
+  "challenge_year": 2024,
+  "random_state": 13,
+  "oos_2025": "LOCKED_NOT_ACCESSED",
+  "parameter_changes_after_first_run": "forbidden",
+  "strategy_generation": "forbidden_until_promotion",
+  "risk_sizing": "blocked",
+  "live_execution": "blocked",
+  "ai_override_of_risk": "forbidden"
+}
