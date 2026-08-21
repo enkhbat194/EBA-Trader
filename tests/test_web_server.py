@@ -4,6 +4,7 @@ from eba_trader.demo_sessions import DemoSessionStore
 from eba_trader.providers import (
     ConnectionState,
     ConnectionTestResult,
+    CredentialEnvelope,
     ProviderEnvironment,
     ProviderKind,
 )
