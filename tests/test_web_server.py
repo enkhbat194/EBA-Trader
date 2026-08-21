@@ -20,19 +20,15 @@ def test_parse_demo_binance_connection_request() -> None:
             "provider": "binance",
             "environment": "demo",
             "credentials": {
-                "apiKey": "spot-key",
-                "apiSecret": "spot-secret",
-                "futuresApiKey": "futures-key",
-                "futuresApiSecret": "futures-secret",
+                "apiKey": "demo-key",
+                "apiSecret": "demo-secret",
             },
         }
     )
     assert profile.provider is ProviderKind.BINANCE
     assert profile.environment is ProviderEnvironment.DEMO
-    assert credentials.api_key == "spot-key"
-    assert credentials.api_secret == "spot-secret"
-    assert credentials.futures_api_key == "futures-key"
-    assert credentials.futures_api_secret == "futures-secret"
+    assert credentials.api_key == "demo-key"
+    assert credentials.api_secret == "demo-secret"
 
 
 def test_live_connection_request_is_hard_locked() -> None:
@@ -80,8 +76,8 @@ def test_successful_binance_demo_connection_can_issue_ram_only_session(monkeypat
 
         def test_connection(self, connection_id, credentials):
             assert connection_id == "binance-demo"
-            assert credentials.api_secret == "spot-secret"
-            assert credentials.futures_api_secret == "futures-secret"
+            assert credentials.api_key == "demo-key"
+            assert credentials.api_secret == "demo-secret"
             return ConnectionTestResult(
                 ok=True,
                 state=ConnectionState.CONNECTED,
@@ -97,21 +93,19 @@ def test_successful_binance_demo_connection_can_issue_ram_only_session(monkeypat
             "provider": "binance",
             "environment": "demo",
             "credentials": {
-                "apiKey": "spot-key",
-                "apiSecret": "spot-secret",
-                "futuresApiKey": "futures-key",
-                "futuresApiSecret": "futures-secret",
+                "apiKey": "demo-key",
+                "apiSecret": "demo-secret",
             },
         },
         session_store=store,
     )
     token = result["sessionToken"]
     assert token
-    assert "spot-secret" not in token
-    assert "futures-secret" not in token
+    assert "demo-key" not in token
+    assert "demo-secret" not in token
     stored = store.get(token)
     assert stored is not None
-    assert stored.api_key == "spot-key"
+    assert stored.api_key == "demo-key"
     assert result["liveExecutionAllowed"] is False
 
 
@@ -122,10 +116,8 @@ def test_demo_snapshot_request_uses_session_without_returning_credentials(monkey
             "provider": "binance",
             "environment": "demo",
             "credentials": {
-                "apiKey": "spot-key",
-                "apiSecret": "spot-secret",
-                "futuresApiKey": "futures-key",
-                "futuresApiSecret": "futures-secret",
+                "apiKey": "demo-key",
+                "apiSecret": "demo-secret",
             },
         }
     )
