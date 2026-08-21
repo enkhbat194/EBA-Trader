@@ -34,17 +34,16 @@ RECV_WINDOW_MS = 5_000
 
 
 class BinanceDemoReadOnlyClient:
-    """Read-only Binance Spot + USD-M Testnet client.
+    """Read-only Binance unified Demo Trading client.
 
+    The same Demo API key/secret is used against Spot Demo and USD-M Futures Demo.
     This client intentionally exposes no order, cancel, transfer, withdrawal,
     leverage, or live-environment methods.
     """
 
     def __init__(self, credentials: CredentialEnvelope, *, timeout_seconds: float = 10.0) -> None:
         if not credentials.api_key or not credentials.api_secret:
-            raise ValueError("Spot Testnet API key and secret are required")
-        if not credentials.futures_api_key or not credentials.futures_api_secret:
-            raise ValueError("USD-M Futures Testnet API key and secret are required")
+            raise ValueError("Binance Demo API key and secret are required")
         self._credentials = credentials
         self._timeout_seconds = timeout_seconds
         endpoints = BINANCE_ENDPOINTS[ProviderEnvironment.DEMO]
@@ -59,7 +58,7 @@ class BinanceDemoReadOnlyClient:
         with urllib.request.urlopen(request, timeout=self._timeout_seconds) as response:
             payload = json.loads(response.read().decode("utf-8"))
         if not isinstance(payload, dict):
-            raise RuntimeError("unexpected Binance Testnet JSON response")
+            raise RuntimeError("unexpected Binance Demo JSON response")
         return payload
 
     def _public_get(self, base_url: str, endpoint: str, params: dict[str, Any]) -> dict[str, Any]:
@@ -74,22 +73,19 @@ class BinanceDemoReadOnlyClient:
         base_url: str,
         endpoint: str,
         params: dict[str, Any],
-        *,
-        api_key: str,
-        api_secret: str,
     ) -> dict[str, Any]:
         signed = dict(params)
         signed.setdefault("recvWindow", RECV_WINDOW_MS)
         signed.setdefault("timestamp", int(time.time() * 1000))
         query = urllib.parse.urlencode(signed)
         signature = hmac.new(
-            api_secret.encode("utf-8"),
+            self._credentials.api_secret.encode("utf-8"),
             query.encode("utf-8"),
             hashlib.sha256,
         ).hexdigest()
         return self._get_json(
             f"{base_url}{endpoint}?{query}&signature={signature}",
-            api_key=api_key,
+            api_key=self._credentials.api_key,
         )
 
     def spot_commission(self) -> SpotCommissionSnapshot:
@@ -97,8 +93,6 @@ class BinanceDemoReadOnlyClient:
             self._spot_base_url,
             SPOT_COMMISSION_ENDPOINT,
             {"symbol": SPOT_SYMBOL},
-            api_key=self._credentials.api_key,
-            api_secret=self._credentials.api_secret,
         )
         return parse_spot_commission(payload)
 
@@ -107,8 +101,6 @@ class BinanceDemoReadOnlyClient:
             self._futures_base_url,
             FUTURES_COMMISSION_ENDPOINT,
             {"symbol": symbol},
-            api_key=self._credentials.futures_api_key,
-            api_secret=self._credentials.futures_api_secret,
         )
         return parse_futures_commission(payload)
 
@@ -145,9 +137,9 @@ def run_demo_fee_snapshot(
     quantity_btc: float = DEFAULT_QUANTITY_BTC,
     client: BinanceDemoReadOnlyClient | None = None,
 ) -> dict[str, Any]:
-    """Return one immutable-in-memory Demo screening snapshot.
+    """Return one immutable-in-memory unified Demo screening snapshot.
 
-    Missing Testnet quarterly contracts fail closed instead of falling back to a
+    Missing Demo quarterly contracts fail closed instead of falling back to a
     live market or a different strategy.
     """
 
@@ -163,7 +155,7 @@ def run_demo_fee_snapshot(
         return {
             "mode": "DEMO_READ_ONLY",
             "decision": "NO_TRADE",
-            "reasonCodes": ["NO_ACTIVE_TESTNET_DELIVERY_CONTRACT"],
+            "reasonCodes": ["NO_ACTIVE_DEMO_DELIVERY_CONTRACT"],
             "environment": "demo",
             "liveExecutionAllowed": False,
             "snapshotTimeMs": now_ms,
