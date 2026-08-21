@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: eba-trader-demo
+    runtime: python
+    plan: free
+    region: singapore
+    branch: m18-fee-aware-execution-economics
+    buildCommand: python -m compileall -q src
+    startCommand: PYTHONPATH=src python -m eba_trader.web_server
+    healthCheckPath: /api/health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.14
