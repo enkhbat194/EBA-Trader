@@ -102,17 +102,19 @@ def test_bybit_kline_uses_start_end_parameter_names(monkeypatch) -> None:
         return {"result": {"list": [], "nextPageCursor": ""}}
 
     monkeypatch.setattr(core, "_request_json", fake_request)
+    start = parse_utc("2021-01-01T00:00:00Z")
+    end = start + 1_000
     fetch_bybit_windowed_with_endpoint_params(
         "/v5/market/kline",
-        start_ms=1_000,
-        end_ms=2_000,
+        start_ms=start,
+        end_ms=end,
         chunk_ms=1_000,
         base_params={"category": "linear", "symbol": "BTCUSDT"},
         limit=1000,
     )
     _, params = calls[0]
-    assert params["start"] == 1_000
-    assert params["end"] == 1_999
+    assert params["start"] == start
+    assert params["end"] == end - 1
     assert "startTime" not in params
     assert "endTime" not in params
 
@@ -125,16 +127,18 @@ def test_bybit_positioning_uses_start_time_end_time_parameter_names(monkeypatch)
         return {"result": {"list": [], "nextPageCursor": ""}}
 
     monkeypatch.setattr(core, "_request_json", fake_request)
+    start = parse_utc("2021-01-01T00:00:00Z")
+    end = start + 1_000
     fetch_bybit_windowed_with_endpoint_params(
         "/v5/market/open-interest",
-        start_ms=1_000,
-        end_ms=2_000,
+        start_ms=start,
+        end_ms=end,
         chunk_ms=1_000,
         base_params={"category": "linear", "symbol": "BTCUSDT"},
         limit=200,
     )
     _, params = calls[0]
-    assert params["startTime"] == 1_000
-    assert params["endTime"] == 1_999
+    assert params["startTime"] == start
+    assert params["endTime"] == end - 1
     assert "start" not in params
     assert "end" not in params
