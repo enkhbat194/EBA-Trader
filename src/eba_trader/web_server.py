@@ -9,6 +9,8 @@ from typing import Any
 
 from .demo_sessions import DemoSessionStore
 from .m18_demo_snapshot import run_demo_fee_snapshot
+from .market_chart import fetch_binance_demo_chart, normalize_mt5_chart
+from .mt5_bridge_store import MT5BridgeStore
 from .providers import (
     BinanceProviderAdapter,
     ConnectionManager,
@@ -22,12 +24,14 @@ from .providers import (
 
 WEB_ROOT = Path(__file__).resolve().parents[2] / "web"
 DEMO_SESSIONS = DemoSessionStore()
+MT5_BRIDGES = MT5BridgeStore()
 
 
 def build_default_manager() -> ConnectionManager:
     manager = ConnectionManager()
     manager.register(ProviderKind.BINANCE, BinanceProviderAdapter)
     manager.register(ProviderKind.METATRADER5, MetaTrader5ProviderAdapter)
+    # MT4 remains a compatibility scaffold in code only. It is no longer a primary UI provider.
     manager.register(ProviderKind.METATRADER4, MetaTrader4ProviderAdapter)
     return manager
 
@@ -49,7 +53,7 @@ def parse_connection_request(
     except ValueError as exc:
         raise ValueError("environment must be demo or live") from exc
     if environment is ProviderEnvironment.LIVE:
-        raise ValueError("live connections are locked in M18.1")
+        raise ValueError("live connections are locked in M18.2")
 
     credentials_raw = payload.get("credentials")
     if not isinstance(credentials_raw, dict):
@@ -123,22 +127,96 @@ def run_demo_disconnect_request(
     if not token:
         raise ValueError("sessionToken is required")
     session_store.revoke(token)
-    return {
-        "ok": True,
-        "state": "disconnected",
-        "liveExecutionAllowed": False,
-    }
+    return {"ok": True, "state": "disconnected", "liveExecutionAllowed": False}
+
+
+def run_mt5_pair_request(*, bridge_store: MT5BridgeStore) -> dict[str, Any]:
+    result = bridge_store.create_pair()
+    result.update(
+        {
+            "ok": True,
+            "provider": "metatrader5",
+            "environment": "demo",
+            "liveExecutionAllowed": False,
+        }
+    )
+    return result
+
+
+def run_mt5_ingest_request(
+    payload: dict[str, Any],
+    *,
+    bridge_store: MT5BridgeStore,
+) -> dict[str, Any]:
+    token = str(payload.get("pairToken", ""))
+    snapshot = payload.get("snapshot")
+    if not token:
+        raise ValueError("pairToken is required")
+    if not isinstance(snapshot, dict):
+        raise ValueError("snapshot object is required")
+    if snapshot.get("readOnly") is not True:
+        raise ValueError("MT5 bridge must declare readOnly=true")
+    if not isinstance(snapshot.get("account"), dict):
+        raise ValueError("MT5 account snapshot is required")
+    if not isinstance(snapshot.get("charts"), dict):
+        raise ValueError("MT5 chart snapshot is required")
+    result = bridge_store.ingest(token, snapshot)
+    result["liveExecutionAllowed"] = False
+    return result
+
+
+def run_mt5_state_request(
+    payload: dict[str, Any],
+    *,
+    bridge_store: MT5BridgeStore,
+) -> dict[str, Any]:
+    token = str(payload.get("pairToken", ""))
+    if not token:
+        raise ValueError("pairToken is required")
+    return bridge_store.state(token)
+
+
+def run_mt5_disconnect_request(
+    payload: dict[str, Any],
+    *,
+    bridge_store: MT5BridgeStore,
+) -> dict[str, Any]:
+    token = str(payload.get("pairToken", ""))
+    if not token:
+        raise ValueError("pairToken is required")
+    bridge_store.revoke(token)
+    return {"ok": True, "state": "disconnected", "liveExecutionAllowed": False}
+
+
+def run_chart_request(
+    payload: dict[str, Any],
+    *,
+    bridge_store: MT5BridgeStore,
+) -> dict[str, Any]:
+    provider = str(payload.get("provider", "")).lower()
+    symbol = str(payload.get("symbol", "")).upper().strip()
+    timeframe = str(payload.get("timeframe", "15m"))
+    limit = int(payload.get("limit", 120))
+    if provider == "binance":
+        return fetch_binance_demo_chart(symbol, timeframe, limit)
+    if provider == "metatrader5":
+        token = str(payload.get("pairToken", ""))
+        state = bridge_store.state(token)
+        if not state.get("connected"):
+            raise PermissionError("MT5 Demo bridge is not connected")
+        snapshot = state.get("snapshot")
+        if not isinstance(snapshot, dict):
+            raise PermissionError("MT5 Demo bridge has no snapshot")
+        result = normalize_mt5_chart(snapshot, symbol, timeframe)
+        result["bridgeHeartbeatAgeSeconds"] = state.get("heartbeatAgeSeconds")
+        return result
+    raise ValueError("unsupported chart provider")
 
 
 class EBARequestHandler(SimpleHTTPRequestHandler):
-    """Static PWA + Demo-only read API.
+    """Static PWA + Demo-only read APIs for Binance and a local MT5 bridge."""
 
-    Connection credentials are accepted only during the connection-test request.
-    On successful Binance Demo validation they move into a short-lived process-memory
-    session. Secrets are never written to disk, logs, browser storage, or API replies.
-    """
-
-    server_version = "EBA-UI/0.4"
+    server_version = "EBA-UI/0.5"
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, directory=str(WEB_ROOT), **kwargs)
@@ -158,7 +236,6 @@ class EBARequestHandler(SimpleHTTPRequestHandler):
         super().end_headers()
 
     def log_message(self, format: str, *args: Any) -> None:
-        # SimpleHTTPRequestHandler logs request metadata only; request bodies are never logged.
         super().log_message(format, *args)
 
     def do_GET(self) -> None:  # noqa: N802
@@ -168,6 +245,7 @@ class EBARequestHandler(SimpleHTTPRequestHandler):
                 {
                     "ok": True,
                     "mode": "demo-first",
+                    "providers": ["binance", "metatrader5"],
                     "liveExecutionAllowed": False,
                 },
             )
@@ -178,8 +256,11 @@ class EBARequestHandler(SimpleHTTPRequestHandler):
                 {
                     "providers": [
                         {"id": "binance", "name": "Binance", "status": "ready"},
-                        {"id": "metatrader5", "name": "MetaTrader 5", "status": "scaffolded"},
-                        {"id": "metatrader4", "name": "MetaTrader 4", "status": "scaffolded"},
+                        {
+                            "id": "metatrader5",
+                            "name": "MetaTrader 5",
+                            "status": "bridge-ready",
+                        },
                     ],
                     "environment": "demo",
                     "liveExecutionAllowed": False,
@@ -193,13 +274,19 @@ class EBARequestHandler(SimpleHTTPRequestHandler):
             "/api/connections/test",
             "/api/demo/snapshot",
             "/api/demo/disconnect",
+            "/api/mt5/pair",
+            "/api/mt5/ingest",
+            "/api/mt5/state",
+            "/api/mt5/disconnect",
+            "/api/chart",
         }
         if self.path not in allowed_paths:
             self._json_response(HTTPStatus.NOT_FOUND, {"ok": False, "message": "not found"})
             return
 
         content_length = int(self.headers.get("Content-Length", "0") or "0")
-        if content_length <= 0 or content_length > 32_768:
+        max_size = 524_288 if self.path == "/api/mt5/ingest" else 32_768
+        if content_length <= 0 or content_length > max_size:
             self._json_response(
                 HTTPStatus.BAD_REQUEST,
                 {"ok": False, "message": "invalid request size"},
@@ -214,8 +301,18 @@ class EBARequestHandler(SimpleHTTPRequestHandler):
                 result = run_connection_test(payload, session_store=DEMO_SESSIONS)
             elif self.path == "/api/demo/snapshot":
                 result = run_demo_snapshot_request(payload, session_store=DEMO_SESSIONS)
-            else:
+            elif self.path == "/api/demo/disconnect":
                 result = run_demo_disconnect_request(payload, session_store=DEMO_SESSIONS)
+            elif self.path == "/api/mt5/pair":
+                result = run_mt5_pair_request(bridge_store=MT5_BRIDGES)
+            elif self.path == "/api/mt5/ingest":
+                result = run_mt5_ingest_request(payload, bridge_store=MT5_BRIDGES)
+            elif self.path == "/api/mt5/state":
+                result = run_mt5_state_request(payload, bridge_store=MT5_BRIDGES)
+            elif self.path == "/api/mt5/disconnect":
+                result = run_mt5_disconnect_request(payload, bridge_store=MT5_BRIDGES)
+            else:
+                result = run_chart_request(payload, bridge_store=MT5_BRIDGES)
         except PermissionError as exc:
             self._json_response(
                 HTTPStatus.UNAUTHORIZED,
