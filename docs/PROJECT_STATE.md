@@ -1,6 +1,6 @@
 # EBA-Trader Project State
 
-Updated: 2026-08-21
+Updated: 2026-08-22
 Current engineering branch: `m18-fee-aware-execution-economics`
 Draft PR: #14 against `m17-usdm-quarterly-cash-carry`.
 
@@ -93,40 +93,48 @@ Engineering defaults:
 - exit slippage reserve 2 bps per leg;
 - safety buffer 5 bps.
 
-### Binance Demo / Testnet contract
+### Binance Unified Demo Trading contract
 
-Demo connection now requires both legs before it can report `CONNECTED`:
+A 2026 capability audit replaced the earlier legacy dual-Testnet design with Binance's current Unified Demo Trading flow.
 
-1. Spot Testnet: `https://testnet.binance.vision` with its API key/secret.
-2. USD-M Futures Testnet: `https://testnet.binancefuture.com` with its API key/secret.
+Current Demo endpoints:
+1. Spot Demo REST: `https://demo-api.binance.com`.
+2. USD-M Futures Demo REST: `https://demo-fapi.binance.com`.
 
-The two credential pairs are separate fields because the Testnet environments can issue independent keys. Spot-only credentials cannot unlock the paper scanner.
+Credential model:
+- create one API key/secret inside Binance Demo Trading → API Management;
+- the same Demo credential pair is used for both Spot and USD-M Futures Demo;
+- the UI therefore asks for only one Demo API Key and one Demo API Secret;
+- legacy separate Spot Testnet/Futures Testnet credential fields are retired;
+- real-money Binance credentials must not be used at this stage.
 
 Connection validation is read-only:
 - Spot account: `GET /api/v3/account`;
-- USD-M account: `GET /fapi/v3/account`.
+- USD-M account: `GET /fapi/v3/account`;
+- both calls use the same unified Demo credential pair.
 
-On success the Dashboard receives real Demo balance data from the read-only responses. The previous fake `$25,430.68` placeholder was removed; before connection, Balance/P&L/Net fields display `—`.
+On success the Dashboard receives Demo balance data from the read-only responses. The previous fake balance placeholder was removed; before connection, Balance/P&L/Net fields display `—`.
 
 ### RAM-only Demo session
 
-After both Binance Demo legs pass:
+After Binance Unified Demo validation passes:
 - backend creates a cryptographically random opaque session token;
 - credentials stay only in server process memory for a 30-minute TTL;
 - credentials are never written to Git or disk;
 - UI keeps only the opaque token in JavaScript memory;
-- no `localStorage` or `sessionStorage` is used;
+- browser persistent storage is not used for secrets or the session token;
 - form credential values are cleared after the connection request;
 - process restart or TTL expiry invalidates the session;
 - expired/missing tokens fail closed.
 
 ### Demo fee-aware scanner
 
-New Demo-only read path:
+Demo-only read path:
 - `POST /api/demo/snapshot` accepts only the RAM-session token;
-- Spot Testnet commission/depth and USD-M Testnet commission/depth are queried read-only;
-- active Testnet quarterly delivery contract is selected if one exists;
-- if Testnet has no active quarterly delivery contract, result is `NO_TRADE` with `NO_ACTIVE_TESTNET_DELIVERY_CONTRACT`; there is no silent fallback to Live data or a different strategy;
+- Spot Demo commission/depth and USD-M Demo commission/depth are queried read-only;
+- active Demo quarterly delivery contract is selected if one exists;
+- if Demo has no active quarterly delivery contract, result is `NO_TRADE` with `NO_ACTIVE_DEMO_DELIVERY_CONTRACT`;
+- there is no silent fallback to Live data or a different strategy;
 - UI displays Spot buy, Futures sell, Gross edge, fee reserve, slippage reserve, safety buffer and NET edge;
 - paper scanner refresh interval is 15 seconds while enabled;
 - this is scanning only: no orders or simulated fills are created yet.
@@ -159,7 +167,7 @@ High-fidelity dark mobile-first UI implemented from the approved visual concept:
 
 Dashboard/paper safety behavior:
 - no fake balance or fake profit values;
-- paper scanner remains disabled until both Binance Demo connections pass and a RAM session exists;
+- paper scanner remains disabled until Binance Unified Demo passes and a RAM session exists;
 - session failure/restart/expiry re-locks paper mode;
 - Opportunities is driven by read-only Demo snapshot data;
 - Positions/History explicitly state that M18 has no order-placement path.
@@ -177,14 +185,15 @@ Dashboard/paper safety behavior:
 
 ### Validation checkpoint
 
-Latest validated code commit: `fd9b469dd9ee808e22c026c248425d5c360ded44`.
-GitHub Actions run: `32500447292`.
+Latest validated code commit: `deedceb139c02a22ab21669faa431d8b229ae7e5`.
+GitHub Actions run: `32529094744`.
 
 PASS:
 - M18 read-only safety contract;
-- Binance Demo client safety contract;
+- Binance Unified Demo client safety contract;
+- exact Demo endpoint contract (`demo-api.binance.com`, `demo-fapi.binance.com`);
 - M18.1 mobile UI safety contract;
-- dual Spot + USD-M credential regression tests;
+- unified single-credential regression tests;
 - RAM-only session tests;
 - Demo snapshot tests;
 - provider-neutral tests;
@@ -200,9 +209,8 @@ No completed profitability cycle M2-M17 has earned promotion. M18/M18.1 are oper
 
 Current state:
 - research status: `NO_PROMOTABLE_EDGE_FOUND_THROUGH_M17`;
-- engineering status: `M18_1_GITHUB_ONLY_DUAL_DEMO_SCANNER_GREEN`;
-- Binance Spot Testnet adapter: ready for credential test;
-- Binance USD-M Futures Testnet adapter: ready for credential test;
+- engineering status: `M18_1_UNIFIED_DEMO_SCANNER_GREEN`;
+- Binance Unified Demo adapter: ready for one-key credential test;
 - RAM-only Demo session: implemented;
 - Demo fee-aware scanner: implemented;
 - MT5 adapter: scaffold only;
@@ -216,10 +224,10 @@ Current state:
 ## Next allowed action
 
 1. Make the GitHub-built app reachable through a suitable runtime/hosting target; Replit is not required.
-2. Create/use Demo/Testnet credentials only: one Spot Testnet pair and one USD-M Futures Testnet pair.
-3. Paste them into the in-app Binance Demo form and run `TEST BOTH DEMO CONNECTIONS`.
-4. Verify real Demo balances and the first read-only fee-aware snapshot.
-5. If Testnet has no active quarterly delivery contract, keep the explicit `NO_TRADE` result and decide separately whether a live-public-market/paper-account shadow mode deserves a new engineering contract.
+2. Open Binance Demo Trading, enter API Management, and create one Demo API key/secret.
+3. Paste only that Demo credential pair into the in-app Binance Demo form and run `TEST BINANCE DEMO`.
+4. Verify Demo Spot/USD-M balances and the first read-only fee-aware snapshot.
+5. If Demo has no active quarterly delivery contract, keep the explicit `NO_TRADE` result and choose a separately reviewed paper/shadow mechanism rather than silently changing strategy.
 6. Only after sustained paper/shadow validation and explicit approval may live connection/execution work be considered.
 
 A new historical profitability claim still requires a separately frozen research protocol; M18/M18.1 must not be used to retroactively turn M17 into a pass.
