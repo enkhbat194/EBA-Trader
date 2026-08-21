@@ -32,6 +32,9 @@ jobs:
           from eba_trader.m18_fee_policy import M18ExecutionPolicy
           from eba_trader.m18_fee_aware import BinanceReadOnlyClient
           from eba_trader.providers import BinanceProviderAdapter, ProviderCapability
+          from eba_trader.providers.binance import BINANCE_ENDPOINTS
+          from eba_trader.providers.base import ProviderEnvironment
+
           policy = M18ExecutionPolicy()
           assert policy.live_execution_allowed is False
           assert policy.ai_signal_authority is False
@@ -41,7 +44,10 @@ jobs:
               assert not hasattr(client, 'withdraw')
               assert not hasattr(client, 'change_leverage')
           assert ProviderCapability.LIVE_EXECUTION not in BinanceProviderAdapter.capabilities.fget(None)
-          print('M18 read-only safety contract verified')
+          demo = BINANCE_ENDPOINTS[ProviderEnvironment.DEMO]
+          assert demo.spot_rest == 'https://demo-api.binance.com'
+          assert demo.futures_rest == 'https://demo-fapi.binance.com'
+          print('M18 unified Demo read-only safety contract verified')
           PY
 
       - name: Verify M18.1 mobile UI safety
@@ -54,12 +60,15 @@ jobs:
           grep -q 'LIVE 🔒' web/index.html
           grep -q 'MetaTrader 5' web/index.html
           grep -q 'MetaTrader 4' web/index.html
-          grep -q 'USD-M Futures Testnet API Key' web/index.html
+          grep -q 'Binance Demo API Key' web/index.html
+          grep -q 'One Demo key is used for both Spot and USD-M Futures' web/index.html
+          ! grep -q 'Futures Testnet API Key' web/index.html
+          ! grep -q 'futuresApiKey' web/app.js
           grep -q '/api/demo/snapshot' web/app.js
           ! grep -q 'localStorage' web/app.js
           ! grep -q 'sessionStorage' web/app.js
           ! grep -q 'place_order' web/app.js
-          echo 'M18.1 UI safety contract verified'
+          echo 'M18.1 unified Demo UI safety contract verified'
 
       - name: Run deterministic tests
         run: python -m pytest -q
