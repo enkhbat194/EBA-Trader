@@ -115,14 +115,16 @@
       <div id="binanceFields">
         <label>Spot Testnet API Key<input id="apiKey" autocomplete="off" spellcheck="false" placeholder="Paste Spot Testnet API key"></label>
         <label>Spot Testnet API Secret<input id="apiSecret" type="password" autocomplete="new-password" placeholder="Paste Spot Testnet API secret"></label>
+        <label>USD-M Futures Testnet API Key<input id="futuresApiKey" autocomplete="off" spellcheck="false" placeholder="Paste USD-M Futures Testnet API key"></label>
+        <label>USD-M Futures Testnet API Secret<input id="futuresApiSecret" type="password" autocomplete="new-password" placeholder="Paste USD-M Futures Testnet API secret"></label>
       </div>
       <div id="mtFields" hidden>
         <label>Broker server<input id="mtServer" autocomplete="off" placeholder="Broker-Demo"></label>
         <label>Login<input id="mtLogin" inputmode="numeric" autocomplete="off" placeholder="Account login"></label>
         <label>Password<input id="mtPassword" type="password" autocomplete="new-password" placeholder="Account password"></label>
       </div>
-      <div class="security-note">Credentials stay only in this form until sent to the backend connection test. This UI does not save secrets to localStorage.</div>
-      <button type="button" class="primary full" id="testConnection">TEST CONNECTION</button>
+      <div class="security-note">Spot and USD-M Demo credentials are used only for the current connection test. They are not saved to localStorage or persisted by the backend.</div>
+      <button type="button" class="primary full" id="testConnection">TEST BOTH DEMO CONNECTIONS</button>
       <div id="connectionResult" class="connection-result">Not tested</div>
       <button value="cancel" class="secondary full">CLOSE</button>
     </form>
