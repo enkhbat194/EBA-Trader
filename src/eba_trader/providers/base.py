@@ -74,6 +74,7 @@ class ConnectionTestResult:
     latency_ms: int | None = None
     account_label: str | None = None
     capabilities: tuple[ProviderCapability, ...] = ()
+    balances: dict[str, float] = field(default_factory=dict)
 
 
 class ProviderAdapter(ABC):
