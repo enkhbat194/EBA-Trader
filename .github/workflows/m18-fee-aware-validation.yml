@@ -28,15 +28,18 @@ jobs:
       - name: Verify M18 safety policy
         run: |
           python - <<'PY'
+          from eba_trader.m18_demo_snapshot import BinanceDemoReadOnlyClient
           from eba_trader.m18_fee_policy import M18ExecutionPolicy
           from eba_trader.m18_fee_aware import BinanceReadOnlyClient
           from eba_trader.providers import BinanceProviderAdapter, ProviderCapability
           policy = M18ExecutionPolicy()
           assert policy.live_execution_allowed is False
           assert policy.ai_signal_authority is False
-          assert not hasattr(BinanceReadOnlyClient, 'place_order')
-          assert not hasattr(BinanceReadOnlyClient, 'cancel_order')
-          assert not hasattr(BinanceProviderAdapter, 'place_order')
+          for client in (BinanceReadOnlyClient, BinanceDemoReadOnlyClient, BinanceProviderAdapter):
+              assert not hasattr(client, 'place_order')
+              assert not hasattr(client, 'cancel_order')
+              assert not hasattr(client, 'withdraw')
+              assert not hasattr(client, 'change_leverage')
           assert ProviderCapability.LIVE_EXECUTION not in BinanceProviderAdapter.capabilities.fget(None)
           print('M18 read-only safety contract verified')
           PY
@@ -51,6 +54,8 @@ jobs:
           grep -q 'LIVE 🔒' web/index.html
           grep -q 'MetaTrader 5' web/index.html
           grep -q 'MetaTrader 4' web/index.html
+          grep -q 'USD-M Futures Testnet API Key' web/index.html
+          grep -q '/api/demo/snapshot' web/app.js
           ! grep -q 'localStorage' web/app.js
           ! grep -q 'sessionStorage' web/app.js
           ! grep -q 'place_order' web/app.js
