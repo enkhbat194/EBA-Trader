@@ -22,19 +22,19 @@
         <div class="status-row">
           <span class="pill demo">◉ DEMO</span>
           <span class="pill neutral" id="connectionSummary">0 CONNECTIONS</span>
-          <span class="pill danger">BOT OFF</span>
+          <span class="pill danger" id="botStatus">BOT LOCKED</span>
         </div>
 
         <h2>Account overview</h2>
         <div class="metric-grid">
-          <article class="metric-card"><span>Balance</span><strong>$25,430.68</strong><small>Demo USDT</small></article>
-          <article class="metric-card positive"><span>Today P&amp;L</span><strong>+$0.00</strong><small>Paper mode</small></article>
+          <article class="metric-card"><span>Balance</span><strong id="balanceValue">—</strong><small id="balanceDetail">Connect Binance Demo</small></article>
+          <article class="metric-card positive"><span>Today P&amp;L</span><strong id="todayPnlValue">—</strong><small id="todayPnlDetail">No paper session</small></article>
           <article class="metric-card"><span>Current opportunity</span><strong id="opportunityCount">0</strong><small>No qualified setup</small></article>
-          <article class="metric-card"><span>Expected net profit</span><strong>$0.00</strong><small>After fees &amp; reserves</small></article>
+          <article class="metric-card"><span>Expected net profit</span><strong id="expectedNetValue">—</strong><small id="expectedNetDetail">Waiting for fee-aware snapshot</small></article>
         </div>
 
         <div class="bot-controls">
-          <button class="primary" id="startBot">▶ START PAPER BOT</button>
+          <button class="primary" id="startBot" disabled>CONNECT BINANCE DEMO</button>
           <button class="danger-btn" id="stopBot" disabled>■ STOP</button>
         </div>
 
@@ -55,7 +55,7 @@
         <div class="opportunity-list">
           <article class="opportunity-card">
             <div class="card-title"><div><strong>BTC / USDT</strong><small>Binance Spot ↔ USD-M Quarterly</small></div><span class="badge muted">NO_TRADE</span></div>
-            <div class="edge-score"><span>NET EDGE</span><strong class="negative">0.00%</strong></div>
+            <div class="edge-score"><span>NET EDGE</span><strong class="negative">—</strong></div>
             <dl><div><dt>Spot buy</dt><dd>Waiting for quote</dd></div><div><dt>Futures sell</dt><dd>Waiting for quote</dd></div><div><dt>Gross edge</dt><dd>—</dd></div><div><dt>Fees</dt><dd>—</dd></div><div><dt>Slippage reserve</dt><dd>—</dd></div><div><dt>Safety buffer</dt><dd>5 bps</dd></div></dl>
           </article>
           <article class="opportunity-card disabled-card">
@@ -67,7 +67,7 @@
 
       <section class="screen" data-screen="positions">
         <div class="screen-title"><div><span class="eyebrow">Portfolio</span><h1>Positions</h1></div><span class="pill neutral">PAPER</span></div>
-        <div class="metric-grid three"><article class="metric-card"><span>Open</span><strong>0</strong></article><article class="metric-card"><span>Unrealized</span><strong>$0.00</strong></article><article class="metric-card"><span>Margin safety</span><strong>—</strong></article></div>
+        <div class="metric-grid three"><article class="metric-card"><span>Open</span><strong>0</strong></article><article class="metric-card"><span>Unrealized</span><strong>—</strong></article><article class="metric-card"><span>Margin safety</span><strong>—</strong></article></div>
         <article class="empty-state"><div class="empty-icon">◎</div><h3>No open paired positions</h3><p>When a demo opportunity passes all gates, both legs will appear here.</p></article>
         <button class="danger-btn full" disabled>⚠ CLOSE BOTH LEGS</button>
       </section>
@@ -113,8 +113,8 @@
       <div class="dialog-head"><div><span class="eyebrow">New connection</span><h2 id="dialogTitle">Binance Demo</h2></div><button value="cancel" class="icon-btn">✕</button></div>
       <label>Provider<select id="providerSelect"><option value="binance">Binance</option><option value="metatrader5">MetaTrader 5</option><option value="metatrader4">MetaTrader 4</option></select></label>
       <div id="binanceFields">
-        <label>API Key<input id="apiKey" autocomplete="off" spellcheck="false" placeholder="Paste demo API key"></label>
-        <label>API Secret<input id="apiSecret" type="password" autocomplete="new-password" placeholder="Paste demo API secret"></label>
+        <label>Spot Testnet API Key<input id="apiKey" autocomplete="off" spellcheck="false" placeholder="Paste Spot Testnet API key"></label>
+        <label>Spot Testnet API Secret<input id="apiSecret" type="password" autocomplete="new-password" placeholder="Paste Spot Testnet API secret"></label>
       </div>
       <div id="mtFields" hidden>
         <label>Broker server<input id="mtServer" autocomplete="off" placeholder="Broker-Demo"></label>
