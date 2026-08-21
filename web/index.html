@@ -40,7 +40,7 @@
 
         <article class="notice-card">
           <div class="notice-icon">⊘</div>
-          <div><strong id="decisionTitle">NO TRADE</strong><p id="decisionReason">Connect both Binance Demo environments to start scanning.</p><small>Live execution remains locked.</small></div>
+          <div><strong id="decisionTitle">NO TRADE</strong><p id="decisionReason">Connect Binance Unified Demo to start scanning.</p><small>Live execution remains locked.</small></div>
         </article>
 
         <article class="section-card">
@@ -84,7 +84,7 @@
         <article class="section-card environment-card">
           <span class="eyebrow">Environment</span>
           <div class="environment-toggle"><button class="active" id="demoEnvironment">DEMO</button><button id="liveEnvironment" disabled>LIVE 🔒</button></div>
-          <p>Demo is mandatory first. Live remains locked until connection, paper and risk checks pass.</p>
+          <p>Binance Unified Demo is mandatory first. Live remains locked until paper and risk checks pass.</p>
         </article>
 
         <div id="connectionList" class="connection-list"></div>
@@ -113,18 +113,20 @@
       <div class="dialog-head"><div><span class="eyebrow">New connection</span><h2 id="dialogTitle">Binance Demo</h2></div><button value="cancel" class="icon-btn">✕</button></div>
       <label>Provider<select id="providerSelect"><option value="binance">Binance</option><option value="metatrader5">MetaTrader 5</option><option value="metatrader4">MetaTrader 4</option></select></label>
       <div id="binanceFields">
-        <label>Spot Testnet API Key<input id="apiKey" autocomplete="off" spellcheck="false" placeholder="Paste Spot Testnet API key"></label>
-        <label>Spot Testnet API Secret<input id="apiSecret" type="password" autocomplete="new-password" placeholder="Paste Spot Testnet API secret"></label>
-        <label>USD-M Futures Testnet API Key<input id="futuresApiKey" autocomplete="off" spellcheck="false" placeholder="Paste USD-M Futures Testnet API key"></label>
-        <label>USD-M Futures Testnet API Secret<input id="futuresApiSecret" type="password" autocomplete="new-password" placeholder="Paste USD-M Futures Testnet API secret"></label>
+        <div class="security-note">
+          Use a Binance <strong>Demo Trading</strong> API key, not your real-money API key. One Demo key is used for both Spot and USD-M Futures.
+          <a href="https://demo.binance.com" target="_blank" rel="noopener noreferrer">Open Binance Demo Trading</a>, then use <strong>Account → API Management → Create API</strong>.
+        </div>
+        <label>Binance Demo API Key<input id="apiKey" autocomplete="off" spellcheck="false" placeholder="Paste Demo API key"></label>
+        <label>Binance Demo API Secret<input id="apiSecret" type="password" autocomplete="new-password" placeholder="Paste Demo API secret"></label>
       </div>
       <div id="mtFields" hidden>
         <label>Broker server<input id="mtServer" autocomplete="off" placeholder="Broker-Demo"></label>
         <label>Login<input id="mtLogin" inputmode="numeric" autocomplete="off" placeholder="Account login"></label>
         <label>Password<input id="mtPassword" type="password" autocomplete="new-password" placeholder="Account password"></label>
       </div>
-      <div class="security-note">Spot and USD-M Demo credentials are used only to create a short-lived RAM-only Demo session. They are not saved to browser storage or disk.</div>
-      <button type="button" class="primary full" id="testConnection">TEST BOTH DEMO CONNECTIONS</button>
+      <div class="security-note">Credentials create only a short-lived RAM-only Demo session. They are never committed to GitHub or written to browser storage or disk.</div>
+      <button type="button" class="primary full" id="testConnection">TEST BINANCE DEMO</button>
       <div id="connectionResult" class="connection-result">Not tested</div>
       <button value="cancel" class="secondary full">CLOSE</button>
     </form>
