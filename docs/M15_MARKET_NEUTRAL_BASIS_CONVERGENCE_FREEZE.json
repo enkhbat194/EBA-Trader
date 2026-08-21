@@ -31,7 +31,7 @@
   "overlapping_positions": "forbidden",
   "parameter_changes_after_first_run": "forbidden",
   "perp_entry_notional_usd": 1.0,
-  "protocol_sha256": "1837e2a7e25e2b531ca0340f783b27bfa89e9752ff9cf7b296b08262b7940549",
+  "protocol_sha256": "012c8de1bf41f8a3a017dbc3ffd2299b0422e89f0687aacf7a77886df6ab343e",
   "risk_sizing": "blocked",
   "severe_cost_bps_per_side_each_leg": 35.0,
   "spot_entry_notional_usd": 1.0,
