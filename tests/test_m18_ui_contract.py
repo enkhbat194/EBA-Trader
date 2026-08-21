@@ -41,7 +41,18 @@ def test_binance_demo_form_requires_both_testnet_credential_sets() -> None:
     assert "Spot and USD-M Futures Testnet API keys/secrets are all required." in javascript
 
 
-def test_binance_demo_secret_fields_are_cleared_after_dialog_close() -> None:
+def test_binance_demo_secret_fields_are_cleared_after_request() -> None:
     javascript = (WEB_ROOT / "app.js").read_text(encoding="utf-8")
+    assert "function clearCredentialInputs()" in javascript
     assert "futuresApiKeyInput.value = '';" in javascript
     assert "futuresApiSecretInput.value = '';" in javascript
+    assert "credentials = null;" in javascript
+
+
+def test_demo_scanner_uses_only_opaque_session_token_after_connection() -> None:
+    javascript = (WEB_ROOT / "app.js").read_text(encoding="utf-8")
+    assert "let demoSessionToken = null;" in javascript
+    assert "'/api/demo/snapshot'" in javascript
+    assert "{ sessionToken: demoSessionToken }" in javascript
+    assert "15_000" in javascript
+    assert "PAPER SCANNER RUNNING" in javascript
