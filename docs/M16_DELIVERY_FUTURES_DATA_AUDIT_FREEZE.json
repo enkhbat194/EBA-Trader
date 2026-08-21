@@ -1,0 +1,22 @@
+{
+  "audit_window_days": 30,
+  "candidate_families": ["um", "cm"],
+  "contract_suffixes": [
+    "210326", "210625", "210924", "211231",
+    "220325", "220624", "220930", "221230",
+    "230331", "230630", "230929", "231229",
+    "240329", "240628", "240927", "241227"
+  ],
+  "coverage_minimum": 0.999,
+  "cycle": "m16_delivery_futures_data_audit_v1",
+  "delivery_hour_utc": 8,
+  "expected_slots_per_contract": 2880,
+  "interval": "15m",
+  "max_final_edge_minutes": 60,
+  "max_missing_run_bars": 4,
+  "oos_2025": "LOCKED_NOT_ACCESSED",
+  "profitability_computation": "forbidden",
+  "protocol_sha256": "c8f399b6072b02381b44cfefb5a15b472beabbea70e3ad19a6f0d8a7309815d2",
+  "source": "https://data.binance.vision/data/futures",
+  "status": "FROZEN_PREDECLARED_DATA_AUDIT"
+}
