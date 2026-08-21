@@ -61,6 +61,8 @@ def parse_connection_request(
     credentials = CredentialEnvelope(
         api_key=str(credentials_raw.get("apiKey", "")),
         api_secret=str(credentials_raw.get("apiSecret", "")),
+        futures_api_key=str(credentials_raw.get("futuresApiKey", "")),
+        futures_api_secret=str(credentials_raw.get("futuresApiSecret", "")),
         login=str(credentials_raw.get("login", "")),
         password=str(credentials_raw.get("password", "")),
         server=str(credentials_raw.get("server", "")),
