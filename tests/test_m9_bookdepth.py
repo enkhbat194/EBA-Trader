@@ -22,17 +22,12 @@ from eba_trader.m9_bookdepth_policy import M9_CANDIDATES
 BAR_MS = 15 * 60 * 1000
 
 
-def _bookdepth_rows(
-    *,
-    count: int = 20,
-    start_second: int = 30,
-    conflicting: bool = False,
-) -> list[list[str]]:
+def _bookdepth_rows(*, count: int = 20, conflicting: bool = False) -> list[list[str]]:
     rows = [["timestamp", "percentage", "depth", "notional"]]
     percentages = (-5, -4, -3, -2, -1, 1, 2, 3, 4, 5)
     for snapshot in range(count):
-        minute = snapshot // 2
-        second = start_second if snapshot % 2 == 0 else 45
+        total_seconds = 60 + snapshot * 40
+        minute, second = divmod(total_seconds, 60)
         timestamp = f"2023-01-01 00:{minute:02d}:{second:02d}"
         for percentage in percentages:
             negative = percentage < 0
@@ -43,7 +38,7 @@ def _bookdepth_rows(
                 notional = 200.0 if negative else 100.0
             rows.append([timestamp, str(percentage), str(depth), str(notional)])
     if conflicting:
-        rows.append(["2023-01-01 00:00:30", "-1", "201", "200"])
+        rows.append(["2023-01-01 00:01:00", "-1", "201", "200"])
     return rows
 
 
