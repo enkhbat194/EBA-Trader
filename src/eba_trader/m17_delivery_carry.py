@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from statistics import mean, median
