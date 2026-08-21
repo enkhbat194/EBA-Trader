@@ -1,0 +1,21 @@
+{
+  "ai_module": "excluded",
+  "audit_end_exclusive": "2025-01-01T00:00:00Z",
+  "audit_start": "2021-01-01T00:00:00Z",
+  "cycle": "m11_eth_perpetual_data_audit_v1",
+  "expected_monthly_archives": 48,
+  "expected_slots": 140256,
+  "forward_returns": "forbidden",
+  "instrument": "ETHUSDT_USDM_PERPETUAL",
+  "interval": "15m",
+  "live_execution": "forbidden",
+  "max_missing_run_bars": 12,
+  "min_coverage": 0.9995,
+  "oos_2025": "LOCKED_NOT_ACCESSED",
+  "protocol_sha256": "ee432e01ec11cb52f8cafbaa0e93c29278b740403ab9ca5f987525f037adb6ac",
+  "risk_sizing": "forbidden",
+  "source": "binance_vision_usdm_monthly_perpetual_klines_with_checksum",
+  "status": "FROZEN_PRE_AUDIT",
+  "strategy_generation": "forbidden",
+  "symbol": "ETHUSDT"
+}
