@@ -1,12 +1,37 @@
 from __future__ import annotations
 
 import argparse
+import math
 from pathlib import Path
 from typing import Any
 
 from . import m8_alt_data_audit as core
 
 _ORIGINAL_METRICS_PARSER = core.parse_binance_metrics_rows
+_METRIC_VALUE_START = 2
+_METRIC_VALUE_END = 8
+
+
+def _normalize_metric_row_for_audit(row: list[str]) -> list[str]:
+    """Turn malformed frozen metric values into deterministic failing sentinels.
+
+    The audit contract requires every frozen numeric metric to be finite and strictly positive.
+    Official archives contain occasional blank values. Those rows must make the audit fail, not crash
+    the audit before a complete evidence report can be produced. A zero sentinel preserves the row
+    timestamp while guaranteeing the unchanged positivity gate fails.
+    """
+    normalized = list(row)
+    if len(normalized) < _METRIC_VALUE_END:
+        return normalized
+    for index in range(_METRIC_VALUE_START, _METRIC_VALUE_END):
+        try:
+            value = float(normalized[index])
+        except (TypeError, ValueError):
+            normalized[index] = "0"
+            continue
+        if not math.isfinite(value) or value <= 0:
+            normalized[index] = "0"
+    return normalized
 
 
 def parse_binance_metrics_rows_with_frozen_boundary(
@@ -15,13 +40,7 @@ def parse_binance_metrics_rows_with_frozen_boundary(
     start_ms: int,
     end_ms: int,
 ) -> tuple[list[core.BinanceMetric], int, int]:
-    """Exclude the exact audit-start boundary from the accepted 5m metrics grid.
-
-    The frozen M8 protocol defines accepted Binance metric timestamps as strictly greater than
-    the audit start and strictly less than the audit end. Official Binance Vision includes a row
-    stamped exactly at 2021-01-01 00:00:00. That boundary row is valid source data but is outside
-    the predeclared accepted grid, so it is discarded before the unchanged core parser runs.
-    """
+    """Apply frozen start-boundary handling and fail-safe malformed-value normalization."""
     filtered: list[list[str]] = []
     for row in rows:
         if not row or row[0].strip().lower() == "create_time":
@@ -34,7 +53,7 @@ def parse_binance_metrics_rows_with_frozen_boundary(
             continue
         if timestamp_ms == start_ms:
             continue
-        filtered.append(row)
+        filtered.append(_normalize_metric_row_for_audit(row))
     return _ORIGINAL_METRICS_PARSER(
         filtered,
         start_ms=start_ms,
