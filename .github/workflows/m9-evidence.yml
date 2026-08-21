@@ -48,6 +48,25 @@ jobs:
           print('M9 frozen evidence contract verified')
           PY
 
+      - name: Seed exact frozen Spot cache inputs
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from eba_trader.m7_seed import _seed_spot
+          from eba_trader.m9_bookdepth_policy import SPOT_CHALLENGE_SHA256, SPOT_RESEARCH_SHA256, sha256_file
+
+          cache = Path('data/cache/m2')
+          cache.mkdir(parents=True, exist_ok=True)
+          report = _seed_spot(cache)
+          research = cache / 'btcusdt_15m_research.csv'
+          challenge = cache / 'btcusdt_15m_validation.csv'
+          assert sha256_file(research) == SPOT_RESEARCH_SHA256
+          assert sha256_file(challenge) == SPOT_CHALLENGE_SHA256
+          print('research:', report['research']['status'], SPOT_RESEARCH_SHA256)
+          print('challenge:', report['challenge']['status'], SPOT_CHALLENGE_SHA256)
+          print('2025 OOS remains LOCKED_NOT_ACCESSED')
+          PY
+
       - name: Run first complete frozen M9 evidence
         run: python -m eba_trader.m9_bookdepth --workers 12
 
