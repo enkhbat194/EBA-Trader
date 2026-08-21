@@ -1,0 +1,45 @@
+name: M18 fee-aware execution validation
+
+on:
+  pull_request:
+    branches:
+      - m17-usdm-quarterly-cash-carry
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install project
+        run: python -m pip install -e '.[dev]'
+
+      - name: Verify M18 safety policy
+        run: |
+          python - <<'PY'
+          from eba_trader.m18_fee_policy import M18ExecutionPolicy
+          from eba_trader.m18_fee_aware import BinanceReadOnlyClient
+          policy = M18ExecutionPolicy()
+          assert policy.live_execution_allowed is False
+          assert policy.ai_signal_authority is False
+          assert not hasattr(BinanceReadOnlyClient, 'place_order')
+          assert not hasattr(BinanceReadOnlyClient, 'cancel_order')
+          print('M18 read-only safety contract verified')
+          PY
+
+      - name: Run deterministic tests
+        run: python -m pytest -q
+
+      - name: Run Ruff
+        run: python -m ruff check .
