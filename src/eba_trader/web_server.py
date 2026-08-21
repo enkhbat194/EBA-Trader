@@ -114,6 +114,22 @@ def run_demo_snapshot_request(
     return run_demo_fee_snapshot(credentials)
 
 
+def run_demo_disconnect_request(
+    payload: dict[str, Any],
+    *,
+    session_store: DemoSessionStore,
+) -> dict[str, Any]:
+    token = str(payload.get("sessionToken", ""))
+    if not token:
+        raise ValueError("sessionToken is required")
+    session_store.revoke(token)
+    return {
+        "ok": True,
+        "state": "disconnected",
+        "liveExecutionAllowed": False,
+    }
+
+
 class EBARequestHandler(SimpleHTTPRequestHandler):
     """Static PWA + Demo-only read API.
 
@@ -122,10 +138,24 @@ class EBARequestHandler(SimpleHTTPRequestHandler):
     session. Secrets are never written to disk, logs, browser storage, or API replies.
     """
 
-    server_version = "EBA-UI/0.3"
+    server_version = "EBA-UI/0.4"
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, directory=str(WEB_ROOT), **kwargs)
+
+    def end_headers(self) -> None:
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        self.send_header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
+            "connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; "
+            "base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+        )
+        super().end_headers()
 
     def log_message(self, format: str, *args: Any) -> None:
         # SimpleHTTPRequestHandler logs request metadata only; request bodies are never logged.
@@ -159,7 +189,12 @@ class EBARequestHandler(SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_POST(self) -> None:  # noqa: N802
-        if self.path not in {"/api/connections/test", "/api/demo/snapshot"}:
+        allowed_paths = {
+            "/api/connections/test",
+            "/api/demo/snapshot",
+            "/api/demo/disconnect",
+        }
+        if self.path not in allowed_paths:
             self._json_response(HTTPStatus.NOT_FOUND, {"ok": False, "message": "not found"})
             return
 
@@ -177,8 +212,10 @@ class EBARequestHandler(SimpleHTTPRequestHandler):
                 raise ValueError("JSON object required")
             if self.path == "/api/connections/test":
                 result = run_connection_test(payload, session_store=DEMO_SESSIONS)
-            else:
+            elif self.path == "/api/demo/snapshot":
                 result = run_demo_snapshot_request(payload, session_store=DEMO_SESSIONS)
+            else:
+                result = run_demo_disconnect_request(payload, session_store=DEMO_SESSIONS)
         except PermissionError as exc:
             self._json_response(
                 HTTPStatus.UNAUTHORIZED,
