@@ -64,8 +64,6 @@ def parse_connection_request(
     credentials = CredentialEnvelope(
         api_key=str(credentials_raw.get("apiKey", "")),
         api_secret=str(credentials_raw.get("apiSecret", "")),
-        futures_api_key=str(credentials_raw.get("futuresApiKey", "")),
-        futures_api_secret=str(credentials_raw.get("futuresApiSecret", "")),
         login=str(credentials_raw.get("login", "")),
         password=str(credentials_raw.get("password", "")),
         server=str(credentials_raw.get("server", "")),
@@ -124,7 +122,7 @@ class EBARequestHandler(SimpleHTTPRequestHandler):
     session. Secrets are never written to disk, logs, browser storage, or API replies.
     """
 
-    server_version = "EBA-UI/0.2"
+    server_version = "EBA-UI/0.3"
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, directory=str(WEB_ROOT), **kwargs)
