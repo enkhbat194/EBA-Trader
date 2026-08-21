@@ -1,0 +1,49 @@
+name: M14 funding carry validation
+
+on:
+  push:
+    branches:
+      - m14-market-neutral-funding-carry
+  pull_request:
+    branches:
+      - m13-ml-edge-engine
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project
+        run: python -m pip install -e '.[dev]'
+
+      - name: Verify M14 frozen contract
+        run: |
+          python - <<'PY'
+          from eba_trader.m14_carry_policy import verify_m14_freeze
+          manifest = verify_m14_freeze()
+          assert manifest['status'] == 'FROZEN_PREDECLARED_NOT_RUN'
+          assert manifest['configuration_count'] == 6
+          assert manifest['oos_2025'] == 'LOCKED_NOT_ACCESSED'
+          assert manifest['leverage'] == 'forbidden'
+          assert manifest['naked_short'] == 'forbidden'
+          print('M14 frozen contract verified')
+          PY
+
+      - name: Run deterministic tests
+        run: python -m pytest -q
+
+      - name: Run Ruff
+        run: python -m ruff check .
