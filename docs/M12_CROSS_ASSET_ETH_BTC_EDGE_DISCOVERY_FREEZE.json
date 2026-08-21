@@ -1,0 +1,30 @@
+{
+  "cycle": "m12_cross_asset_eth_btc_edge_v1",
+  "status": "FROZEN_PREDECLARED_NOT_RUN",
+  "base_git_commit": "a4d3fff9f57cb2cae05d2120d26b512c527f1268",
+  "protocol_sha256": "7ed775d3ce114dfaf4b768b4d9d95c3039c1b349171686684aaa6fea04b803b1",
+  "input_sha256": {
+    "ethusdt_usdm_15m_2021_2024": "69855dcaf2f34c2a529ddb7f83964fa61b39ed0a27ae8796a6c0eaafd5b744f5",
+    "btcusdt_spot_research_2021_2023": "253c6ae35856e58e35df17eaa71caeea5caaa3681c38dd7214a2872afccd8d63",
+    "btcusdt_spot_challenge_2024": "3a96b6b668cfacb0fefabb8665675d4ca589cc712b0681fb57e7a13356eda0f2"
+  },
+  "candidate_count": 8,
+  "horizons_bars": [4, 16, 48],
+  "hypothesis_test_count": 24,
+  "event_cooldown_bars": 4,
+  "flow_baseline_windows": 96,
+  "base_round_trip_cost_bps": 30.0,
+  "severe_round_trip_cost_bps": 70.0,
+  "baseline_uplift": 0.001,
+  "fdr_q_threshold": 0.1,
+  "minimum_discovery_events": 60,
+  "minimum_discovery_days": 20,
+  "minimum_discovery_events_per_year": 10,
+  "minimum_challenge_events": 15,
+  "m10_eth_spot": "excluded_failed_data_audit",
+  "strategy_generation": "forbidden",
+  "risk_sizing": "forbidden",
+  "ai_module": "excluded",
+  "oos_2025": "LOCKED_NOT_ACCESSED",
+  "parameter_changes_after_first_run": "forbidden"
+}
