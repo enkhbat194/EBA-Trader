@@ -1,7 +1,7 @@
 # EBA-Trader Project State
 
 Updated: 2026-08-21
-Current research branch at this checkpoint: `m14-market-neutral-funding-carry`
+Current research branch at this checkpoint: `m15-market-neutral-basis-convergence`
 
 This file is the cross-chat continuity checkpoint. Read it before starting or modifying a later research cycle.
 
@@ -18,88 +18,76 @@ This file is the cross-chat continuity checkpoint. Read it before starting or mo
 
 ## Completed research history
 
-### M2 / Trend V1
-Decision: `REJECT_DEVELOPMENT_CYCLE`.
+### M2-M5 / Directional strategy and Price-Volume discovery
+M2 Trend V1, M3 Trend V2, and M4 V3 were rejected. M5 Price-Volume Edge Discovery tested 72 frozen horizon tests and promoted none.
 
-### M3 / Trend V2
-Decision: `REJECT_TREND_V2_SIGNAL_CYCLE`. 2024 return -17.53%, MDD -22.90%, 101 trades, PF 0.612, negative expectancy.
+### M6-M9 / Derivatives and microstructure
+M6 full derivatives data contract failed although BTC funding and USD-M perpetual 15m individually passed. M7 Funding + Futures Edge Discovery promoted 0/36. M8 alternative-derivatives audit did not qualify the full source set; BookDepth 2023-2024 alone was partial-window eligible. M9 BookDepth Microstructure promoted 0/24. M9 run `32435682751`, artifact `9430751063`.
 
-### M4 / V3 Bull Pullback Recovery
-Decision: `REJECT_V3_SIGNAL_CYCLE`. 2024 return -13.73%, MDD -14.64%, 79 trades, PF 0.612, -$1.74/trade. Neighborhood positive expectancy 0/9; rolling positive-expectancy folds 4/30.
-
-### M5 / Price-Volume Edge Discovery
-Decision: `NO_STABLE_EDGE_FOUND`. 24 candidates × 3 horizons = 72 tests; discovery 0/72, challenge 0/72.
-
-### M6 / Derivatives Historical Data Audit
-Decision: `M6_DERIVATIVES_DATA_AUDIT_FAIL` for the full contract. Funding and BTC USD-M perpetual 15m independently passed; premium/index/alignment failed.
-
-### M7 / Funding + Futures Edge Discovery
-Decision: `NO_STABLE_DERIVATIVES_EDGE_FOUND`. 12 × 3 = 36 tests; discovery 0/36, final 0/36.
-
-### M8 / Alternative Derivatives Historical Data Audit
-Decision: `M8_ALT_DERIVATIVES_DATA_AUDIT_FAIL`. BookDepth 2023-2024 alone was partial-window eligible.
-
-### M9 / BookDepth Microstructure Edge Discovery
-Decision: `NO_STABLE_MICROSTRUCTURE_EDGE_FOUND`. 8 × 3 = 24 tests; discovery 0/24, challenge 0/24. Run `32435682751`, artifact `9430751063`.
-
-### M10 / ETHUSDT Spot Historical Data Audit
-Decision: `M10_CROSS_ASSET_DATA_AUDIT_FAIL`. 48/48 checksums existed, but frozen coverage/gap/close-time gates failed. Run `32437273137`, artifact `9431194682`.
-
-### M11 / ETHUSDT USD-M Perpetual Historical Data Audit
-Decision: `M11_ETH_PERPETUAL_DATA_AUDIT_PASS`.
-
-- 48/48 archives and checksums;
-- 140,256/140,256 15m bars;
-- 100% coverage;
-- normalized SHA-256 `69855dcaf2f34c2a529ddb7f83964fa61b39ed0a27ae8796a6c0eaafd5b744f5`;
-- run `32437837012`, artifact `9431376987`.
-
-### M12 / ETH→BTC Cross-Asset Edge Discovery
-Decision: `NO_STABLE_CROSS_ASSET_EDGE_FOUND`.
-
-- 8 candidates × 3 horizons = 24 tests;
-- discovery 0/24;
-- challenge 0/24;
-- run `32438774152`;
-- artifact `9431703188`;
-- evidence SHA-256 `d79c8549ed9731cce081dc2957ad9db2f9a709b76ce1e6aed525f81be1a859c4`.
+### M10-M12 / ETH cross-asset
+M10 ETHUSDT Spot audit failed its frozen integrity gates. M11 ETHUSDT USD-M perpetual audit passed with 140,256/140,256 15m bars and normalized SHA-256 `69855dcaf2f34c2a529ddb7f83964fa61b39ed0a27ae8796a6c0eaafd5b744f5`. M12 ETH→BTC Cross-Asset Discovery promoted 0/24; run `32438774152`, artifact `9431703188`, evidence SHA `d79c8549ed9731cce081dc2957ad9db2f9a709b76ce1e6aed525f81be1a859c4`.
 
 ### M13 / Supervised ML Edge Engine
 Decision: `NO_STABLE_ML_EDGE_FOUND`.
 
-Frozen ML surface: 19 causal features, logistic regression + histogram gradient boosting, probability gates 0.60/0.65, horizons 4/16/48 bars, 12 configs, walk-forward 2021→2022 and 2021-2022→2023, reused 2024 challenge only after discovery pass, Base/Severe 30/70 bps, BH-FDR q<=0.10.
+- 19 causal features;
+- LogisticRegression + HistGradientBoosting;
+- 0.60/0.65 probability gates;
+- 4/16/48-bar horizons;
+- 12 frozen configs;
+- walk-forward discovery 2021→2022 and 2021-2022→2023;
+- discovery pass 0/12, challenge pass 0/12;
+- run `32446152844`, artifact `9434173433`;
+- evidence SHA `84f39d0619ef96f668df34ca178680a3d84bb2f1f227dfab7c16cdb0910d5859`.
 
-Authoritative evidence:
-- source commit `18a0d9d632531d679aa95d8c04e9ce77d17dbfe3`;
-- run `32446152844`;
-- artifact `9434173433`;
-- evidence SHA-256 `84f39d0619ef96f668df34ca178680a3d84bb2f1f227dfab7c16cdb0910d5859`;
-- discovery pass 0/12; challenge pass 0/12; ML candidate 0;
-- full pytest/Ruff PASS.
-
-Closest observation `logistic_p65_h16` had positive Base-net but failed Severe economics, PF and FDR. M13 is retired without rescue tuning.
+Closest `logistic_p65_h16` had positive Base-net but failed Severe economics, PF and FDR. Retired without rescue.
 
 ### M14 / Market-Neutral Funding Carry
-Decision: **`NO_STABLE_FUNDING_CARRY_EDGE_FOUND`**.
+Decision: `NO_STABLE_FUNDING_CARRY_EDGE_FOUND`.
 
-This was a materially different non-directional mechanism: 1:1 long BTCUSDT Spot + short BTCUSDT USD-M perpetual, no leverage, no naked short, no overlapping positions. Frozen search: positive funding thresholds 1/3/5 bps × hold 3/9 funding records = 6 configurations. Base friction was 15 bps per side per leg; Severe friction 35 bps per side per leg. Discovery 2021-2023; reused 2024 challenge only after discovery pass.
+- 1:1 long BTC Spot + short BTC USD-M perpetual;
+- no leverage/naked short/overlap;
+- funding thresholds 1/3/5 bps × 3/9 funding-record holds = 6 configs;
+- discovery pass 0/6, challenge pass 0/6;
+- run `32446970715`, artifact `9434444012`;
+- evidence SHA `c5bd418a60260fb1619f8d0f563bf7ff93a1d66ee76525051df5f0c4bda136ec`.
+
+Closest 5bp/9-record observation had +0.01499% mean Base-net but negative Severe mean, negative median, weak year support and q=1.0. Retired without rescue.
+
+### M15 / Market-Neutral Basis Convergence
+Decision: **`NO_STABLE_BASIS_CONVERGENCE_EDGE_FOUND`**.
+
+Frozen mechanism:
+- 1:1 long BTC Spot + short BTC USD-M perpetual;
+- signal from completed 15m `perp_close / spot_close - 1`;
+- entry thresholds 75/125/200 bps;
+- fixed convergence exit <=10 bps, executed next open;
+- max holds 96/288/672 bars;
+- funding included only for `entry_time < funding_time < exit_time`;
+- 9 frozen configs;
+- Base/Severe friction 15/35 bps per side per leg.
 
 Authoritative evidence:
-- source commit `32a12c230af4fb99661f14d1669f20787ba112cf`;
-- run `32446970715`;
-- artifact `9434444012`;
-- evidence SHA-256 `c5bd418a60260fb1619f8d0f563bf7ff93a1d66ee76525051df5f0c4bda136ec`;
-- artifact ZIP SHA-256 `e9e27051ef31a23da69cd1698f4d531ce6fae4bd78b09606af8fd91698cb845a`;
-- discovery pass 0/6; challenge pass 0/6; carry candidate 0;
-- pytest/Ruff/freeze verification PASS.
+- source commit `ad9d5bd2ee2f2d84295eb8c8cb4aadde90d8c71a`;
+- run `32449012036`;
+- artifact `9435060914`;
+- evidence SHA-256 `4bd98328539c9d75f0e17839a631ab80c05c9ee14222d7b144f75ff8c4ae0559`;
+- artifact ZIP SHA-256 `1b60ed9657f29487f0fd4ba150516578ce7bd56e07222cd4d8019cf991ee7ca7`;
+- freeze / repo-wide pytest / Ruff PASS.
 
-All six configs had positive mean gross carry, but five had negative Base-net means. The closest `5bp / 9 records` observation had 37 trades, +0.31666% mean gross, +0.01499% mean Base-net, PF 1.2504, but median Base-net -0.04003%, Severe mean -0.38722%, FDR q=1.0, no 2022 trades, and only one 2023 trade with negative Base-net. It failed robustness/support/statistical gates and is not promotable.
+Result:
+- discovery pass 0/9;
+- challenge pass 0/9;
+- basis candidate 0;
+- 125bp and 200bp configs produced zero discovery trades;
+- 75bp configs produced the same 5 trades, all in 2021, all converging before the shortest hold;
+- those 5 trades had +0.157798% mean Base-net, +0.170301% median Base-net, 100% Base win rate, q=0.0002695, but mean Severe-net was -0.245961%; 2022/2023 had zero trades.
 
-M14 is retired. Do not lower costs, select the closest observation after the fact, change thresholds/hold periods, or add leverage to rescue it.
+M15 therefore failed support/year stability and Severe-cost economics despite the small attractive 2021 cluster. It is retired. Do not lower basis thresholds/costs or select only the 2021 observations after the fact.
 
 ## Current system conclusion
 
-No tested directional, cross-asset, supervised-ML, microstructure, derivatives-flow, or frozen market-neutral funding-carry mechanism has earned promotion.
+No tested directional, price-volume, derivatives-flow, microstructure, cross-asset, supervised-ML, perpetual-funding carry, or perpetual-basis convergence mechanism has earned promotion.
 
 Current state:
 - research status: `NO_PROMOTABLE_EDGE_FOUND`;
@@ -107,14 +95,16 @@ Current state:
 - risk-sized strategy: blocked;
 - live AI/ML signal layer: blocked;
 - naked short authority: blocked;
-- market-neutral carry live execution: blocked;
+- market-neutral live execution: blocked;
 - live execution overall: blocked;
 - 2025 OOS: `LOCKED_NOT_ACCESSED`.
 
 ## Next allowed action
 
-Do not rescue M14 and do not continue arbitrary threshold/model searches merely to obtain a positive backtest.
+Do not rescue M15 and do not continue arbitrary threshold searches on perpetual basis.
 
-A new research cycle may be opened only for a materially new, independently justified mechanism or data source frozen before outcome inspection. Operational product work may continue safely in paper/shadow mode: exchange connectivity, dashboard, deterministic Risk Engine, kill switch, execution simulator, accounting, monitoring, and strategy-plugin architecture.
+A materially different structural mechanism may still be researched if justified before outcome inspection. A particularly different next candidate is **dated/quarterly delivery-futures cash-and-carry**, where convergence is contractually tied to expiry rather than assumed from a perpetual basis. That requires a separate historical delivery-futures data provenance audit before any profitability test.
+
+Operational product work may also continue in paper/shadow mode: exchange connectivity, dashboard, deterministic Risk Engine, kill switch, execution simulator, accounting, monitoring, and strategy-plugin architecture.
 
 Until a separately validated edge exists, the correct autonomous decision remains `NO_TRADE`.
