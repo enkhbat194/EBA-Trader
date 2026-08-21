@@ -1,7 +1,7 @@
 # EBA-Trader Project State
 
 Updated: 2026-08-21
-Current research branch at this checkpoint: `m9-bookdepth-microstructure-edge`
+Current research branch at this checkpoint: `m10-cross-asset-data-audit`
 
 This file is the cross-chat continuity checkpoint. Read it before starting or modifying a later research cycle.
 
@@ -91,22 +91,51 @@ Source quality:
 
 Frozen search: 8 candidates × 3 horizons = 24 tests. Discovery passing: 0/24. Challenge passing: 0/24. No long edge or no-trade-veto candidate earned promotion. M9 is retired; do not change thresholds or filters to rescue it.
 
+### M10 / ETHUSDT Spot Cross-Asset Historical Data Audit
+
+Decision: `M10_CROSS_ASSET_DATA_AUDIT_FAIL`.
+
+This was data eligibility only; no BTC forward returns, correlations, lead-lag statistics, strategy, risk, AI or live execution were computed.
+
+Authoritative evidence:
+- GitHub Actions run: `32437273137`;
+- evidence artifact ID: `9431194682`;
+- evidence SHA-256: `385a6355c224f15b4f1e48cd86eba09fb81f69de292ea363a4563e4df2e34fdb`;
+- normalized ETHUSDT 15m CSV SHA-256: `dca519027cf7473307d05a572073f31c310284a20564fd20cf82de2fd332b8ef`.
+
+Source acquisition:
+- official Binance Vision Spot monthly ETHUSDT 15m;
+- 48/48 expected monthly archives present;
+- 48/48 official checksums verified;
+- parse errors: 0;
+- conflicting duplicates: 0;
+- invalid rows: 0;
+- alignment violations: 0;
+- numeric-integrity violations: 0.
+
+Frozen data gates nevertheless failed:
+- exact close-time semantics: 5 violations;
+- coverage: 140,181 / 140,256 = 99.946526%, below the frozen 99.95% minimum;
+- maximum missing run: 19 bars / 4h45m, above the frozen 12-bar / 3h maximum.
+
+M10 is retired. Do not interpolate missing ETH candles, repair close times, or loosen the frozen gates. ETHUSDT Spot 15m under this exact source contract is not eligible for the next edge-discovery cycle.
+
 ## Current conclusion
 
 No deterministic BTC trading edge has yet earned promotion to a risk-sized strategy. The correct system state is research-only / NO_TRADE, not live deployment.
 
-The repeated failures are informative: simple Spot trend/pullback logic, broad price-volume threshold discovery, funding/futures threshold states, and the tested signed-side BookDepth imbalance family have not demonstrated a stable cost-robust edge under the frozen gates.
+The repeated failures are informative: simple Spot trend/pullback logic, broad price-volume threshold discovery, funding/futures threshold states, the tested signed-side BookDepth imbalance family, and the exact M10 ETHUSDT Spot source contract have not produced an admissible promoted edge/input under frozen gates.
 
 ## Next allowed research direction
 
-Do not create a V4 strategy from the failed observations above.
+Do not create a V4 strategy from failed observations and do not rescue M10.
 
-The next cycle should introduce materially new information before any new strategy hypothesis. The preferred next family is **cross-asset market-state / lead-lag information**, beginning with a no-forward-return historical data audit of an external crypto market such as ETHUSDT Spot 15m over development years only.
+Cross-asset information remains materially different from the previously rejected BTC-only feature families, but the next source must first pass its own audit. The preferred next source audit is **ETHUSDT USD-M perpetual 15m** from official Binance Vision monthly archives. This is a separate derivatives source contract, not a repair of M10 Spot history.
 
 Recommended sequence:
 
-1. M10 Cross-Asset Historical Data Audit — qualify the exact external 15m source, coverage, gaps, timestamps and reproducible SHA-256 without computing BTC forward returns.
-2. Only if M10 passes, freeze a separately versioned cross-asset edge-discovery contract before looking at BTC outcomes.
-3. Keep the candidate family small and causal: predeclared ETH impulse / BTC-ETH relative move / dispersion states, with multiple-testing control and 2024 reused-development challenge.
+1. M11 ETHUSDT USD-M Perpetual Historical Data Audit — no BTC forward returns; qualify 2021-2024 monthly 15m archives, checksums, timestamps, gaps, activity fields and normalized SHA-256.
+2. Only if M11 passes, freeze a separately versioned cross-asset edge-discovery contract before looking at BTC outcomes.
+3. Keep the later candidate family small and causal: predeclared ETH derivatives impulse / BTC-vs-ETH relative movement / dispersion states, with multiple-testing control and 2024 reused-development challenge.
 4. Only a candidate that survives costs, support, stability and FDR may be converted into a later strategy hypothesis.
 5. Keep 2025 untouched throughout development.
