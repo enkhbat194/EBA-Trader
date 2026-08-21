@@ -123,7 +123,7 @@ def test_same_quantity_pair_captures_basis_convergence_and_is_margin_safe() -> N
     )
     assert trade is not None
     assert trade.btc_quantity == 0.01
-    assert trade.entry_basis == 0.05
+    assert abs(trade.entry_basis - 0.05) < 1e-12
     assert trade.exit_basis > 0
     assert trade.gross_return > 0
     assert trade.base_net_return > trade.severe_net_return
