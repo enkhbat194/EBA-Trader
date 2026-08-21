@@ -6,6 +6,8 @@ from typing import Any
 
 from . import m8_alt_data_audit as core
 
+_ORIGINAL_METRICS_PARSER = core.parse_binance_metrics_rows
+
 
 def parse_binance_metrics_rows_with_frozen_boundary(
     rows: list[list[str]],
@@ -33,7 +35,7 @@ def parse_binance_metrics_rows_with_frozen_boundary(
         if timestamp_ms == start_ms:
             continue
         filtered.append(row)
-    return core.parse_binance_metrics_rows(
+    return _ORIGINAL_METRICS_PARSER(
         filtered,
         start_ms=start_ms,
         end_ms=end_ms,
