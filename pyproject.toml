@@ -37,6 +37,7 @@ eba-m10-cross-asset-audit = "eba_trader.m10_cross_asset_audit:main"
 eba-m11-eth-perpetual-audit = "eba_trader.m11_eth_perpetual_audit:main"
 eba-m12-cross-asset-edge = "eba_trader.m12_cross_asset:main"
 eba-m13-ml-edge = "eba_trader.m13_ml_edge:main"
+eba-m14-funding-carry = "eba_trader.m14_carry:main"
 
 [project.optional-dependencies]
 trading = [
