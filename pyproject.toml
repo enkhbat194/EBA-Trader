@@ -42,6 +42,7 @@ eba-m15-basis-convergence = "eba_trader.m15_basis:main"
 eba-m16-delivery-audit = "eba_trader.m16_delivery_audit:main"
 eba-m17-delivery-carry = "eba_trader.m17_delivery_carry:main"
 eba-m18-fee-aware = "eba_trader.m18_fee_aware:main"
+eba-web = "eba_trader.web_server:main"
 
 [project.optional-dependencies]
 trading = [
