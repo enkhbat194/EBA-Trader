@@ -65,10 +65,26 @@ def test_binance_missing_credentials_fails_closed_without_network() -> None:
     result = BinanceProviderAdapter(profile, CredentialEnvelope()).test_connection()
     assert result.ok is False
     assert result.state is ConnectionState.ERROR
-    assert "required" in result.message.lower()
+    assert "spot api key" in result.message.lower()
 
 
-def test_binance_demo_connection_returns_read_only_balances(monkeypatch) -> None:
+def test_binance_spot_only_credentials_do_not_unlock_demo() -> None:
+    profile = ConnectionProfile(
+        connection_id="binance-demo",
+        provider=ProviderKind.BINANCE,
+        environment=ProviderEnvironment.DEMO,
+        label="Binance Demo",
+    )
+    result = BinanceProviderAdapter(
+        profile,
+        CredentialEnvelope(api_key="spot-key", api_secret="spot-secret"),
+    ).test_connection()
+    assert result.ok is False
+    assert result.state is ConnectionState.ERROR
+    assert "usd-m futures" in result.message.lower()
+
+
+def test_binance_demo_connection_returns_spot_and_usdm_balances(monkeypatch) -> None:
     profile = ConnectionProfile(
         connection_id="binance-demo",
         provider=ProviderKind.BINANCE,
@@ -77,27 +93,46 @@ def test_binance_demo_connection_returns_read_only_balances(monkeypatch) -> None
     )
     adapter = BinanceProviderAdapter(
         profile,
-        CredentialEnvelope(api_key="key", api_secret="secret"),
+        CredentialEnvelope(
+            api_key="spot-key",
+            api_secret="spot-secret",
+            futures_api_key="futures-key",
+            futures_api_secret="futures-secret",
+        ),
     )
 
-    def fake_signed_get(base_url, path, *, params=None):
-        assert base_url == "https://testnet.binance.vision"
-        assert path == "/api/v3/account"
-        assert params == {"omitZeroBalances": "true"}
+    def fake_signed_get(base_url, path, *, api_key, api_secret, params=None):
+        if path == "/api/v3/account":
+            assert base_url == "https://testnet.binance.vision"
+            assert api_key == "spot-key"
+            assert api_secret == "spot-secret"
+            assert params == {"omitZeroBalances": "true"}
+            return {
+                "accountType": "SPOT",
+                "balances": [
+                    {"asset": "USDT", "free": "1234.50", "locked": "5.50"},
+                    {"asset": "BTC", "free": "0.01", "locked": "0"},
+                ],
+            }
+        assert path == "/fapi/v3/account"
+        assert base_url == "https://testnet.binancefuture.com"
+        assert api_key == "futures-key"
+        assert api_secret == "futures-secret"
+        assert params is None
         return {
-            "accountType": "SPOT",
-            "balances": [
-                {"asset": "USDT", "free": "1234.50", "locked": "5.50"},
-                {"asset": "BTC", "free": "0.01", "locked": "0"},
-            ],
+            "assets": [
+                {"asset": "USDT", "walletBalance": "5000.25"},
+                {"asset": "BTC", "walletBalance": "0"},
+            ]
         }
 
     monkeypatch.setattr(adapter, "_signed_get", fake_signed_get)
     result = adapter.test_connection()
     assert result.ok is True
     assert result.state is ConnectionState.CONNECTED
-    assert result.balances["USDT"] == 1240.0
-    assert result.balances["BTC"] == 0.01
+    assert result.balances["spot"]["USDT"] == 1240.0
+    assert result.balances["spot"]["BTC"] == 0.01
+    assert result.balances["usdm"]["USDT"] == 5000.25
 
 
 def test_metatrader_scaffolds_do_not_claim_connection() -> None:
@@ -122,6 +157,8 @@ def test_credentials_redact_secrets() -> None:
     credentials = CredentialEnvelope(
         api_key="abc",
         api_secret="def",
+        futures_api_key="future-abc",
+        futures_api_secret="future-def",
         login="123",
         password="pw",
         server="Demo",
@@ -129,5 +166,7 @@ def test_credentials_redact_secrets() -> None:
     redacted = credentials.redacted()
     assert redacted["api_key"] != "abc"
     assert redacted["api_secret"] != "def"
+    assert redacted["futures_api_key"] != "future-abc"
+    assert redacted["futures_api_secret"] != "future-def"
     assert redacted["password"] != "pw"
     assert redacted["login"] == "123"
