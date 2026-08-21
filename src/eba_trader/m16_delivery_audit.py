@@ -7,7 +7,7 @@ import io
 import json
 import math
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -329,7 +329,11 @@ def run_m16_delivery_audit(
             else "DELIVERY_DATA_NOT_ELIGIBLE"
         )
 
-    eligible = [family for family, decision in family_decisions.items() if decision == "DELIVERY_DATA_ELIGIBLE"]
+    eligible = [
+        family
+        for family, decision in family_decisions.items()
+        if decision == "DELIVERY_DATA_ELIGIBLE"
+    ]
     decision = "M16_DELIVERY_DATA_AUDIT_PASS" if eligible else "M16_DELIVERY_DATA_AUDIT_FAIL"
     report: dict[str, Any] = {
         "phase": "m16_delivery_futures_first_complete_frozen_data_audit",
@@ -357,7 +361,10 @@ def run_m16_delivery_audit(
         "parameter_changes_after_result": "FORBIDDEN",
     }
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(report, indent=2, sort_keys=True, allow_nan=False), encoding="utf-8")
+    output.write_text(
+        json.dumps(report, indent=2, sort_keys=True, allow_nan=False),
+        encoding="utf-8",
+    )
     return report
 
 
