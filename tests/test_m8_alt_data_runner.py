@@ -52,3 +52,22 @@ def test_frozen_boundary_adapter_preserves_non_boundary_conflict_detection() -> 
     assert len(rows) == 1
     assert exact == 0
     assert conflicting == 1
+
+
+def test_frozen_boundary_adapter_does_not_recurse_when_core_parser_is_patched(monkeypatch) -> None:
+    header = list(core.METRICS_COLUMNS)
+    start = parse_utc("2021-01-01T00:00:00Z")
+    end = parse_utc("2021-01-01T00:10:00Z")
+    monkeypatch.setattr(
+        core,
+        "parse_binance_metrics_rows",
+        parse_binance_metrics_rows_with_frozen_boundary,
+    )
+    rows, exact, conflicting = parse_binance_metrics_rows_with_frozen_boundary(
+        [header, _row("2021-01-01 00:05:00")],
+        start_ms=start,
+        end_ms=end,
+    )
+    assert [item.timestamp_ms for item in rows] == [start + core.FIVE_MIN_MS]
+    assert exact == 0
+    assert conflicting == 0
