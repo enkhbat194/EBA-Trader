@@ -1,0 +1,30 @@
+{
+  "cycle": "m14_market_neutral_funding_carry_v1",
+  "status": "FROZEN_PREDECLARED_NOT_RUN",
+  "protocol_sha256": "606ae4d7b7afa4311cd1ba38b82fd47d99d143e8892c7e6de75b55572dfb716d",
+  "base_git_commit": "43ef1e77f02491dd6255912fd998e1dcc9747300",
+  "input_sha256": {
+    "btc_spot_research_2021_2023": "253c6ae35856e58e35df17eaa71caeea5caaa3681c38dd7214a2872afccd8d63",
+    "btc_spot_challenge_2024": "3a96b6b668cfacb0fefabb8665675d4ca589cc712b0681fb57e7a13356eda0f2",
+    "btc_usdm_15m_2021_2024": "3c97c9b59ded32595f129a480a23e920823c0edbbf2e4f32c5d66e5020e35947",
+    "btc_funding_2021_2024": "73b9decde0d54a0609d55ccfd49131a6e825416b595d728457bb01a968b55fd6"
+  },
+  "funding_thresholds": [0.0001, 0.0003, 0.0005],
+  "holding_funding_records": [3, 9],
+  "configuration_count": 6,
+  "capital_usd": 2.0,
+  "spot_entry_notional_usd": 1.0,
+  "perp_entry_notional_usd": 1.0,
+  "base_cost_bps_per_side_each_leg": 15.0,
+  "severe_cost_bps_per_side_each_leg": 35.0,
+  "fdr_q_threshold": 0.1,
+  "discovery_end_exclusive": "2024-01-01T00:00:00Z",
+  "challenge_end_exclusive": "2025-01-01T00:00:00Z",
+  "oos_2025": "LOCKED_NOT_ACCESSED",
+  "leverage": "forbidden",
+  "naked_short": "forbidden",
+  "overlapping_positions": "forbidden",
+  "parameter_changes_after_first_run": "forbidden",
+  "risk_sizing": "blocked",
+  "live_execution": "blocked"
+}
