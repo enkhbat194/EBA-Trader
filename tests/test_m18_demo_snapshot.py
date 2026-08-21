@@ -11,12 +11,7 @@ from eba_trader.providers import CredentialEnvelope
 
 
 def _credentials() -> CredentialEnvelope:
-    return CredentialEnvelope(
-        api_key="spot-key",
-        api_secret="spot-secret",
-        futures_api_key="futures-key",
-        futures_api_secret="futures-secret",
-    )
+    return CredentialEnvelope(api_key="demo-key", api_secret="demo-secret")
 
 
 def test_demo_client_exposes_no_live_execution_methods() -> None:
@@ -27,7 +22,7 @@ def test_demo_client_exposes_no_live_execution_methods() -> None:
     assert not hasattr(client, "change_leverage")
 
 
-def test_demo_snapshot_fails_closed_when_testnet_has_no_delivery_contract() -> None:
+def test_demo_snapshot_fails_closed_when_demo_has_no_delivery_contract() -> None:
     class Client:
         def futures_exchange_info(self):
             return {
@@ -44,7 +39,7 @@ def test_demo_snapshot_fails_closed_when_testnet_has_no_delivery_contract() -> N
 
     result = run_demo_fee_snapshot(_credentials(), client=Client())
     assert result["decision"] == "NO_TRADE"
-    assert result["reasonCodes"] == ["NO_ACTIVE_TESTNET_DELIVERY_CONTRACT"]
+    assert result["reasonCodes"] == ["NO_ACTIVE_DEMO_DELIVERY_CONTRACT"]
     assert result["environment"] == "demo"
     assert result["liveExecutionAllowed"] is False
 
