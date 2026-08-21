@@ -1,0 +1,48 @@
+name: M12 cross-asset edge validation
+
+on:
+  push:
+    branches:
+      - m12-cross-asset-eth-btc-edge
+  pull_request:
+    branches:
+      - m11-eth-perpetual-data-audit
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project
+        run: python -m pip install -e '.[dev]'
+
+      - name: Verify M12 frozen contract
+        run: |
+          python - <<'PY'
+          from eba_trader.m12_cross_asset_policy import verify_m12_freeze
+          manifest = verify_m12_freeze()
+          assert manifest['status'] == 'FROZEN_PREDECLARED_NOT_RUN'
+          assert manifest['candidate_count'] == 8
+          assert manifest['hypothesis_test_count'] == 24
+          assert manifest['oos_2025'] == 'LOCKED_NOT_ACCESSED'
+          assert manifest['parameter_changes_after_first_run'] == 'forbidden'
+          print('M12 frozen contract verified')
+          PY
+
+      - name: Run deterministic tests
+        run: python -m pytest -q
+
+      - name: Run Ruff
+        run: python -m ruff check .
