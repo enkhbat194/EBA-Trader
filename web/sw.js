@@ -1,4 +1,4 @@
-const CACHE_NAME = 'eba-trader-ui-v2';
+const CACHE_NAME = 'eba-trader-ui-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -24,5 +24,22 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request)));
+
+  const url = new URL(event.request.url);
+  if (url.origin === self.location.origin && url.pathname.startsWith('/api/')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        if (response.ok && url.origin === self.location.origin) {
+          const copy = response.clone();
+          event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request)),
+  );
 });
