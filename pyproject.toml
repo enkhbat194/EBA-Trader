@@ -39,6 +39,7 @@ eba-m12-cross-asset-edge = "eba_trader.m12_cross_asset:main"
 eba-m13-ml-edge = "eba_trader.m13_ml_edge:main"
 eba-m14-funding-carry = "eba_trader.m14_carry:main"
 eba-m15-basis-convergence = "eba_trader.m15_basis:main"
+eba-m16-delivery-audit = "eba_trader.m16_delivery_audit:main"
 
 [project.optional-dependencies]
 trading = [
