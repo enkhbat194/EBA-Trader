@@ -1,7 +1,7 @@
 import pytest
 
 from eba_trader.providers import ProviderEnvironment, ProviderKind
-from eba_trader.web_server import parse_connection_request, test_connection_payload
+from eba_trader.web_server import parse_connection_request, run_connection_test
 
 
 def test_parse_demo_binance_connection_request() -> None:
@@ -37,7 +37,7 @@ def test_unknown_provider_is_rejected() -> None:
 
 
 def test_mt5_scaffold_response_does_not_claim_success() -> None:
-    result = test_connection_payload(
+    result = run_connection_test(
         {
             "provider": "metatrader5",
             "environment": "demo",
