@@ -8,6 +8,7 @@ from typing import Any
 from . import m8_alt_data_audit as core
 
 _ORIGINAL_METRICS_PARSER = core.parse_binance_metrics_rows
+_ORIGINAL_BYBIT_WINDOWED = core._fetch_bybit_windowed
 _METRIC_VALUE_START = 2
 _METRIC_VALUE_END = 8
 
@@ -61,17 +62,62 @@ def parse_binance_metrics_rows_with_frozen_boundary(
     )
 
 
+def fetch_bybit_windowed_with_endpoint_params(
+    path: str,
+    *,
+    start_ms: int,
+    end_ms: int,
+    chunk_ms: int,
+    base_params: dict[str, object],
+    limit: int,
+) -> list[Any]:
+    """Use the endpoint-specific Bybit time parameter names for the frozen audit."""
+    core._guard_window(start_ms, end_ms, context=f"M8 Bybit {path}")
+    collected: list[Any] = []
+    cursor_start = start_ms
+    start_key, end_key = (
+        ("start", "end") if path == "/v5/market/kline" else ("startTime", "endTime")
+    )
+    while cursor_start < end_ms:
+        cursor_end = min(cursor_start + chunk_ms, end_ms)
+        page_cursor = ""
+        seen_cursors: set[str] = set()
+        while True:
+            params: dict[str, object] = {
+                **base_params,
+                start_key: cursor_start,
+                end_key: cursor_end - 1,
+                "limit": limit,
+            }
+            if page_cursor:
+                params["cursor"] = page_cursor
+            payload = core._request_json(path, params)
+            rows, next_cursor = core._result_list(payload)
+            collected.extend(rows)
+            if not next_cursor:
+                break
+            if next_cursor in seen_cursors:
+                raise RuntimeError("Bybit pagination cursor did not advance")
+            seen_cursors.add(next_cursor)
+            page_cursor = next_cursor
+        cursor_start = cursor_end
+    return collected
+
+
 def run_m8_data_audit(
     *,
     report_path: str | Path = "artifacts/m8_alt_derivatives_data_audit.json",
     workers: int = 8,
 ) -> dict[str, object]:
     original_parser = core.parse_binance_metrics_rows
+    original_bybit_windowed = core._fetch_bybit_windowed
     core.parse_binance_metrics_rows = parse_binance_metrics_rows_with_frozen_boundary
+    core._fetch_bybit_windowed = fetch_bybit_windowed_with_endpoint_params
     try:
         return core.run_m8_data_audit(report_path=report_path, workers=workers)
     finally:
         core.parse_binance_metrics_rows = original_parser
+        core._fetch_bybit_windowed = original_bybit_windowed
 
 
 def _source_status(section: dict[str, Any], key: str) -> object:
