@@ -23,8 +23,8 @@ def _manager() -> ConnectionManager:
 
 def test_demo_is_first_class_binance_environment() -> None:
     endpoints = BINANCE_ENDPOINTS[ProviderEnvironment.DEMO]
-    assert endpoints.spot_rest == "https://testnet.binance.vision"
-    assert endpoints.futures_rest == "https://testnet.binancefuture.com"
+    assert endpoints.spot_rest == "https://demo-api.binance.com"
+    assert endpoints.futures_rest == "https://demo-fapi.binance.com"
 
 
 def test_connection_manager_is_provider_neutral() -> None:
@@ -65,26 +65,10 @@ def test_binance_missing_credentials_fails_closed_without_network() -> None:
     result = BinanceProviderAdapter(profile, CredentialEnvelope()).test_connection()
     assert result.ok is False
     assert result.state is ConnectionState.ERROR
-    assert "spot api key" in result.message.lower()
+    assert "demo api key" in result.message.lower()
 
 
-def test_binance_spot_only_credentials_do_not_unlock_demo() -> None:
-    profile = ConnectionProfile(
-        connection_id="binance-demo",
-        provider=ProviderKind.BINANCE,
-        environment=ProviderEnvironment.DEMO,
-        label="Binance Demo",
-    )
-    result = BinanceProviderAdapter(
-        profile,
-        CredentialEnvelope(api_key="spot-key", api_secret="spot-secret"),
-    ).test_connection()
-    assert result.ok is False
-    assert result.state is ConnectionState.ERROR
-    assert "usd-m futures" in result.message.lower()
-
-
-def test_binance_demo_connection_returns_spot_and_usdm_balances(monkeypatch) -> None:
+def test_binance_demo_connection_uses_one_key_for_spot_and_usdm(monkeypatch) -> None:
     profile = ConnectionProfile(
         connection_id="binance-demo",
         provider=ProviderKind.BINANCE,
@@ -93,19 +77,14 @@ def test_binance_demo_connection_returns_spot_and_usdm_balances(monkeypatch) -> 
     )
     adapter = BinanceProviderAdapter(
         profile,
-        CredentialEnvelope(
-            api_key="spot-key",
-            api_secret="spot-secret",
-            futures_api_key="futures-key",
-            futures_api_secret="futures-secret",
-        ),
+        CredentialEnvelope(api_key="demo-key", api_secret="demo-secret"),
     )
 
     def fake_signed_get(base_url, path, *, api_key, api_secret, params=None):
+        assert api_key == "demo-key"
+        assert api_secret == "demo-secret"
         if path == "/api/v3/account":
-            assert base_url == "https://testnet.binance.vision"
-            assert api_key == "spot-key"
-            assert api_secret == "spot-secret"
+            assert base_url == "https://demo-api.binance.com"
             assert params == {"omitZeroBalances": "true"}
             return {
                 "accountType": "SPOT",
@@ -115,9 +94,7 @@ def test_binance_demo_connection_returns_spot_and_usdm_balances(monkeypatch) -> 
                 ],
             }
         assert path == "/fapi/v3/account"
-        assert base_url == "https://testnet.binancefuture.com"
-        assert api_key == "futures-key"
-        assert api_secret == "futures-secret"
+        assert base_url == "https://demo-fapi.binance.com"
         assert params is None
         return {
             "assets": [
@@ -157,8 +134,6 @@ def test_credentials_redact_secrets() -> None:
     credentials = CredentialEnvelope(
         api_key="abc",
         api_secret="def",
-        futures_api_key="future-abc",
-        futures_api_secret="future-def",
         login="123",
         password="pw",
         server="Demo",
@@ -166,7 +141,5 @@ def test_credentials_redact_secrets() -> None:
     redacted = credentials.redacted()
     assert redacted["api_key"] != "abc"
     assert redacted["api_secret"] != "def"
-    assert redacted["futures_api_key"] != "future-abc"
-    assert redacted["futures_api_secret"] != "future-def"
     assert redacted["password"] != "pw"
     assert redacted["login"] == "123"
