@@ -1,0 +1,46 @@
+name: M9 one-shot implementation autofix
+
+on:
+  pull_request:
+    branches:
+      - m8-alt-derivatives-data-audit
+    paths:
+      - "src/eba_trader/m9_bookdepth.py"
+      - ".github/workflows/m9-autofix.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  autofix:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact M9 branch
+        uses: actions/checkout@v4
+        with:
+          ref: m9-bookdepth-microstructure-edge
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ruff
+        run: python -m pip install 'ruff>=0.6'
+
+      - name: Apply safe Ruff fixes only
+        run: python -m ruff check src/eba_trader/m9_bookdepth.py --fix
+
+      - name: Commit implementation-only formatting fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --quiet; then
+            echo 'No autofix changes needed'
+            exit 0
+          fi
+          git add src/eba_trader/m9_bookdepth.py
+          git commit -m 'Resolve M9 Ruff findings'
+          git push origin HEAD:m9-bookdepth-microstructure-edge
