@@ -13,14 +13,14 @@ overrule any future AI/router decision.
 ## Hard constraints
 
 - Repo: `enkhbat194/EBA-Trader`
-- Current market focus: BTC/USDT Spot; derivatives data is research input only
+- Current execution focus: BTC/USDT Spot; derivatives/microstructure data is research input only
 - Python evidence target: 3.12
 - Real-money orders, leverage, futures execution and short execution: disabled
 - AI order submission / self-deployment: disabled
 - 2021-01-01 through 2025-01-01 exclusive is development/research data
 - 2024 is reused development data, not pristine OOS
 - Frozen 2025 holdout: **`LOCKED_NOT_ACCESSED`**
-- Do not rescue failed cycles with post-result parameter tuning
+- Do not rescue failed cycles with post-result parameter or gate tuning
 
 ## Completed infrastructure
 
@@ -89,13 +89,10 @@ Record: `docs/M6_DERIVATIVES_DATA_AUDIT_RESULT_2026-08-21.md`
 M6 added no strategy. It audited whether materially new USD-M derivatives information was clean
 enough for 2021–2024 research.
 
-### Acquisition and result
-
-- Direct `fapi.binance.com` from GitHub-hosted Azure returned HTTP 451; no proxy/bypass used.
-- Completed audit used official `data.binance.vision` monthly USD-M archives.
-- Every present ZIP was verified against Binance Vision `.CHECKSUM` before parsing.
-- 48/48 monthly files existed for each audited family.
-- 2025 remained `LOCKED_NOT_ACCESSED`.
+- direct `fapi.binance.com` from GitHub-hosted Azure returned HTTP 451; no proxy/bypass used
+- completed audit used official `data.binance.vision` monthly USD-M archives
+- every present ZIP was verified against Binance Vision `.CHECKSUM`
+- 48/48 monthly files existed for each audited family
 - decision: **`M6_DERIVATIVES_DATA_AUDIT_FAIL`**
 
 | Source | Rows | Coverage / cadence | Result |
@@ -106,70 +103,96 @@ enough for 2021–2024 research.
 | Index-price 15m | 139,103 | 99.17793%, max gap 48h | FAIL |
 | Premium/futures/index intersection | 138,621 | 98.83427% | FAIL |
 
-Frozen kline requirement was >=99.90% coverage and <=12h maximum missing run. The thresholds were not
-relaxed after observing the result. Only funding and perpetual-futures activity were permitted into a
-new search cycle; failed premium/index families stayed excluded.
+Only funding and perpetual-futures activity were permitted into M7. Failed premium/index families
+remain excluded.
 
 ## M7 Funding + Futures Activity Edge Discovery — CLOSED / NO STABLE EDGE
 
 Branch: `m7-funding-futures-edge-discovery`
 Result record: `docs/M7_FUNDING_FUTURES_EDGE_DISCOVERY_RESULT_2026-08-21.md`
 
-M7 used only the M6-PASS derivatives families plus frozen Spot outcome data. The search was frozen
-before results:
-
-- 12 predeclared derivatives-specific candidates
-- horizons: 4 / 16 / 48 15m bars
-- 36 total discovery tests
+- frozen search: 12 candidates × 3 horizons = 36 tests
 - Base round-trip cost: 30 bps
 - Severe round-trip cost: 70 bps
 - same-direction unconditional Spot baseline uplift required: >=10 bps
-- BH-FDR q <= 0.10 across all 36 tests
-- cross-year economic/uplift stability required in 2021, 2022 and 2023
-- 2024 used only as reused development challenge
-
-Pre-evidence validation:
-
-- deterministic tests: **191 passed**
-- Ruff: **PASS**
-- implementation-only fix commit: `67d10f26cfd4b5f7f8691c629a22d9328d21db57`
-
-First complete frozen evidence:
-
-- evidence workflow commit: `bbc6df7caf2bbf191710d3b975824e4d90980668`
-- Actions run: `32424800002`
+- BH-FDR q <=0.10
+- deterministic tests: 191 PASS; Ruff PASS
+- authoritative Actions run: `32424800002`
 - decision: **`NO_STABLE_DERIVATIVES_EDGE_FOUND`**
-- `LONG_EDGE_CANDIDATE`: **0**
-- `NO_TRADE_VETO_CANDIDATE`: **0**
-- `OBSERVATION_ONLY`: **12**
-- discovery-passing candidate/horizons: **0/36**
-- final discovery + challenge passing candidate/horizons: **0/36**
+- `LONG_EDGE_CANDIDATE`: 0
+- `NO_TRADE_VETO_CANDIDATE`: 0
+- discovery-passing horizons: 0/36
 - evidence SHA-256: `0c341876395f573b6c82bb14a91763c2387b34a51d28066b30e773ceede20bf6`
-- evidence artifact ID: `9427083252`
-- 2025 OOS: **`LOCKED_NOT_ACCESSED`**
 
-Key M7 diagnostics across 36 discovery tests:
+## M8 Alternative Derivatives Historical Data Audit — CLOSED / FAIL WITH ONE PARTIAL SOURCE
 
-- positive Base mean: 3/36
-- positive Severe mean: 0/36
-- positive Base median: 0/36
-- >=10 bps baseline uplift: 12/36
-- yearly stability gate: 0/36
-- BH-FDR q <=0.10: 0/36
+Branch: `m8-alt-derivatives-data-audit`
+Result record: `docs/M8_ALT_DERIVATIVES_DATA_AUDIT_RESULT_2026-08-21.md`
+Authoritative complete Actions run: `32433740347`
+Authoritative source commit: `02889240376c915a330492bc0ceaca49ace8952c`
+Evidence artifact ID: `9430097001`
+Evidence JSON SHA-256: `1bcfd0f44917d608b0d0c413d22aa7ce851e55ee4d54b1b81f87f588682a887f`
 
-M7 is closed. The three positive-mean observations remain observations only and must not be promoted,
-retuned or reversed into a strategy after the result.
+M8 computed **no forward returns, PnL or strategy evidence**. It audited materially new positioning,
+cross-venue and microstructure sources only.
+
+### Primary results
+
+| Source | Evidence | Result |
+|---|---|---|
+| Binance USD-M metrics 5m | 1461/1461 checksum-verified files, 420,167 rows, 99.8574% coverage | **FAIL** |
+| Bybit 1h kline | official public V5 request returned HTTP 403 on GitHub runner | **ERROR / unqualified** |
+| Bybit 1h open interest | HTTP 403 on GitHub runner | **ERROR / unqualified** |
+| Bybit 1h account ratio | HTTP 403 on GitHub runner | **ERROR / unqualified** |
+| Bybit funding | HTTP 403 on GitHub runner | **ERROR / unqualified** |
+| Cross-exchange hourly alignment | no qualified Bybit rows; 0/35,064 aligned | **FAIL** |
+
+Binance metrics failed despite adequate overall coverage because the frozen contract also requires no
+conflicting duplicate timestamps, strict five-minute alignment, and every frozen metric value finite
+and strictly positive. Evidence contained `2` conflicting duplicate timestamps, alignment violations,
+and malformed/non-positive metric evidence. Frozen thresholds were not weakened.
+
+The Bybit result is an execution-provenance access error, not proof that Bybit's history itself is bad.
+Those datasets remain unqualified because M8 did not reproduce them in the authoritative environment.
+
+### Secondary results
+
+**Binance bookDepth 2023-2024: `PARTIAL_WINDOW_ELIGIBLE`**
+
+- expected daily files: 731
+- checksum-verified existing files: 728
+- daily coverage: 99.589603%
+- parsed rows: 20,685,850
+- parse-error files: 0
+- invalid rows: 0
+- <=120s positive snapshot-gap ratio: 99.998066%
+
+This is explicitly **not** full 2021-2024 evidence. It may only be used under a new, separately frozen
+short-window research protocol that declares 2023-2024 before any forward-return computation.
+
+**Binance liquidationSnapshot: `EXCLUDED_INCOMPLETE_HISTORY`**
+
+- expected daily files: 1461
+- existing official archive files: 0
+- coverage: 0%
+
+M8 final decision: **`M8_ALT_DERIVATIVES_DATA_AUDIT_FAIL`**.
+2025 remained **`LOCKED_NOT_ACCESSED`**.
 
 ## Next research decision
 
-Do **not** create another price/volume/funding threshold search by minor parameter variation. M5 and M7
-show that these predeclared families did not produce a cost-robust, temporally stable edge under the
-current evidence standard.
+Do not create another minor price/volume/funding/positioning threshold search. M5/M7 found no stable
+edge, and M8 rejected its full-window positioning contract.
 
-Any next cycle must add materially new information or methodology and first prove historical data
-provenance. Candidate research families include independently archived open interest, liquidation
-history, order-book/microstructure history, cross-venue information, or macro/news state. No next
-family may weaken prior gates merely to obtain a survivor.
+The one newly qualified information family is Binance `bookDepth`, but only for the fixed 2023-2024
+partial window. The next legitimate research cycle, if pursued, should therefore be a **separate
+microstructure/book-depth edge-discovery protocol** that is frozen before computing any forward
+returns. It must explicitly use the shorter 2023-2024 development window and use rolling/temporal
+validation appropriate to that reduced history. It must not silently promote bookDepth to 2021-2024.
+
+A separate future transport/provenance audit may also test whether official Bybit public history can be
+reproduced outside the GitHub-hosted environment; that is not a rescue of M8 and cannot alter the M8
+result.
 
 Future AI Strategy Router remains later architecture: it may route only among deterministic strategies
 that have already passed research and paper/shadow gates. The deterministic Risk Engine remains the
@@ -178,10 +201,13 @@ superior authority and `NO_TRADE` remains valid.
 ## Explicitly forbidden now
 
 - opening/downloading/inspecting 2025 BTC holdout
-- retuning V1/V2/V3/M5/M6/M7 after their results
+- retuning V1/V2/V3/M5/M6/M7/M8 after their results
 - treating 2024 as pristine OOS
 - using failed M6 premium/index families as if they passed
-- promoting any M7 observation into a strategy without a new frozen contract
+- promoting M7 observations into a strategy without a new frozen contract
+- treating M8 bookDepth as full 2021-2024 evidence
+- repairing/imputing rejected Binance metrics values to rescue M8
+- treating Bybit HTTP 403 as a Bybit data-quality PASS or FAIL
 - real-money orders
 - futures/leverage/short execution
 - copy trading, martingale, averaging down
