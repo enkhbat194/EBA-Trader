@@ -1,0 +1,39 @@
+{
+  "base_cost_bps_per_side_each_leg": 15.0,
+  "capital_usd": 2.0,
+  "challenge_end_exclusive": "2025-01-01T00:00:00Z",
+  "challenge_start": "2024-01-01T00:00:00Z",
+  "configuration_count": 9,
+  "cycle": "m15_market_neutral_basis_convergence_v1",
+  "discovery_end_exclusive": "2024-01-01T00:00:00Z",
+  "entry_basis_thresholds": [
+    0.0075,
+    0.0125,
+    0.02
+  ],
+  "exit_basis_threshold": 0.001,
+  "fdr_q_threshold": 0.1,
+  "input_sha256": {
+    "btc_funding_2021_2024": "73b9decde0d54a0609d55ccfd49131a6e825416b595d728457bb01a968b55fd6",
+    "btc_spot_challenge_2024": "3a96b6b668cfacb0fefabb8665675d4ca589cc712b0681fb57e7a13356eda0f2",
+    "btc_spot_research_2021_2023": "253c6ae35856e58e35df17eaa71caeea5caaa3681c38dd7214a2872afccd8d63",
+    "btc_usdm_15m_2021_2024": "3c97c9b59ded32595f129a480a23e920823c0edbbf2e4f32c5d66e5020e35947"
+  },
+  "leverage": "forbidden",
+  "live_execution": "blocked",
+  "max_hold_bars": [
+    96,
+    288,
+    672
+  ],
+  "naked_short": "forbidden",
+  "oos_2025": "LOCKED_NOT_ACCESSED",
+  "overlapping_positions": "forbidden",
+  "parameter_changes_after_first_run": "forbidden",
+  "perp_entry_notional_usd": 1.0,
+  "protocol_sha256": "1837e2a7e25e2b531ca0340f783b27bfa89e9752ff9cf7b296b08262b7940549",
+  "risk_sizing": "blocked",
+  "severe_cost_bps_per_side_each_leg": 35.0,
+  "spot_entry_notional_usd": 1.0,
+  "status": "FROZEN_PREDECLARED_NOT_RUN"
+}
