@@ -57,3 +57,18 @@ def test_demo_scanner_uses_only_opaque_session_token_after_connection() -> None:
     assert "{ sessionToken: demoSessionToken }" in javascript
     assert "15_000" in javascript
     assert "PAPER SCANNER RUNNING" in javascript
+
+
+def test_demo_session_can_be_explicitly_disconnected() -> None:
+    html = (WEB_ROOT / "index.html").read_text(encoding="utf-8")
+    javascript = (WEB_ROOT / "app.js").read_text(encoding="utf-8")
+    assert 'id="disconnectDemo"' in html
+    assert "'/api/demo/disconnect'" in javascript
+    assert "lockDemoSession('Unified Demo disconnected')" in javascript
+
+
+def test_connection_markup_escapes_remote_error_text_before_inner_html() -> None:
+    javascript = (WEB_ROOT / "app.js").read_text(encoding="utf-8")
+    assert "function escapeHtml(value)" in javascript
+    assert "escapeHtml(profile.detail)" in javascript
+    assert "escapeHtml(profile.name)" in javascript
