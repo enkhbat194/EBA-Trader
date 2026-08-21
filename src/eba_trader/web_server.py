@@ -79,6 +79,7 @@ def run_connection_test(payload: dict[str, Any]) -> dict[str, Any]:
         "message": result.message,
         "latencyMs": result.latency_ms,
         "accountLabel": result.account_label,
+        "balances": result.balances,
         "capabilities": [capability.value for capability in result.capabilities],
         "environment": profile.environment.value,
         "provider": profile.provider.value,
