@@ -29,7 +29,7 @@
         <div class="metric-grid">
           <article class="metric-card"><span>Balance</span><strong id="balanceValue">—</strong><small id="balanceDetail">Connect Binance Demo</small></article>
           <article class="metric-card positive"><span>Today P&amp;L</span><strong id="todayPnlValue">—</strong><small id="todayPnlDetail">No paper session</small></article>
-          <article class="metric-card"><span>Current opportunity</span><strong id="opportunityCount">0</strong><small>No qualified setup</small></article>
+          <article class="metric-card"><span>Current opportunity</span><strong id="opportunityCount">0</strong><small id="opportunityDetail">No qualified setup</small></article>
           <article class="metric-card"><span>Expected net profit</span><strong id="expectedNetValue">—</strong><small id="expectedNetDetail">Waiting for fee-aware snapshot</small></article>
         </div>
 
@@ -40,7 +40,7 @@
 
         <article class="notice-card">
           <div class="notice-icon">⊘</div>
-          <div><strong>NO TRADE</strong><p>No opportunity currently clears the fee-aware minimum net edge.</p><small>Live execution remains locked.</small></div>
+          <div><strong id="decisionTitle">NO TRADE</strong><p id="decisionReason">Connect both Binance Demo environments to start scanning.</p><small>Live execution remains locked.</small></div>
         </article>
 
         <article class="section-card">
@@ -54,9 +54,9 @@
         <div class="segments"><button class="active">All</button><button>Candidates</button><button>No trade</button></div>
         <div class="opportunity-list">
           <article class="opportunity-card">
-            <div class="card-title"><div><strong>BTC / USDT</strong><small>Binance Spot ↔ USD-M Quarterly</small></div><span class="badge muted">NO_TRADE</span></div>
-            <div class="edge-score"><span>NET EDGE</span><strong class="negative">—</strong></div>
-            <dl><div><dt>Spot buy</dt><dd>Waiting for quote</dd></div><div><dt>Futures sell</dt><dd>Waiting for quote</dd></div><div><dt>Gross edge</dt><dd>—</dd></div><div><dt>Fees</dt><dd>—</dd></div><div><dt>Slippage reserve</dt><dd>—</dd></div><div><dt>Safety buffer</dt><dd>5 bps</dd></div></dl>
+            <div class="card-title"><div><strong>BTC / USDT</strong><small id="futuresSymbolLabel">Binance Spot ↔ USD-M Quarterly</small></div><span class="badge muted" id="opportunityStatus">NO_TRADE</span></div>
+            <div class="edge-score"><span>NET EDGE</span><strong class="negative" id="netEdgeValue">—</strong></div>
+            <dl><div><dt>Spot buy</dt><dd id="spotBuyValue">Waiting for quote</dd></div><div><dt>Futures sell</dt><dd id="futuresSellValue">Waiting for quote</dd></div><div><dt>Gross edge</dt><dd id="grossEdgeValue">—</dd></div><div><dt>Fees reserve</dt><dd id="feesValue">—</dd></div><div><dt>Slippage reserve</dt><dd id="slippageValue">—</dd></div><div><dt>Safety buffer</dt><dd id="safetyBufferValue">—</dd></div></dl>
           </article>
           <article class="opportunity-card disabled-card">
             <div class="card-title"><div><strong>XAU / USD</strong><small>MetaTrader 5</small></div><span class="badge">COMING NEXT</span></div>
@@ -68,14 +68,14 @@
       <section class="screen" data-screen="positions">
         <div class="screen-title"><div><span class="eyebrow">Portfolio</span><h1>Positions</h1></div><span class="pill neutral">PAPER</span></div>
         <div class="metric-grid three"><article class="metric-card"><span>Open</span><strong>0</strong></article><article class="metric-card"><span>Unrealized</span><strong>—</strong></article><article class="metric-card"><span>Margin safety</span><strong>—</strong></article></div>
-        <article class="empty-state"><div class="empty-icon">◎</div><h3>No open paired positions</h3><p>When a demo opportunity passes all gates, both legs will appear here.</p></article>
+        <article class="empty-state"><div class="empty-icon">◎</div><h3>No open paired positions</h3><p>M18 currently scans opportunities only. No order-placement method exists.</p></article>
         <button class="danger-btn full" disabled>⚠ CLOSE BOTH LEGS</button>
       </section>
 
       <section class="screen" data-screen="history">
         <div class="screen-title"><div><span class="eyebrow">Ledger</span><h1>History</h1></div></div>
         <div class="segments"><button class="active">All</button><button>Demo</button><button disabled>Live</button></div>
-        <article class="empty-state"><div class="empty-icon">↺</div><h3>No demo trades yet</h3><p>Gross, fees, slippage and final NET result will be recorded separately.</p></article>
+        <article class="empty-state"><div class="empty-icon">↺</div><h3>No demo trades yet</h3><p>Current M18 paper mode is a read-only opportunity scanner; execution remains locked.</p></article>
       </section>
 
       <section class="screen" data-screen="settings">
@@ -123,7 +123,7 @@
         <label>Login<input id="mtLogin" inputmode="numeric" autocomplete="off" placeholder="Account login"></label>
         <label>Password<input id="mtPassword" type="password" autocomplete="new-password" placeholder="Account password"></label>
       </div>
-      <div class="security-note">Spot and USD-M Demo credentials are used only for the current connection test. They are not saved to localStorage or persisted by the backend.</div>
+      <div class="security-note">Spot and USD-M Demo credentials are used only to create a short-lived RAM-only Demo session. They are not saved to browser storage or disk.</div>
       <button type="button" class="primary full" id="testConnection">TEST BOTH DEMO CONNECTIONS</button>
       <div id="connectionResult" class="connection-result">Not tested</div>
       <button value="cancel" class="secondary full">CLOSE</button>
