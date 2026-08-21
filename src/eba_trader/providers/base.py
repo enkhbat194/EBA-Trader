@@ -36,8 +36,6 @@ class ProviderCapability(StrEnum):
 class CredentialEnvelope:
     api_key: str = ""
     api_secret: str = ""
-    futures_api_key: str = ""
-    futures_api_secret: str = ""
     login: str = ""
     password: str = ""
     server: str = ""
@@ -46,8 +44,6 @@ class CredentialEnvelope:
         return {
             "api_key": "••••••••" if self.api_key else "",
             "api_secret": "••••••••" if self.api_secret else "",
-            "futures_api_key": "••••••••" if self.futures_api_key else "",
-            "futures_api_secret": "••••••••" if self.futures_api_secret else "",
             "login": self.login,
             "password": "••••••••" if self.password else "",
             "server": self.server,
