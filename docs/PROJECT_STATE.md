@@ -1,7 +1,7 @@
 # EBA-Trader Project State
 
 Updated: 2026-08-21
-Current research branch at this checkpoint: `m16-delivery-futures-data-audit`
+Current research branch at this checkpoint: `m17-usdm-quarterly-cash-carry`
 
 This file is the cross-chat continuity checkpoint. Read it before starting or modifying a later research cycle.
 
@@ -13,89 +13,89 @@ This file is the cross-chat continuity checkpoint. Read it before starting or mo
 - Search spaces, thresholds, horizons, costs, model hyperparameters, gates, and multiple-testing rules are frozen before evidence.
 - A data-audit PASS qualifies a source only; it does not establish profitability.
 - Deterministic Risk Engine remains superior to any future AI/ML/router layer.
-- Risk sizing and live execution are blocked until a separately frozen edge earns promotion.
+- Risk sizing and live execution remain blocked until a separately frozen edge earns promotion.
 - NO_TRADE is a valid system state.
 
 ## Completed research history
 
-### M2-M5 / Directional strategy and price-volume discovery
-M2 Trend V1, M3 Trend V2, and M4 V3 were rejected. M5 Price-Volume Edge Discovery tested 72 frozen horizon tests and promoted none.
+### M2-M5 / Directional and price-volume
+Trend V1, Trend V2 and V3 were rejected. M5 Price-Volume Edge Discovery promoted 0/72 tests.
 
 ### M6-M9 / Derivatives and microstructure
-M6 full derivatives data contract failed although BTC funding and USD-M perpetual 15m individually passed. M7 Funding + Futures Edge Discovery promoted 0/36. M8 alternative-derivatives audit did not qualify the full source set; BookDepth 2023-2024 alone was partial-window eligible. M9 BookDepth Microstructure promoted 0/24.
+M6 full derivatives contract failed although BTC funding and USD-M perpetual 15m individually passed. M7 Funding + Futures promoted 0/36. M8 alternative data contract failed overall, with BookDepth 2023-2024 partial-window eligible. M9 BookDepth Microstructure promoted 0/24.
 
 ### M10-M12 / ETH cross-asset
-M10 ETHUSDT Spot audit failed its frozen integrity gates. M11 ETHUSDT USD-M perpetual audit passed with 140,256/140,256 15m bars and normalized SHA-256 `69855dcaf2f34c2a529ddb7f83964fa61b39ed0a27ae8796a6c0eaafd5b744f5`. M12 ETH→BTC Cross-Asset Discovery promoted 0/24.
+M10 ETH Spot audit failed. M11 ETH USD-M perpetual audit passed 140,256/140,256 bars. M12 ETH→BTC Cross-Asset Discovery promoted 0/24.
 
 ### M13 / Supervised ML Edge Engine
-Decision: `NO_STABLE_ML_EDGE_FOUND`.
-
-- 19 causal features;
-- LogisticRegression + HistGradientBoosting;
-- 0.60/0.65 probability gates;
-- 4/16/48-bar horizons;
-- 12 frozen configs;
-- discovery pass 0/12, challenge pass 0/12;
-- run `32446152844`, artifact `9434173433`;
-- evidence SHA `84f39d0619ef96f668df34ca178680a3d84bb2f1f227dfab7c16cdb0910d5859`.
+Decision: `NO_STABLE_ML_EDGE_FOUND`. 19 causal features, two frozen model families, 12 configurations, discovery 0/12, challenge 0/12. Run `32446152844`, artifact `9434173433`, evidence SHA `84f39d0619ef96f668df34ca178680a3d84bb2f1f227dfab7c16cdb0910d5859`.
 
 ### M14 / Market-Neutral Funding Carry
-Decision: `NO_STABLE_FUNDING_CARRY_EDGE_FOUND`.
-
-- 1:1 long BTC Spot + short BTC USD-M perpetual;
-- funding thresholds 1/3/5 bps × 3/9 funding-record holds = 6 configs;
-- discovery pass 0/6, challenge pass 0/6;
-- run `32446970715`, artifact `9434444012`;
-- evidence SHA `c5bd418a60260fb1619f8d0f563bf7ff93a1d66ee76525051df5f0c4bda136ec`.
+Decision: `NO_STABLE_FUNDING_CARRY_EDGE_FOUND`. Six frozen configs, discovery 0/6, challenge 0/6. Run `32446970715`, artifact `9434444012`, evidence SHA `c5bd418a60260fb1619f8d0f563bf7ff93a1d66ee76525051df5f0c4bda136ec`.
 
 ### M15 / Market-Neutral Perpetual Basis Convergence
-Decision: `NO_STABLE_BASIS_CONVERGENCE_EDGE_FOUND`.
-
-- 9 frozen basis/hold configs;
-- discovery pass 0/9, challenge pass 0/9;
-- run `32449012036`, artifact `9435060914`;
-- evidence SHA `4bd98328539c9d75f0e17839a631ab80c05c9ee14222d7b144f75ff8c4ae0559`.
-
-The 75-bps family produced only 5 trades, all in 2021. They were Base-profitable but Severe-cost negative and had zero 2022/2023 support. M15 is retired without rescue.
+Decision: `NO_STABLE_BASIS_CONVERGENCE_EDGE_FOUND`. Nine frozen configs, discovery 0/9. Run `32449012036`, artifact `9435060914`, evidence SHA `4bd98328539c9d75f0e17839a631ab80c05c9ee14222d7b144f75ff8c4ae0559`.
 
 ### M16 / Quarterly Delivery Futures Historical Data Audit
-Decision: **`M16_DELIVERY_DATA_AUDIT_PASS`**.
+Decision: `M16_DELIVERY_DATA_AUDIT_PASS`.
 
-This was data provenance only. No profitability calculation was allowed.
-
-Authoritative evidence:
-- source commit `c0a63a8f21c69bf062cf3725751171415d06a739`;
+- USD-M quarterly `BTCUSDT_YYMMDD`: `DELIVERY_DATA_ELIGIBLE`, 16/16 contracts passed, each 2,880/2,880 15m bars, 100% coverage, gap 0.
+- COIN-M quarterly: not eligible because `BTCUSD_230929` failed frozen coverage/gap gates.
 - run `32449978355`;
 - artifact `9435350726`;
-- evidence SHA-256 `b966f290ddc0652fbeeaa453bb33a86ffae15695c80fd321f9173e5c42e86745`;
-- artifact ZIP SHA-256 `794ac8b1bf047269da7ea29e5c121236e383acccbcec01d5f256a6513f6f22e9`;
+- evidence SHA `b966f290ddc0652fbeeaa453bb33a86ffae15695c80fd321f9173e5c42e86745`.
+
+M16 qualified USD-M data only; it did not establish profitability.
+
+### M17 / USD-M Quarterly Cash-and-Carry
+Decision: **`NO_STABLE_DELIVERY_CARRY_EDGE_FOUND`**.
+
+Frozen mechanism:
+- same-BTC-quantity long BTCUSDT Spot + short M16-qualified USD-M quarterly delivery future;
+- fully funded 1x futures margin research model;
+- fixed entries 28d / 14d / 7d before scheduled delivery;
+- exit both legs exactly 15 minutes before delivery;
+- no basis threshold and no settlement-price model;
+- Base/Severe friction 15/35 bps per side per leg;
+- exact sign-flip test across 12 discovery contracts + BH-FDR across 3 configs;
+- 2024 challenge allowed only after complete discovery pass.
+
+Authoritative evidence:
+- source commit `b3c9dfe8c28c78001b22176851f0f04e2ece3428`;
+- run `32450971829`;
+- artifact `9435702647`;
+- evidence SHA `6561361055522f79441492a0ecf667876371eaa4641f9160e8a38821cbbbea4b`;
+- artifact ZIP SHA `55f631db6bc63e55dff3f96a28c377f2f27405a1d6a34ce7f22ba23c48f7ca4d`;
 - freeze / repo-wide pytest / Ruff PASS;
-- 2025 OOS remained locked.
+- challenge access `BLOCKED_NO_DISCOVERY_PASS`;
+- 2025 remained locked.
 
-Family results:
-- USD-M quarterly `BTCUSDT_YYMMDD`: **`DELIVERY_DATA_ELIGIBLE`**. All 16/16 contracts passed. Every contract had 2,880/2,880 accepted 15m bars, 100% coverage, max gap 0, and final data 15 minutes before delivery.
-- COIN-M quarterly `BTCUSD_YYMMDD`: **`DELIVERY_DATA_NOT_ELIGIBLE`**. 15/16 passed, but `BTCUSD_230929` had 2,720/2,880 bars, 94.4444% coverage and a 160-bar missing run, failing the frozen coverage and gap gates.
+Discovery summary:
+- 28d: gross +0.259543%, Base -0.042706%, Severe -0.445705%, Base PF 0.7478, Base win rate 16.67%, q=1.0;
+- 14d: gross +0.142694%, Base -0.155358%, Severe -0.552761%, Base PF 0.3350, q=1.0;
+- 7d: gross +0.066116%, Base -0.230700%, Severe -0.626456%, Base PF 0.1031, q=1.0.
 
-M16 therefore qualifies **USD-M quarterly delivery futures only** for a separate profitability cycle. It does not establish an edge.
+All M17 trades passed the conservative fully-funded margin-safety gate. The structural delivery premium existed gross, but it was too small/inconsistent to overcome the frozen friction model, and 2022/2023 were not stable. Discovery pass 0/3; 2024 outcomes were not opened by M17.
+
+M17 is retired. Do not add a basis filter, lower costs, drop quarters, alter entry offsets, move exit to settlement, or add leverage to rescue it.
 
 ## Current system conclusion
 
-No completed profitability cycle through M15 has earned promotion. M16 materially improves the research position by qualifying a clean USD-M quarterly delivery-futures data family, but profitability has not yet been tested.
+No completed profitability cycle M2-M17 has earned promotion.
 
 Current state:
-- research status: `M16_USDM_DELIVERY_DATA_ELIGIBLE_AWAITING_PROFITABILITY_STUDY`;
+- research status: `NO_PROMOTABLE_EDGE_FOUND_THROUGH_M17`;
 - trading state: `NO_TRADE`;
 - risk-sized strategy: blocked;
 - live AI/ML signal layer: blocked;
-- naked short authority: blocked;
 - market-neutral live execution: blocked;
 - live execution overall: blocked;
 - 2025 OOS: `LOCKED_NOT_ACCESSED`.
 
 ## Next allowed action
 
-Open a separate frozen **USD-M quarterly cash-and-carry / expiry-convergence profitability cycle** using only the exact M16-qualified contract data and frozen BTC Spot development data.
+Do not rescue M17 by changing its frozen economics after seeing results.
 
-The next contract must be frozen before outcome inspection. It must explicitly define entry timing, exit timing before or at expiry, hedge ratio, capital denominator, transaction costs, margin-safety treatment, statistical unit, 2021-2023 discovery gates, reused-2024 challenge gates, and the immutable no-rescue rule.
+A later research cycle must introduce a materially different information source, venue/execution mechanism, or market structure. A realistic venue-fee/execution audit may be performed to understand whether the conservative friction assumptions materially differ from executable exchange fees, but it must be treated as a new frozen mechanism and not as a retroactive M17 pass.
 
-Do not use COIN-M in that cycle. Do not access 2025.
+Operational product work may continue in paper/shadow mode: exchange connectivity, dashboard, deterministic Risk Engine, kill switch, execution simulator, accounting, monitoring and strategy-plugin architecture.
