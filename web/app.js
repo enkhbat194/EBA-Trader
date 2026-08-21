@@ -1,5 +1,5 @@
 const providerProfiles = [
-  { id: 'binance-demo', provider: 'binance', name: 'Binance', environment: 'DEMO', status: 'disconnected', detail: 'Spot Testnet API not connected' },
+  { id: 'binance-demo', provider: 'binance', name: 'Binance', environment: 'DEMO', status: 'disconnected', detail: 'Spot Testnet API not connected', accountLabel: null, balances: {} },
   { id: 'mt5-demo', provider: 'metatrader5', name: 'MetaTrader 5', environment: 'DEMO', status: 'scaffolded', detail: 'Broker bridge coming next' },
   { id: 'mt4-demo', provider: 'metatrader4', name: 'MetaTrader 4', environment: 'DEMO', status: 'scaffolded', detail: 'EA / bridge coming next' },
 ];
@@ -51,6 +51,21 @@ function hasConnectedBinanceDemo() {
   );
 }
 
+function connectedBinanceProfile() {
+  return providerProfiles.find(
+    (profile) => profile.provider === 'binance' && profile.environment === 'DEMO' && profile.status === 'connected',
+  );
+}
+
+function formatUsd(value) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
 function syncBotAvailability() {
   const connected = hasConnectedBinanceDemo();
   if (!connected) paperBotRunning = false;
@@ -69,8 +84,17 @@ function syncBotAvailability() {
     return;
   }
 
-  balanceValue.textContent = '—';
-  balanceDetail.textContent = 'Connected · balance sync pending';
+  const profile = connectedBinanceProfile();
+  const usdt = Number(profile?.balances?.USDT);
+  if (Number.isFinite(usdt)) {
+    balanceValue.textContent = formatUsd(usdt);
+    balanceDetail.textContent = profile?.accountLabel
+      ? `Spot Testnet · ${profile.accountLabel}`
+      : 'Spot Testnet USDT';
+  } else {
+    balanceValue.textContent = '—';
+    balanceDetail.textContent = 'Connected · no USDT balance returned';
+  }
   expectedNetValue.textContent = '—';
   expectedNetDetail.textContent = 'Waiting for fee-aware snapshot';
 
@@ -183,6 +207,8 @@ async function testConnection() {
     const profile = providerProfiles.find((item) => item.provider === provider);
     if (profile) {
       profile.status = result.ok ? 'connected' : 'error';
+      profile.accountLabel = result.ok ? result.accountLabel : null;
+      profile.balances = result.ok && result.balances ? result.balances : {};
       profile.detail = result.ok
         ? `Demo connected${result.latencyMs ? ` · ${result.latencyMs} ms` : ''}`
         : result.message;
@@ -194,6 +220,8 @@ async function testConnection() {
     const profile = providerProfiles.find((item) => item.provider === provider);
     if (profile) {
       profile.status = 'error';
+      profile.accountLabel = null;
+      profile.balances = {};
       profile.detail = connectionResult.textContent;
       renderConnections();
     }
