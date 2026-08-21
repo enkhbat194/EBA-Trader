@@ -36,7 +36,7 @@ BINANCE_ENDPOINTS = {
 }
 
 
-def _parse_balances(payload: dict[str, object]) -> dict[str, float]:
+def _parse_spot_balances(payload: dict[str, object]) -> dict[str, float]:
     raw_balances = payload.get("balances")
     if not isinstance(raw_balances, list):
         return {}
@@ -60,11 +60,35 @@ def _parse_balances(payload: dict[str, object]) -> dict[str, float]:
     return balances
 
 
-class BinanceProviderAdapter(ProviderAdapter):
-    """Read-only Binance connection adapter.
+def _parse_usdm_balances(payload: dict[str, object]) -> dict[str, float]:
+    raw_assets = payload.get("assets")
+    if not isinstance(raw_assets, list):
+        return {}
 
-    Demo mode is the default product path. This class contains no order, cancel,
-    transfer, withdrawal, or leverage-changing methods.
+    balances: dict[str, float] = {}
+    for item in raw_assets:
+        if not isinstance(item, dict):
+            continue
+        asset = str(item.get("asset", "")).strip()
+        if not asset:
+            continue
+        try:
+            wallet_balance = float(item.get("walletBalance", 0.0))
+        except (TypeError, ValueError):
+            continue
+        if wallet_balance < 0:
+            continue
+        balances[asset] = wallet_balance
+    return balances
+
+
+class BinanceProviderAdapter(ProviderAdapter):
+    """Read-only Binance Spot + USD-M connection adapter.
+
+    Demo mode is the default product path. Spot Testnet and USD-M Futures
+    Testnet credentials are kept separate because the environments can issue
+    independent API keys. This class contains no order, cancel, transfer,
+    withdrawal, or leverage-changing methods.
     """
 
     @property
@@ -82,17 +106,32 @@ class BinanceProviderAdapter(ProviderAdapter):
             return ConnectionTestResult(
                 ok=False,
                 state=ConnectionState.ERROR,
-                message="API key and secret are required",
+                message="Spot API key and secret are required",
+                capabilities=self.capabilities,
+            )
+        if not self.credentials.futures_api_key or not self.credentials.futures_api_secret:
+            return ConnectionTestResult(
+                ok=False,
+                state=ConnectionState.ERROR,
+                message="USD-M Futures API key and secret are required",
                 capabilities=self.capabilities,
             )
 
         endpoints = BINANCE_ENDPOINTS[self.profile.environment]
         started = time.perf_counter()
         try:
-            payload = self._signed_get(
+            spot_payload = self._signed_get(
                 endpoints.spot_rest,
                 "/api/v3/account",
+                api_key=self.credentials.api_key,
+                api_secret=self.credentials.api_secret,
                 params={"omitZeroBalances": "true"},
+            )
+            futures_payload = self._signed_get(
+                endpoints.futures_rest,
+                "/fapi/v3/account",
+                api_key=self.credentials.futures_api_key,
+                api_secret=self.credentials.futures_api_secret,
             )
         except Exception as exc:  # network/API failures are returned to the UI, not raised
             return ConnectionTestResult(
@@ -103,15 +142,18 @@ class BinanceProviderAdapter(ProviderAdapter):
             )
 
         latency_ms = int((time.perf_counter() - started) * 1000)
-        account_label = str(payload.get("uid") or payload.get("accountType") or "Binance")
+        account_label = str(spot_payload.get("uid") or spot_payload.get("accountType") or "Binance")
         return ConnectionTestResult(
             ok=True,
             state=ConnectionState.CONNECTED,
-            message=f"{self.profile.environment.value.upper()} connection successful",
+            message=f"{self.profile.environment.value.upper()} Spot + USD-M connection successful",
             latency_ms=latency_ms,
             account_label=account_label,
             capabilities=self.capabilities,
-            balances=_parse_balances(payload),
+            balances={
+                "spot": _parse_spot_balances(spot_payload),
+                "usdm": _parse_usdm_balances(futures_payload),
+            },
         )
 
     def _signed_get(
@@ -119,6 +161,8 @@ class BinanceProviderAdapter(ProviderAdapter):
         base_url: str,
         path: str,
         *,
+        api_key: str,
+        api_secret: str,
         params: dict[str, str] | None = None,
     ) -> dict[str, object]:
         query = dict(params or {})
@@ -126,13 +170,13 @@ class BinanceProviderAdapter(ProviderAdapter):
         query["recvWindow"] = "5000"
         encoded = urllib.parse.urlencode(query)
         signature = hmac.new(
-            self.credentials.api_secret.encode("utf-8"),
+            api_secret.encode("utf-8"),
             encoded.encode("utf-8"),
             hashlib.sha256,
         ).hexdigest()
         request = urllib.request.Request(
             f"{base_url}{path}?{encoded}&signature={signature}",
-            headers={"X-MBX-APIKEY": self.credentials.api_key},
+            headers={"X-MBX-APIKEY": api_key},
             method="GET",
         )
         try:
