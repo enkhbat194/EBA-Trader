@@ -7,7 +7,6 @@ const providerProfiles = [
 const navButtons = [...document.querySelectorAll('[data-nav]')];
 const screens = [...document.querySelectorAll('.screen')];
 const dialog = document.getElementById('connectionDialog');
-const form = document.getElementById('connectionForm');
 const providerSelect = document.getElementById('providerSelect');
 const connectionResult = document.getElementById('connectionResult');
 const apiKeyInput = document.getElementById('apiKey');
@@ -83,6 +82,18 @@ document.getElementById('addConnection').addEventListener('click', () => {
   dialog.showModal();
 });
 
+async function callConnectionTest(provider, credentials) {
+  const response = await fetch('/api/connections/test', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+    body: JSON.stringify({ provider, environment: 'demo', credentials }),
+  });
+  const payload = await response.json();
+  if (!response.ok && !payload.message) throw new Error(`Connection test failed (${response.status})`);
+  return payload;
+}
+
 async function testConnection() {
   const provider = providerSelect.value;
   connectionResult.className = 'connection-result';
@@ -110,18 +121,15 @@ async function testConnection() {
   }
 
   try {
-    if (!window.EBA_PROVIDER_BRIDGE?.testConnection) {
-      connectionResult.classList.add('bad');
-      connectionResult.textContent = 'UI ready. Secure backend connection test is not deployed yet.';
-      return;
-    }
-    const result = await window.EBA_PROVIDER_BRIDGE.testConnection({ provider, environment: 'demo', credentials });
+    const result = await callConnectionTest(provider, credentials);
     connectionResult.classList.add(result.ok ? 'good' : 'bad');
     connectionResult.textContent = result.message;
     const profile = providerProfiles.find((item) => item.provider === provider);
     if (profile) {
       profile.status = result.ok ? 'connected' : 'error';
-      profile.detail = result.ok ? `Demo connected${result.latencyMs ? ` · ${result.latencyMs} ms` : ''}` : result.message;
+      profile.detail = result.ok
+        ? `Demo connected${result.latencyMs ? ` · ${result.latencyMs} ms` : ''}`
+        : result.message;
       renderConnections();
     }
   } catch (error) {
@@ -134,17 +142,11 @@ async function testConnection() {
 
 document.getElementById('testConnection').addEventListener('click', testConnection);
 
-form.addEventListener('close', () => {
+dialog.addEventListener('close', () => {
   apiKeyInput.value = '';
   apiSecretInput.value = '';
   mtServerInput.value = '';
   mtLoginInput.value = '';
-  mtPasswordInput.value = '';
-});
-
-dialog.addEventListener('close', () => {
-  apiKeyInput.value = '';
-  apiSecretInput.value = '';
   mtPasswordInput.value = '';
   connectionResult.className = 'connection-result';
   connectionResult.textContent = 'Not tested';
