@@ -63,61 +63,121 @@ Discovery means:
 
 M17 is retired. Do not add a basis filter, lower its frozen costs, select quarters, alter entry offsets, move its exit to settlement, or add leverage to rescue it.
 
-## M18 / Fee-Aware Execution Economics — ACTIVE ENGINEERING LAYER
+## M18 / Fee-Aware Execution Economics + M18.1 Multi-Provider App — ACTIVE
 
 Branch: `m18-fee-aware-execution-economics`.
 Draft PR: #14 against the M17 branch. Do not merge to `main` without explicit approval.
 
+### M18 fee-aware engine
+
 Purpose: build an account-specific, executable-price cost layer without retroactively changing M17 research.
 
 Implemented:
-- signed read-only Binance Spot commission query model for `GET /api/v3/account/commission`;
-- signed read-only USD-M commission query model for `GET /fapi/v1/commissionRate`;
-- public Spot and USD-M depth ingestion;
-- automatic nearest active `BTCUSDT_YYMMDD` delivery-symbol selection from exchange info;
-- depth-weighted Spot BUY and Futures SELL VWAP for equal BTC quantity;
-- Spot standard/special/tax and BNB-discount-aware fee parser;
-- Futures account-specific maker/taker fee parser;
+- signed read-only Binance Spot commission query model;
+- signed read-only USD-M commission query model;
+- public Spot and USD-M depth ingestion and multi-level VWAP;
+- automatic nearest active `BTCUSDT_YYMMDD` delivery-symbol selection;
 - deterministic stale-book, depth, symbol and economics vetoes;
-- reserved exit fees, 2 bps/leg exit-slippage allowance and 5 bps capital safety buffer;
+- reserved exit fees, slippage allowance and safety buffer;
 - outputs only `NO_TRADE` or `PAPER_CANDIDATE`;
 - no order, cancel, transfer, withdrawal, leverage-change or execution methods;
 - live execution and AI signal authority hard-locked.
 
-Frozen engineering defaults:
-- default quantity 0.001 BTC;
-- order-book depth 100 levels;
+Engineering defaults:
+- quantity 0.001 BTC;
+- depth 100 levels;
 - quote freshness max 1,500 ms;
 - taker/taker entry assumption;
 - minimum screening net edge 5 bps on fully funded capital;
 - exit slippage reserve 2 bps per leg;
 - safety buffer 5 bps.
 
-Validation:
-- M18 safety contract PASS;
-- repo-wide pytest PASS;
-- Ruff PASS;
-- GitHub Actions run `32455283467` PASS at commit `2e55877499619ed47bcbcdc3ca62295090b2b8c7`.
+### M18.1 provider-independent architecture
 
-M18 has **not** yet queried the user's Binance account-specific commission rates. That requires runtime credentials or a connected Binance account and is read-only in this code path. No account secret belongs in Git or logs.
+The product is no longer coupled to Binance.
+
+Implemented provider-neutral types and lifecycle:
+- `ConnectionManager`;
+- `ProviderAdapter` interface;
+- `ConnectionProfile`, `CredentialEnvelope`, connection state and capability model;
+- `BinanceProviderAdapter` ready for read-only Demo connection checks;
+- `MetaTrader5ProviderAdapter` scaffolded and deliberately reports not activated;
+- `MetaTrader4ProviderAdapter` scaffolded for a future EA/bridge and deliberately reports not activated;
+- provider capability model excludes live execution from current adapters.
+
+Demo-first Binance endpoint set is explicit. Live provider connection requests are rejected by the web backend even if a caller bypasses the UI.
+
+### M18.1 mobile PWA
+
+High-fidelity mobile-first dark UI implemented from the approved visual concept:
+- Home / Dashboard;
+- Opportunities;
+- Positions;
+- History;
+- Settings / Connections;
+- bottom navigation;
+- Demo status, connection count, bot paper controls, NO_TRADE reason;
+- Binance / MetaTrader 5 / MetaTrader 4 connection cards;
+- provider-specific connection form;
+- `DEMO` enabled and `LIVE 🔒` disabled;
+- installable PWA manifest and service worker.
+
+Secret handling policy:
+- API keys/passwords are never committed to Git;
+- UI does not write credentials to `localStorage` or `sessionStorage`;
+- connection form values are cleared after use/close;
+- the web backend accepts credentials only for the current connection-test request and does not persist them;
+- HTTP connection-test responses use `Cache-Control: no-store`;
+- live execution remains false in all API responses.
+
+Backend/UI bridge:
+- static PWA served by the Python web server;
+- `GET /api/health`;
+- `GET /api/providers`;
+- `POST /api/connections/test`;
+- request body size is bounded;
+- `live` environment is hard rejected in M18.1;
+- CLI entry point `eba-web` added.
+
+### Validation checkpoint
+
+Latest validated code commit: `75953b7a13f4de4bcba67ad83f80238a2f9b62ef`.
+GitHub Actions run: `32483893037`.
+
+PASS:
+- M18 read-only safety contract;
+- M18.1 mobile UI safety contract;
+- provider-neutral regression tests;
+- secure web bridge regression tests;
+- repo-wide pytest;
+- Ruff.
+
+No account-specific Demo credential has been used yet. No 2024 M17 challenge outcome and no 2025 OOS data were accessed by this engineering work.
 
 ## Current system conclusion
 
-No completed profitability cycle M2-M17 has earned promotion. M18 is operational infrastructure, not a new profitability pass.
+No completed profitability cycle M2-M17 has earned promotion. M18/M18.1 are operational infrastructure, not a profitability pass.
 
 Current state:
 - research status: `NO_PROMOTABLE_EDGE_FOUND_THROUGH_M17`;
-- engineering status: `M18_FEE_AWARE_READ_ONLY_ENGINE_GREEN`;
+- engineering status: `M18_1_MULTI_PROVIDER_DEMO_FIRST_APP_GREEN`;
+- Binance Demo connection adapter: ready for credential test;
+- MT5 adapter: scaffold only;
+- MT4 adapter: scaffold only;
+- mobile PWA: implemented;
+- secure connection-test backend: implemented;
 - trading state: `NO_TRADE`;
-- paper candidate detector: implemented, awaiting account-specific live read-only snapshot;
-- risk-sized strategy: blocked;
+- paper candidate detector: implemented;
 - live AI/ML signal layer: blocked;
-- market-neutral live execution: blocked;
 - live execution overall: blocked;
 - 2025 OOS: `LOCKED_NOT_ACCESSED`.
 
 ## Next allowed action
 
-Run an account-specific **read-only M18 snapshot** with Binance API credentials supplied only through runtime environment variables (or a connected account tool), never committed to Git. Capture current Spot and active quarterly Futures commission rates plus executable depth and calculate the screening net edge.
+1. Run/deploy the M18.1 app in a preview environment so it can be opened from a phone.
+2. Create/use a Binance Demo credential and paste it into the app's Binance Demo connection form.
+3. Use only the in-app `Test Connection` flow; do not use a real-money Binance credential yet.
+4. After Demo connection succeeds, wire account balance, account-specific fees and fee-aware opportunity snapshots into the Dashboard/Opportunities views.
+5. Only after sustained paper/shadow validation should a separate explicit approval process consider any live connection or live execution work.
 
-After that, paper/shadow monitoring can record opportunities over time. A new historical profitability claim requires a separately frozen research protocol; M18 must not be used to retroactively turn M17 into a pass.
+A new historical profitability claim still requires a separately frozen research protocol; M18/M18.1 must not be used to retroactively turn M17 into a pass.
