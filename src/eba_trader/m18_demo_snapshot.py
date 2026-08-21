@@ -20,10 +20,10 @@ from .m18_fee_aware import (
     parse_spot_commission,
     select_nearest_btcusdt_delivery_symbol,
 )
-from .m18_fee_policy import DEFAULT_QUANTITY_BTC, M18ExecutionPolicy, SPOT_SYMBOL
+from .m18_fee_policy import DEFAULT_QUANTITY_BTC, SPOT_SYMBOL, M18ExecutionPolicy
 from .providers import CredentialEnvelope
-from .providers.binance import BINANCE_ENDPOINTS
 from .providers.base import ProviderEnvironment
+from .providers.binance import BINANCE_ENDPOINTS
 
 SPOT_COMMISSION_ENDPOINT = "/api/v3/account/commission"
 SPOT_DEPTH_ENDPOINT = "/api/v3/depth"
