@@ -6,7 +6,7 @@ import json
 import math
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -369,9 +369,7 @@ def evaluate_gates(
     no_parse_errors = all(item.status != "ERROR" for item in months)
     alignment_ok = sum(item.alignment_violations for item in months) == 0
     close_time_ok = sum(item.close_time_violations for item in months) == 0
-    numeric_ok = (
-        sum(item.invalid_rows + item.numeric_integrity_violations for item in months) == 0
-    )
+    numeric_ok = sum(item.invalid_rows + item.numeric_integrity_violations for item in months) == 0
     timestamps = [row.open_time_ms for row in normalized]
     unique_increasing = len(timestamps) == len(set(timestamps)) and all(
         left < right for left, right in zip(timestamps, timestamps[1:], strict=False)
@@ -402,7 +400,9 @@ def _write_report_once(path: Path, payload: dict[str, Any]) -> None:
         with path.open("x", encoding="utf-8") as handle:
             handle.write(json.dumps(payload, indent=2, sort_keys=True, allow_nan=False))
     except FileExistsError as error:
-        raise RuntimeError("M10 audit report already exists; preserve the first complete result") from error
+        raise RuntimeError(
+            "M10 audit report already exists; preserve the first complete result"
+        ) from error
 
 
 def run_m10_cross_asset_audit(
