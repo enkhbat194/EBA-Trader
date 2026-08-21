@@ -1,0 +1,121 @@
+name: M12 one-shot cross-asset edge evidence
+
+on:
+  pull_request:
+    types: [labeled]
+    branches:
+      - m11-eth-perpetual-data-audit
+
+permissions:
+  contents: read
+
+jobs:
+  frozen-evidence:
+    if: >-
+      github.event.label.name == 'documentation' &&
+      github.event.pull_request.head.ref == 'm12-cross-asset-eth-btc-edge'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout exact M12 branch head
+        uses: actions/checkout@v4
+        with:
+          ref: m12-cross-asset-eth-btc-edge
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project
+        run: python -m pip install -e '.[dev]'
+
+      - name: Verify clean frozen M12 implementation
+        run: |
+          test -z "$(git status --porcelain --untracked-files=no)"
+          python -m pytest -q
+          python -m ruff check .
+          python - <<'PY'
+          from eba_trader.m12_cross_asset_policy import verify_m12_freeze
+          manifest = verify_m12_freeze()
+          assert manifest['status'] == 'FROZEN_PREDECLARED_NOT_RUN'
+          assert manifest['candidate_count'] == 8
+          assert manifest['hypothesis_test_count'] == 24
+          assert manifest['oos_2025'] == 'LOCKED_NOT_ACCESSED'
+          assert manifest['parameter_changes_after_first_run'] == 'forbidden'
+          print('M12 frozen evidence contract verified')
+          PY
+
+      - name: Seed exact frozen BTC Spot inputs
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from eba_trader.m7_seed import _seed_spot
+          from eba_trader.m12_cross_asset_policy import (
+              SPOT_CHALLENGE_SHA256,
+              SPOT_RESEARCH_SHA256,
+              sha256_file,
+          )
+
+          cache = Path('data/cache/m2')
+          cache.mkdir(parents=True, exist_ok=True)
+          _seed_spot(cache)
+          research = cache / 'btcusdt_15m_research.csv'
+          challenge = cache / 'btcusdt_15m_validation.csv'
+          assert sha256_file(research) == SPOT_RESEARCH_SHA256
+          assert sha256_file(challenge) == SPOT_CHALLENGE_SHA256
+          print('BTC frozen inputs hash verified')
+          print('2025 OOS remains LOCKED_NOT_ACCESSED')
+          PY
+
+      - name: Reproduce exact M11-qualified ETH input
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from eba_trader.m11_eth_perpetual_audit import run_m11_eth_perpetual_audit
+          from eba_trader.m12_cross_asset_policy import ETH_SHA256, sha256_file
+
+          eth = Path('data/cache/m12/m11_ethusdt_usdm_15m_normalized.csv')
+          report = run_m11_eth_perpetual_audit(
+              workers=8,
+              report_path='artifacts/m12_m11_seed_audit.json',
+              normalized_path=eth,
+          )
+          assert report['decision'] == 'M11_ETH_PERPETUAL_DATA_AUDIT_PASS'
+          assert sha256_file(eth) == ETH_SHA256
+          print('ETH M11-qualified input reproduced and hash verified')
+          print('2025 OOS remains LOCKED_NOT_ACCESSED')
+          PY
+
+      - name: Run first complete frozen M12 evidence
+        run: python -m eba_trader.m12_cross_asset
+
+      - name: Print immutable M12 summary
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          path = Path('artifacts/m12_cross_asset_eth_btc_edge.json')
+          report = json.loads(path.read_text(encoding='utf-8'))
+          print('decision:', report['decision'])
+          print('LONG_EDGE_CANDIDATE:', report['search']['long_edge_candidates'])
+          print('NO_TRADE_VETO_CANDIDATE:', report['search']['no_trade_veto_candidates'])
+          print('discovery_passing_horizons:', report['search']['discovery_passing_horizons'])
+          print('challenge_passing_horizons:', report['search']['challenge_passing_horizons'])
+          print('oos_2025:', report['oos_2025'])
+          print('evidence_sha256:', hashlib.sha256(path.read_bytes()).hexdigest())
+          PY
+
+      - name: Upload first complete M12 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: m12-cross-asset-edge-first-result
+          path: |
+            artifacts/m12_cross_asset_eth_btc_edge.json
+            artifacts/m12_m11_seed_audit.json
+          if-no-files-found: error
+          retention-days: 30
