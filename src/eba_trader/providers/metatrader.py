@@ -25,7 +25,12 @@ class MetaTrader5ProviderAdapter(ProviderAdapter):
         )
 
     def test_connection(self) -> ConnectionTestResult:
-        if not self.credentials.login or not self.credentials.password or not self.credentials.server:
+        missing_credentials = (
+            not self.credentials.login
+            or not self.credentials.password
+            or not self.credentials.server
+        )
+        if missing_credentials:
             return ConnectionTestResult(
                 ok=False,
                 state=ConnectionState.ERROR,
@@ -53,7 +58,12 @@ class MetaTrader4ProviderAdapter(ProviderAdapter):
         )
 
     def test_connection(self) -> ConnectionTestResult:
-        if not self.credentials.login or not self.credentials.password or not self.credentials.server:
+        missing_credentials = (
+            not self.credentials.login
+            or not self.credentials.password
+            or not self.credentials.server
+        )
+        if missing_credentials:
             return ConnectionTestResult(
                 ok=False,
                 state=ConnectionState.ERROR,
