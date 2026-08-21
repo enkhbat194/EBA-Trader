@@ -1,7 +1,7 @@
 # EBA-Trader Project State
 
 Updated: 2026-08-21
-Current research branch at this checkpoint: `m11-eth-perpetual-data-audit`
+Current research branch at this checkpoint: `m12-cross-asset-eth-btc-edge`
 
 This file is the cross-chat continuity checkpoint. Read it before starting or modifying a later research cycle.
 
@@ -19,86 +19,92 @@ This file is the cross-chat continuity checkpoint. Read it before starting or mo
 ## Completed research history
 
 ### M2 / Trend V1
-
-Decision: `REJECT_DEVELOPMENT_CYCLE`. The original trend strategy failed development economics and robustness and is retired.
+Decision: `REJECT_DEVELOPMENT_CYCLE`. Retired.
 
 ### M3 / Trend V2
-
-Decision: `REJECT_TREND_V2_SIGNAL_CYCLE`. Primary 2024 result: -17.53% return, -22.90% maximum drawdown, 101 trades, 0.612 profit factor, negative expectancy. Risk-sized layer was not run.
+Decision: `REJECT_TREND_V2_SIGNAL_CYCLE`. 2024 return -17.53%, MDD -22.90%, 101 trades, PF 0.612, negative expectancy. Risk layer not run.
 
 ### M4 / V3 Bull Pullback Recovery
+Decision: `REJECT_V3_SIGNAL_CYCLE`. 2024 return -13.73%, MDD -14.64%, 79 trades, PF 0.612, -$1.74/trade. Neighborhood positive expectancy 0/9; rolling positive-expectancy folds 4/30. Risk layer not run.
 
-Decision: `REJECT_V3_SIGNAL_CYCLE`. Primary 2024 result: -13.73% return, -14.64% maximum drawdown, 79 trades, 0.612 profit factor, -$1.74/trade expectancy. Neighborhood positive expectancy: 0/9. Rolling positive-expectancy folds: 4/30. Risk-sized layer was not run.
-
-### M5 / Price-Volume Edge Discovery V1
-
-Decision: `NO_STABLE_EDGE_FOUND`. Frozen search: 24 candidates × 3 horizons = 72 tests. Discovery-passing horizons: 0/72. 2024 challenge-passing horizons: 0/72.
+### M5 / Price-Volume Edge Discovery
+Decision: `NO_STABLE_EDGE_FOUND`. 24 candidates × 3 horizons = 72 tests; discovery 0/72, challenge 0/72.
 
 ### M6 / Derivatives Historical Data Audit
-
-Decision: `M6_DERIVATIVES_DATA_AUDIT_FAIL` for the full four-source contract. Funding history and USD-M perpetual futures 15m price/activity individually passed. Premium-index, index-price and full cross-source alignment failed their frozen gates.
+Decision: `M6_DERIVATIVES_DATA_AUDIT_FAIL` for the full contract. Funding and BTC USD-M perpetual 15m independently passed; premium/index/alignment failed.
 
 ### M7 / Funding + Futures Edge Discovery
-
-Decision: `NO_STABLE_DERIVATIVES_EDGE_FOUND`. Frozen search: 12 candidates × 3 horizons = 36 tests. Discovery passing: 0/36. Final discovery + reused-2024 challenge passing: 0/36.
+Decision: `NO_STABLE_DERIVATIVES_EDGE_FOUND`. 12 × 3 = 36 tests; discovery 0/36, final 0/36.
 
 ### M8 / Alternative Derivatives Historical Data Audit
-
-Decision: `M8_ALT_DERIVATIVES_DATA_AUDIT_FAIL` for the full audit. Binance USD-M 5m metrics failed; Bybit official endpoints were unavailable on the authoritative runner; liquidationSnapshot was incomplete; Binance USD-M bookDepth 2023-2024 was `PARTIAL_WINDOW_ELIGIBLE` only.
+Decision: `M8_ALT_DERIVATIVES_DATA_AUDIT_FAIL`. BookDepth 2023-2024 alone was partial-window eligible; other audited families did not qualify under the frozen contract.
 
 ### M9 / BookDepth Microstructure Edge Discovery
+Decision: `NO_STABLE_MICROSTRUCTURE_EDGE_FOUND`. 8 × 3 = 24 tests; discovery 0/24, challenge 0/24. Evidence run `32435682751`, artifact `9430751063`.
 
-Decision: `NO_STABLE_MICROSTRUCTURE_EDGE_FOUND`.
-
-Authoritative evidence:
-- run `32435682751`;
-- artifact `9430751063`;
-- evidence SHA-256 `2d603e445be459f414973b2909b356622ab98042a678fc590027454a343814e7`;
-- feature SHA-256 `3d51661c5513af127dfedb963884b44da350742bea31fa4f30e3ae27a1a8311d`.
-
-Source quality: 728/731 checksum-verified bookDepth days, 2,068,585 usable snapshots, 49,998 standardized causal 15m feature bars. Frozen search: 8 × 3 = 24 tests; discovery 0/24, challenge 0/24.
-
-### M10 / ETHUSDT Spot Cross-Asset Historical Data Audit
-
-Decision: `M10_CROSS_ASSET_DATA_AUDIT_FAIL`.
-
-Authoritative evidence:
-- run `32437273137`;
-- artifact `9431194682`;
-- evidence SHA-256 `385a6355c224f15b4f1e48cd86eba09fb81f69de292ea363a4563e4df2e34fdb`;
-- normalized SHA-256 `dca519027cf7473307d05a572073f31c310284a20564fd20cf82de2fd332b8ef`.
-
-All 48 monthly archives/checksums existed, but frozen data gates failed: 5 close-time violations; coverage 140,181/140,256 = 99.946526% below 99.95%; maximum missing run 19 bars above 12. M10 is retired and may not be repaired/interpolated or rescued by loosening gates.
+### M10 / ETHUSDT Spot Historical Data Audit
+Decision: `M10_CROSS_ASSET_DATA_AUDIT_FAIL`. 48/48 checksums, but 5 close-time violations, 99.946526% coverage below frozen 99.95%, and max missing run 19 bars above 12. Retired without repair or relaxed gates. Evidence run `32437273137`, artifact `9431194682`.
 
 ### M11 / ETHUSDT USD-M Perpetual Historical Data Audit
-
 Decision: `M11_ETH_PERPETUAL_DATA_AUDIT_PASS`.
 
-This was data eligibility only; no BTC forward returns, correlations, lead-lag, strategy, risk, AI or live execution were computed.
+- 48/48 archives and checksums;
+- 140,256/140,256 15m bars;
+- 100% coverage;
+- zero missing slots/gaps/conflicts/alignment/close-time/numeric violations;
+- normalized SHA-256 `69855dcaf2f34c2a529ddb7f83964fa61b39ed0a27ae8796a6c0eaafd5b744f5`;
+- run `32437837012`, artifact `9431376987`.
+
+### M12 / ETH→BTC Cross-Asset Edge Discovery
+Decision: **`NO_STABLE_CROSS_ASSET_EDGE_FOUND`**.
+
+Frozen research surface:
+- 8 predeclared ETH-perpetual candidates;
+- horizons 4/16/48 15m bars;
+- 24 total discovery tests;
+- Base/Severe costs 30/70 bps;
+- >=10 bps unconditional BTC baseline uplift gate;
+- yearly stability plus BH-FDR q<=0.10;
+- discovery 2021-2023; reused challenge 2024.
 
 Authoritative evidence:
-- run `32437837012`;
-- artifact `9431376987`;
-- evidence SHA-256 `bdb2128025a17ef88a47aedcaceaf16fd6df474ec915a2c0836b29e86c75807d`;
-- normalized ETHUSDT USD-M perpetual 15m SHA-256 `69855dcaf2f34c2a529ddb7f83964fa61b39ed0a27ae8796a6c0eaafd5b744f5`.
+- source commit `5a04bf92c0c12ac0c1afd324dc4eda928437be5f`;
+- run `32438774152`;
+- artifact `9431703188`;
+- evidence SHA-256 `d79c8549ed9731cce081dc2957ad9db2f9a709b76ce1e6aed525f81be1a859c4`;
+- artifact ZIP SHA-256 `dc2963a2774232612c59187e9de49a5d5dc246e0767bac29d543d908a473e8a6`.
 
-All 14 frozen gates passed: 48/48 archives, 48/48 checksums, 140,256/140,256 accepted rows, 100% coverage, zero missing slots, zero gaps, zero duplicates/conflicts, zero alignment/close-time/numeric-integrity violations. This exact dataset is admitted as a cross-asset derivatives input for a separately frozen edge-discovery cycle.
+Result:
+- LONG_EDGE_CANDIDATE: 0;
+- NO_TRADE_VETO_CANDIDATE: 0;
+- discovery-passing horizons: 0/24;
+- challenge-passing horizons: 0/24;
+- all 24 discovery tests had negative mean Base-net signed return;
+- all 24 discovery tests had BH-FDR q = 1.0.
 
-## Current conclusion
+M12 had ample support: candidate/horizon event counts were typically hundreds to thousands, so this is not merely a low-sample rejection. Some 2024 48-bar Base-net observations were positive, but their discovery tests failed and Severe-net challenge means remained negative. They are not promotable and cannot be selected after the fact.
 
-No deterministic BTC trading edge has yet earned promotion to a risk-sized strategy. The correct system state remains research-only / NO_TRADE.
+M12 is retired. Do not tune its thresholds, signs, horizons, filters, costs, years, or challenge observations to rescue it.
 
-M11 changes one important thing: there is now a clean, fully reproducible external ETH derivatives dataset available for materially new cross-asset research. It does not itself prove predictive value.
+## Current system conclusion
 
-## Next allowed research direction
+**No deterministic BTC edge has earned promotion.**
 
-Proceed to **M12 Cross-Asset ETH→BTC Edge Discovery**, but freeze its feature/search space before computing BTC forward returns.
+Current state:
+- research status: `NO_PROMOTABLE_EDGE_FOUND`;
+- trading state: `NO_TRADE`;
+- risk-sized strategy: blocked;
+- AI signal layer: excluded;
+- short authority: not granted;
+- live execution: blocked;
+- 2025 OOS: `LOCKED_NOT_ACCESSED`.
 
-Required structure:
+M2-M12 have already tested multiple materially different deterministic information families: trend/pullback, BTC price-volume, derivatives funding/flow, BookDepth microstructure, and qualified ETH-perpetual cross-asset states. Repeatedly inventing M13/M14 threshold searches simply to obtain a positive backtest would increase data-mining risk rather than finish the system correctly.
 
-1. Use the exact M11 ETHUSDT USD-M perpetual 15m normalized dataset and the existing frozen BTCUSDT Spot development data only.
-2. Discovery 2021-2023; reused development challenge 2024; 2025 remains locked.
-3. Keep the search space small and causal: ETH impulse, BTC-vs-ETH relative movement/dispersion, and limited ETH activity-confirmation states.
-4. Use next-open BTC diagnostic entry, frozen 1h/4h/12h horizons, Base 30 bps and Severe 70 bps costs, support gates, quarterly/year stability and BH-FDR multiple-testing control.
-5. Record every test. No after-result threshold/horizon/sign/filter rescue.
-6. Only a candidate surviving discovery and 2024 challenge may become a later strategy hypothesis. Risk sizing remains blocked during M12.
+## Next allowed action
+
+Do **not** automatically start another strategy search.
+
+The current research campaign is considered complete with `NO_PROMOTABLE_EDGE_FOUND`. A new research cycle may be opened only if a materially new market mechanism or independently justified data source is identified before outcome inspection.
+
+Until then, preserve the deterministic infrastructure, keep 2025 untouched, and keep execution disabled / NO_TRADE. If the product is moved forward operationally, it should be paper/monitoring infrastructure only, not claimed profitable live trading.
