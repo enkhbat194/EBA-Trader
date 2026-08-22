@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#080d12">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>EBA Trader</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./app.css">
+  <link rel="stylesheet" href="./m18_2.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">E</span><div><strong>EBA Trader</strong><small>Multi-market demo terminal</small></div></div>
+      <button class="icon-btn" id="refreshApp" aria-label="Refresh">↻</button>
+    </header>
+
+    <main>
+      <section class="screen active" data-screen="home">
+        <div class="status-row">
+          <span class="pill demo">◉ DEMO</span>
+          <span class="pill neutral" id="connectionSummary">0 CONNECTIONS</span>
+          <span class="pill danger" id="botStatus">BOT LOCKED</span>
+        </div>
+        <h2>Account overview</h2>
+        <div class="metric-grid">
+          <article class="metric-card"><span>Connected capital</span><strong id="balanceValue">—</strong><small id="balanceDetail">Connect Binance or MT5 Demo</small></article>
+          <article class="metric-card positive"><span>Paper P&amp;L</span><strong id="todayPnlValue">—</strong><small id="todayPnlDetail">No paper session</small></article>
+          <article class="metric-card"><span>Current opportunity</span><strong id="opportunityCount">0</strong><small id="opportunityDetail">No qualified setup</small></article>
+          <article class="metric-card"><span>Expected net profit</span><strong id="expectedNetValue">—</strong><small id="expectedNetDetail">Waiting for fee-aware snapshot</small></article>
+        </div>
+        <div class="bot-controls">
+          <button class="primary" id="startBot" disabled>CONNECT BINANCE DEMO</button>
+          <button class="danger-btn" id="stopBot" disabled>■ STOP</button>
+        </div>
+        <article class="notice-card">
+          <div class="notice-icon">⊘</div>
+          <div><strong id="decisionTitle">NO TRADE</strong><p id="decisionReason">Connect Binance Unified Demo to start scanning.</p><small>Live execution remains locked.</small></div>
+        </article>
+        <article class="section-card">
+          <div class="section-head"><div><span class="eyebrow">Connections</span><h3>Demo providers</h3></div><button class="text-btn" data-nav="settings">Manage</button></div>
+          <div id="homeConnections" class="connection-list compact"></div>
+        </article>
+      </section>
+
+      <section class="screen" data-screen="chart">
+        <div class="screen-title"><div><span class="eyebrow">Market</span><h1>Live Chart</h1></div><span class="pill demo">DEMO</span></div>
+        <article class="chart-toolbar section-card">
+          <label>Provider<select id="chartProvider"><option value="binance">Binance</option><option value="metatrader5">MetaTrader 5</option></select></label>
+          <label>Symbol<select id="chartSymbol"><option value="BTCUSDT">BTCUSDT</option></select></label>
+          <label>Timeframe<select id="chartTimeframe"><option value="1m">1m</option><option value="5m">5m</option><option value="15m" selected>15m</option><option value="1h">1h</option></select></label>
+        </article>
+        <article class="chart-card">
+          <div class="chart-head"><div><strong id="chartTitle">BTCUSDT · 15m</strong><small id="chartSubtitle">Binance Demo</small></div><div class="chart-price"><strong id="chartLastPrice">—</strong><small id="chartChange">—</small></div></div>
+          <canvas id="marketChart" aria-label="Live candlestick chart"></canvas>
+          <div id="chartLegend" class="chart-legend"><span><i class="legend-buy"></i>PAPER BUY</span><span><i class="legend-sell"></i>SELL</span><span><i class="legend-exit"></i>PAPER EXIT</span></div>
+          <div id="chartStatus" class="chart-status">Loading Binance Demo candles…</div>
+        </article>
+        <article class="section-card">
+          <div class="section-head"><div><span class="eyebrow">Bot overlay</span><h3>Decision &amp; positions</h3></div><span class="pill neutral" id="chartDecisionBadge">NO_TRADE</span></div>
+          <div id="chartPositionSummary" class="mini-list"><p>No bot/paper position on this chart.</p></div>
+        </article>
+      </section>
+
+      <section class="screen" data-screen="opportunities">
+        <div class="screen-title"><div><span class="eyebrow">Scanner</span><h1>Opportunities</h1></div><span class="pill demo">DEMO</span></div>
+        <div class="segments"><button class="active">All</button><button>Candidates</button><button>No trade</button></div>
+        <div class="opportunity-list">
+          <article class="opportunity-card">
+            <div class="card-title"><div><strong>BTC / USDT</strong><small id="futuresSymbolLabel">Binance Spot ↔ USD-M Quarterly</small></div><span class="badge muted" id="opportunityStatus">NO_TRADE</span></div>
+            <div class="edge-score"><span>NET EDGE</span><strong class="negative" id="netEdgeValue">—</strong></div>
+            <dl><div><dt>Spot buy</dt><dd id="spotBuyValue">Waiting for quote</dd></div><div><dt>Futures sell</dt><dd id="futuresSellValue">Waiting for quote</dd></div><div><dt>Gross edge</dt><dd id="grossEdgeValue">—</dd></div><div><dt>Fees reserve</dt><dd id="feesValue">—</dd></div><div><dt>Slippage reserve</dt><dd id="slippageValue">—</dd></div><div><dt>Safety buffer</dt><dd id="safetyBufferValue">—</dd></div></dl>
+          </article>
+          <article class="opportunity-card" id="mt5MarketsCard">
+            <div class="card-title"><div><strong>MT5 Multi‑Market</strong><small>Gold · Silver · Oil</small></div><span class="badge" id="mt5OpportunityStatus">BRIDGE OFFLINE</span></div>
+            <div class="market-chips"><button data-chart-market="XAUUSD">XAUUSD Gold</button><button data-chart-market="XAGUSD">XAGUSD Silver</button><button data-chart-market="USOIL">USOIL Oil</button></div>
+            <p id="mt5MarketDetail">Connect the MT5 Demo bridge to stream broker quotes and charts.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="positions">
+        <div class="screen-title"><div><span class="eyebrow">Portfolio</span><h1>Positions</h1></div><span class="pill neutral">DEMO / PAPER</span></div>
+        <div class="metric-grid three"><article class="metric-card"><span>Open</span><strong id="openPositionCount">0</strong></article><article class="metric-card"><span>Unrealized</span><strong id="unrealizedValue">—</strong></article><article class="metric-card"><span>Risk state</span><strong class="positive-text">SAFE</strong></article></div>
+        <div id="positionsList"><article class="empty-state"><div class="empty-icon">◎</div><h3>No visible positions</h3><p>EBA paper positions and MT5 read-only positions will appear here.</p></article></div>
+        <button class="secondary full" id="closePaperPosition" disabled>CLOSE PAPER POSITION</button>
+        <button class="danger-btn full live-lock-button" disabled>⚠ LIVE CLOSE DISABLED</button>
+      </section>
+
+      <section class="screen" data-screen="history">
+        <div class="screen-title"><div><span class="eyebrow">Ledger</span><h1>History</h1></div><span class="pill neutral" id="paperTradeCount">0 PAPER</span></div>
+        <div class="segments"><button class="active">All</button><button>Paper</button><button disabled>Live</button></div>
+        <div id="historyList"><article class="empty-state"><div class="empty-icon">↺</div><h3>No EBA paper trades yet</h3><p>A paper trade is recorded only after the existing fee-aware candidate gate opens and later closes a virtual paired position.</p></article></div>
+      </section>
+
+      <section class="screen" data-screen="settings">
+        <div class="screen-title"><div><span class="eyebrow">Configuration</span><h1>Connections</h1></div><button class="add-btn" id="addConnection">＋</button></div>
+        <article class="section-card environment-card">
+          <span class="eyebrow">Environment</span>
+          <div class="environment-toggle"><button class="active" id="demoEnvironment">DEMO</button><button id="liveEnvironment" disabled>LIVE 🔒</button></div>
+          <p>Binance and MT5 are Demo/read-only/paper first. Live remains locked until separate validation and approval.</p>
+        </article>
+        <div id="connectionList" class="connection-list"></div>
+        <article class="section-card risk-card">
+          <div class="section-head"><div><span class="eyebrow">Global risk</span><h3>Cross-provider safety</h3></div><span class="pill positive-pill">ACTIVE</span></div>
+          <div class="setting-row"><span>Binance paper capital cap</span><strong>$10,000</strong></div>
+          <div class="setting-row"><span>One paired Binance paper position</span><strong class="positive-text">ON</strong></div>
+          <div class="setting-row"><span>MT5 live execution</span><strong class="negative">LOCKED</strong></div>
+          <div class="setting-row"><span>Duplicate exposure guard</span><strong class="positive-text">ON</strong></div>
+          <div class="setting-row"><span>Kill switch</span><strong class="positive-text">ON</strong></div>
+        </article>
+      </section>
+    </main>
+
+    <nav class="bottom-nav six" aria-label="Primary navigation">
+      <button class="active" data-nav="home"><span>⌂</span><small>Home</small></button>
+      <button data-nav="chart"><span>⌁</span><small>Chart</small></button>
+      <button data-nav="opportunities"><span>↯</span><small>Scan</small></button>
+      <button data-nav="positions"><span>▥</span><small>Positions</small></button>
+      <button data-nav="history"><span>▤</span><small>History</small></button>
+      <button data-nav="settings"><span>⚙</span><small>Settings</small></button>
+    </nav>
+  </div>
+
+  <dialog id="connectionDialog">
+    <form method="dialog" id="connectionForm">
+      <div class="dialog-head"><div><span class="eyebrow">Demo connection</span><h2 id="dialogTitle">Binance Demo</h2></div><button value="cancel" class="icon-btn">✕</button></div>
+      <label>Provider<select id="providerSelect"><option value="binance">Binance</option><option value="metatrader5">MetaTrader 5</option></select></label>
+      <div id="binanceFields">
+        <div class="security-note">Use a Binance <strong>Demo Trading</strong> API key, not a real-money key. One Demo key covers Spot + USD-M.</div>
+        <label>Binance Demo API Key<input id="apiKey" autocomplete="off" spellcheck="false" placeholder="Paste Demo API key"></label>
+        <label>Binance Demo API Secret<input id="apiSecret" type="password" autocomplete="new-password" placeholder="Paste Demo API secret"></label>
+        <button type="button" class="primary full" id="testConnection">TEST BINANCE DEMO</button>
+        <button type="button" class="danger-btn full" id="disconnectDemo" hidden>DISCONNECT BINANCE DEMO</button>
+      </div>
+      <div id="mt5Fields" hidden>
+        <div class="security-note"><strong>Safer MT5 bridge:</strong> keep MT5 logged into a Demo account on your Windows PC. Broker password never goes to Render. The local bridge sends only read-only account/quote/chart/position data.</div>
+        <button type="button" class="primary full" id="createMt5Pair">CREATE MT5 PAIR CODE</button>
+        <div id="mt5PairPanel" class="pair-panel" hidden>
+          <label>Pair token<input id="mt5PairToken" readonly></label>
+          <label>Windows command<textarea id="mt5Command" readonly rows="5"></textarea></label>
+          <div class="pair-actions"><button type="button" class="secondary" id="copyMt5Command">COPY COMMAND</button><button type="button" class="danger-btn" id="disconnectMt5">DISCONNECT MT5</button></div>
+          <p class="muted-copy">1) Install MetaTrader 5 and login to a Demo account. 2) Download <strong>bridge/install_mt5_bridge.bat</strong> and <strong>bridge/mt5_demo_bridge.py</strong> from GitHub. 3) Run installer once. 4) Run the command above from the folder containing the Python bridge.</p>
+        </div>
+      </div>
+      <div id="connectionResult" class="connection-result">Not connected</div>
+      <button value="cancel" class="secondary full">CLOSE</button>
+    </form>
+  </dialog>
+
+  <script src="./chart.js" defer></script>
+  <script src="./app.js" defer></script>
+  <script src="./paper_ui.js" defer></script>
+  <script src="./momentum_ui.js" defer></script>
+</body>
+</html>

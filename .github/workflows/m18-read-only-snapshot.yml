@@ -1,0 +1,104 @@
+name: M18 read-only fee-aware snapshot
+
+on:
+  workflow_dispatch:
+    inputs:
+      quantity_btc:
+        description: BTC quantity to evaluate
+        required: true
+        default: '0.001'
+        type: string
+      futures_symbol:
+        description: Optional BTCUSDT delivery symbol; leave blank for nearest active contract
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BINANCE_API_KEY: ${{ secrets.BINANCE_API_KEY }}
+      BINANCE_API_SECRET: ${{ secrets.BINANCE_API_SECRET }}
+    steps:
+      - name: Checkout exact M18 branch
+        uses: actions/checkout@v4
+        with:
+          ref: m18-fee-aware-execution-economics
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install project
+        run: python -m pip install -e '.[dev]'
+
+      - name: Verify read-only safety contract
+        run: |
+          python - <<'PY'
+          from eba_trader.m18_fee_aware import BinanceReadOnlyClient
+          from eba_trader.m18_fee_policy import M18ExecutionPolicy
+          policy = M18ExecutionPolicy()
+          assert policy.live_execution_allowed is False
+          assert not hasattr(BinanceReadOnlyClient, 'place_order')
+          assert not hasattr(BinanceReadOnlyClient, 'cancel_order')
+          print('M18 read-only safety contract verified')
+          PY
+
+      - name: Require runtime-only Binance credentials
+        shell: bash
+        run: |
+          if [ -z "$BINANCE_API_KEY" ] || [ -z "$BINANCE_API_SECRET" ]; then
+            echo "BINANCE_API_KEY and BINANCE_API_SECRET GitHub Actions secrets are required."
+            exit 1
+          fi
+
+      - name: Run account-specific read-only snapshot
+        shell: bash
+        env:
+          QTY: ${{ inputs.quantity_btc }}
+          FUTURES_SYMBOL: ${{ inputs.futures_symbol }}
+        run: |
+          mkdir -p artifacts
+          if [ -n "$FUTURES_SYMBOL" ]; then
+            eba-m18-fee-aware \
+              --quantity-btc "$QTY" \
+              --futures-symbol "$FUTURES_SYMBOL" \
+              --output artifacts/m18_fee_aware_snapshot.json
+          else
+            eba-m18-fee-aware \
+              --quantity-btc "$QTY" \
+              --output artifacts/m18_fee_aware_snapshot.json
+          fi
+
+      - name: Print safe summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('artifacts/m18_fee_aware_snapshot.json').read_text())
+          estimate = report['estimate']
+          print('decision:', report['decision'])
+          print('futures_symbol:', report['futures_symbol'])
+          print('gross_edge_bps:', estimate['gross_edge_bps'])
+          print('screening_net_edge_bps:', estimate['screening_net_edge_bps'])
+          print('spot_buy_taker_rate:', estimate['spot_buy_taker_rate'])
+          print('spot_sell_taker_rate:', estimate['spot_sell_taker_rate'])
+          print('futures_taker_rate:', estimate['futures_taker_rate'])
+          print('live_execution_allowed:', report['live_execution_allowed'])
+          print('oos_2025:', report['oos_2025'])
+          PY
+
+      - name: Upload read-only snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: m18-read-only-fee-aware-snapshot
+          path: artifacts/m18_fee_aware_snapshot.json
+          if-no-files-found: error
+          retention-days: 14

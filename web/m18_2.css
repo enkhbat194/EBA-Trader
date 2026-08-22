@@ -1,0 +1,19 @@
+.bottom-nav.six{grid-template-columns:repeat(6,1fr)}
+.bottom-nav.six button span{font-size:17px}
+.bottom-nav.six button small{font-size:8px}
+.chart-toolbar{display:grid;grid-template-columns:1.2fr 1fr .8fr;gap:8px;margin-top:16px}
+.chart-toolbar label{margin:0;gap:5px}
+.chart-toolbar select{padding:10px 9px}
+.chart-card{margin-top:12px;border:1px solid var(--line);border-radius:16px;background:#080d12;overflow:hidden;box-shadow:0 12px 35px rgba(0,0,0,.22)}
+.chart-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:14px 14px 6px}
+.chart-head strong{display:block;font-size:16px}.chart-head small{display:block;color:var(--muted);font-size:10px;margin-top:4px}
+.chart-price{text-align:right}.chart-price strong{font-size:18px}.chart-price small{color:var(--muted)}
+#marketChart{display:block;width:100%;height:360px;background:#080d12;touch-action:pan-y}
+.chart-legend{display:flex;gap:14px;align-items:center;padding:7px 14px 10px;border-top:1px solid rgba(255,255,255,.04);color:var(--muted);font-size:9px}
+.chart-legend span{display:flex;align-items:center;gap:5px}.chart-legend i{width:7px;height:7px;border-radius:50%;display:inline-block}.legend-buy{background:var(--green)}.legend-sell{background:var(--red)}.legend-exit{background:var(--blue)}
+.chart-status{padding:9px 14px 13px;color:var(--muted);font-size:11px}
+.mini-list{display:grid;gap:8px;margin-top:12px}.mini-list p{margin:0;color:var(--muted);font-size:12px}.position-row{display:grid;grid-template-columns:1fr auto;gap:8px;padding:10px;border:1px solid var(--line);border-radius:11px;background:#0b1117}.position-row strong{font-size:12px}.position-row small{display:block;color:var(--muted);margin-top:3px}.position-row .pnl{align-self:center;font-weight:800;font-size:12px}
+.market-chips{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}.market-chips button{border:1px solid #2c4b79;background:#152238;color:#91b7ff;border-radius:999px;padding:8px 11px;font-size:10px;font-weight:800}
+.pair-panel{margin-top:12px;padding:12px;border:1px solid #29456c;border-radius:13px;background:#0d1725}.pair-panel textarea{width:100%;resize:vertical;padding:11px;border:1px solid var(--line);border-radius:11px;background:#080d12;color:#dce6f0;font:11px ui-monospace,SFMono-Regular,Menlo,monospace}.pair-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.muted-copy{color:var(--muted);font-size:11px;line-height:1.5}.connection-status.waiting{color:#f0c75e}.connection-status.stale{color:#ff9b5e}
+.provider-icon.metatrader5{background:linear-gradient(145deg,#213762,#14213c);color:#8db2ff}
+@media(max-width:430px){.chart-toolbar{grid-template-columns:1fr 1fr}.chart-toolbar label:first-child{grid-column:1/-1}#marketChart{height:330px}.pair-actions{grid-template-columns:1fr}.bottom-nav.six button small{font-size:7.5px}}
