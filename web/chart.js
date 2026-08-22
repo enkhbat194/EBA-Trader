@@ -204,8 +204,10 @@
 })();
 
 window.addEventListener('DOMContentLoaded', () => {
-  const script = document.createElement('script');
-  script.src = './paper_ui.js';
-  script.defer = true;
-  document.body.appendChild(script);
+  ['./mt5_ui.js', './paper_ui.js'].forEach((src) => {
+    const script = document.createElement('script');
+    script.src = src;
+    script.defer = true;
+    document.body.appendChild(script);
+  });
 });
