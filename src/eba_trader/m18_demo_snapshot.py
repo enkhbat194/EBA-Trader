@@ -19,6 +19,8 @@ from .m18_fee_aware import (
     parse_futures_commission,
     parse_spot_commission,
     select_nearest_btcusdt_delivery_symbol,
+    simulate_buy,
+    simulate_sell,
 )
 from .m18_fee_policy import DEFAULT_QUANTITY_BTC, SPOT_SYMBOL, M18ExecutionPolicy
 from .providers import CredentialEnvelope
@@ -131,6 +133,48 @@ def _estimate_payload(estimate: FeeAwarePairEstimate) -> dict[str, Any]:
     return payload
 
 
+def _delivery_time_ms(exchange_info: dict[str, Any], symbol: str) -> int | None:
+    symbols = exchange_info.get("symbols")
+    if not isinstance(symbols, list):
+        return None
+    for item in symbols:
+        if not isinstance(item, dict) or item.get("symbol") != symbol:
+            continue
+        try:
+            delivery = int(item.get("deliveryDate"))
+        except (TypeError, ValueError):
+            return None
+        return delivery if delivery > 0 else None
+    return None
+
+
+def _close_quote(
+    *,
+    spot_book: BookSnapshot,
+    futures_book: BookSnapshot,
+    spot_commission: SpotCommissionSnapshot,
+    futures_commission: FuturesCommissionSnapshot,
+    quantity_btc: float,
+) -> dict[str, Any] | None:
+    # Closing long Spot means SELL into bids; closing short Futures means BUY asks.
+    spot_exit = simulate_sell(spot_book, quantity_btc)
+    futures_exit = simulate_buy(futures_book, quantity_btc)
+    if spot_exit is None or futures_exit is None:
+        return None
+    spot_sell_rate = spot_commission.effective_rate("SELL", "taker")
+    futures_buy_rate = futures_commission.taker
+    exit_fee = spot_exit.notional * spot_sell_rate + futures_exit.notional * futures_buy_rate
+    return {
+        "spotExitVwap": spot_exit.vwap,
+        "futuresExitVwap": futures_exit.vwap,
+        "spotExitNotionalUsd": spot_exit.notional,
+        "futuresExitNotionalUsd": futures_exit.notional,
+        "spotSellTakerRate": spot_sell_rate,
+        "futuresBuyTakerRate": futures_buy_rate,
+        "exitFeeUsd": exit_fee,
+    }
+
+
 def run_demo_fee_snapshot(
     credentials: CredentialEnvelope,
     *,
@@ -140,17 +184,16 @@ def run_demo_fee_snapshot(
     """Return one immutable-in-memory unified Demo screening snapshot.
 
     Missing Demo quarterly contracts fail closed instead of falling back to a
-    live market or a different strategy.
+    live market or a different strategy. Close-side executable VWAP is returned
+    only for paper mark-to-market mechanics; it does not change the M18 entry gate.
     """
 
     demo_client = client or BinanceDemoReadOnlyClient(credentials)
     now_ms = int(time.time() * 1000)
     policy = M18ExecutionPolicy()
+    exchange_info = demo_client.futures_exchange_info()
     try:
-        futures_symbol = select_nearest_btcusdt_delivery_symbol(
-            demo_client.futures_exchange_info(),
-            now_ms=now_ms,
-        )
+        futures_symbol = select_nearest_btcusdt_delivery_symbol(exchange_info, now_ms=now_ms)
     except RuntimeError:
         return {
             "mode": "DEMO_READ_ONLY",
@@ -180,8 +223,16 @@ def run_demo_fee_snapshot(
         "decision": estimate.decision.value,
         "reasonCodes": list(estimate.reason_codes),
         "estimate": _estimate_payload(estimate),
+        "closeQuote": _close_quote(
+            spot_book=spot_book,
+            futures_book=futures_book,
+            spot_commission=spot_commission,
+            futures_commission=futures_commission,
+            quantity_btc=quantity_btc,
+        ),
         "policy": asdict(policy),
         "futuresSymbol": futures_symbol,
+        "futuresDeliveryTimeMs": _delivery_time_ms(exchange_info, futures_symbol),
         "environment": "demo",
         "snapshotTimeMs": evaluation_time_ms,
         "liveExecutionAllowed": False,
