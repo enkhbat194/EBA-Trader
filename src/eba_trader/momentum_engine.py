@@ -185,13 +185,13 @@ def _rsi(values: list[float], period: int = 14) -> float:
         raise ValueError("insufficient RSI values")
     gains: list[float] = []
     losses: list[float] = []
-    for previous, current in zip(values[:-1], values[1:]):
+    for previous, current in zip(values[:-1], values[1:], strict=False):
         change = current - previous
         gains.append(max(change, 0.0))
         losses.append(max(-change, 0.0))
     avg_gain = sum(gains[:period]) / period
     avg_loss = sum(losses[:period]) / period
-    for gain, loss in zip(gains[period:], losses[period:]):
+    for gain, loss in zip(gains[period:], losses[period:], strict=False):
         avg_gain = ((avg_gain * (period - 1)) + gain) / period
         avg_loss = ((avg_loss * (period - 1)) + loss) / period
     if avg_loss == 0:
@@ -356,6 +356,13 @@ def analyze_momentum(
         side = "SHORT"
         score = short_score
 
+    if side == "LONG":
+        fake_breakout_risk = fake_up_risk
+    elif side == "SHORT":
+        fake_breakout_risk = fake_down_risk
+    else:
+        fake_breakout_risk = fake_up_risk or fake_down_risk
+
     atr_pct = atr14 / last["close"] if last["close"] > 0 else math.inf
     return {
         "symbol": SYMBOL,
@@ -376,7 +383,7 @@ def analyze_momentum(
         "lowerHighLowerLow": lower_structure,
         "breakoutUp": breakout_up,
         "breakoutDown": breakout_down,
-        "fakeBreakoutRisk": fake_up_risk if side == "LONG" else fake_down_risk if side == "SHORT" else (fake_up_risk or fake_down_risk),
+        "fakeBreakoutRisk": fake_breakout_risk,
         "lastClose": last["close"],
         "liveExecutionAllowed": False,
     }
@@ -442,17 +449,22 @@ class MomentumPaperEngine:
                 exit_price = bid if position.side == "LONG" else ask
                 self._mark(position, exit_price)
                 exit_reason: str | None = None
-                if position.side == "LONG" and exit_price <= position.stop_price:
+                if (
+                    (position.side == "LONG" and exit_price <= position.stop_price)
+                    or (position.side == "SHORT" and exit_price >= position.stop_price)
+                ):
                     exit_reason = "STOP_LOSS"
-                elif position.side == "SHORT" and exit_price >= position.stop_price:
-                    exit_reason = "STOP_LOSS"
-                elif position.side == "LONG" and exit_price >= position.take_profit_price:
-                    exit_reason = "TAKE_PROFIT"
-                elif position.side == "SHORT" and exit_price <= position.take_profit_price:
+                elif (
+                    (position.side == "LONG" and exit_price >= position.take_profit_price)
+                    or (position.side == "SHORT" and exit_price <= position.take_profit_price)
+                ):
                     exit_reason = "TAKE_PROFIT"
                 elif now_ms - position.entry_time_ms >= MAX_HOLD_MS:
                     exit_reason = "MAX_HOLD_EXIT"
-                elif signal["decision"] not in {"NO_TRADE", position.side} and signal["score"] >= MIN_SIGNAL_SCORE:
+                elif (
+                    signal["decision"] not in {"NO_TRADE", position.side}
+                    and signal["score"] >= MIN_SIGNAL_SCORE
+                ):
                     exit_reason = "SIGNAL_REVERSAL"
                 if exit_reason is not None:
                     self._close_locked(session_key, position, exit_price, now_ms, exit_reason)
@@ -486,7 +498,11 @@ class MomentumPaperEngine:
         with self._lock:
             position = self._positions.get(session_key)
             if position is None:
-                return self._state_locked(session_key, event="NO_ACTION", reason="NO_OPEN_MOMENTUM_POSITION")
+                return self._state_locked(
+                    session_key,
+                    event="NO_ACTION",
+                    reason="NO_OPEN_MOMENTUM_POSITION",
+                )
             exit_price = bid if position.side == "LONG" else ask
             self._mark(position, exit_price)
             self._close_locked(session_key, position, exit_price, now_ms, reason)
