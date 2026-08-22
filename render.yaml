@@ -12,3 +12,7 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.14
+      - key: EBA_BINANCE_DEMO_API_KEY
+        sync: false
+      - key: EBA_BINANCE_DEMO_API_SECRET
+        sync: false
