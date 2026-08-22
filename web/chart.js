@@ -149,3 +149,13 @@
 
   window.EBAChart = { render };
 })();
+
+// Base app.js is a deferred script after chart.js. DOMContentLoaded therefore
+// fires only after the base Binance/MT5 bindings exist. Load the optional paper
+// layer then so it can extend those bindings without duplicating the core UI.
+window.addEventListener('DOMContentLoaded', () => {
+  const script = document.createElement('script');
+  script.src = './paper_ui.js';
+  script.defer = true;
+  document.body.appendChild(script);
+});
