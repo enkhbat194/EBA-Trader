@@ -31,6 +31,7 @@ jobs:
           from eba_trader.m18_demo_snapshot import BinanceDemoReadOnlyClient
           from eba_trader.m18_fee_policy import M18ExecutionPolicy
           from eba_trader.m18_fee_aware import BinanceReadOnlyClient
+          from eba_trader.momentum_engine import MomentumPaperEngine
           from eba_trader.paper_engine import PaperExecutionEngine
           from eba_trader.providers import BinanceProviderAdapter, ProviderCapability
           from eba_trader.providers.binance import BINANCE_ENDPOINTS
@@ -39,7 +40,13 @@ jobs:
           policy = M18ExecutionPolicy()
           assert policy.live_execution_allowed is False
           assert policy.ai_signal_authority is False
-          for client in (BinanceReadOnlyClient, BinanceDemoReadOnlyClient, BinanceProviderAdapter, PaperExecutionEngine):
+          for client in (
+              BinanceReadOnlyClient,
+              BinanceDemoReadOnlyClient,
+              BinanceProviderAdapter,
+              PaperExecutionEngine,
+              MomentumPaperEngine,
+          ):
               assert not hasattr(client, 'place_order')
               assert not hasattr(client, 'cancel_order')
               assert not hasattr(client, 'withdraw')
@@ -51,7 +58,7 @@ jobs:
           print('M18 Demo/paper safety contract verified')
           PY
 
-      - name: Verify M18.2 multi-market UI, MT5 and paper safety
+      - name: Verify M18.3 multi-market UI, MT5 and paper safety
         run: |
           test -f web/index.html
           test -f web/app.css
@@ -59,33 +66,44 @@ jobs:
           test -f web/chart.js
           test -f web/app.js
           test -f web/paper_ui.js
+          test -f web/momentum_ui.js
           test -f bridge/mt5_demo_bridge.py
           test -f bridge/install_mt5_bridge.bat
           test -f src/eba_trader/paper_engine.py
+          test -f src/eba_trader/momentum_engine.py
+          test -f src/eba_trader/web_server_v2.py
           grep -q 'LIVE 🔒' web/index.html
           grep -q 'MetaTrader 5' web/index.html
           ! grep -q 'MetaTrader 4' web/index.html
           grep -q 'XAUUSD' web/index.html
           grep -q 'XAGUSD' web/index.html
           grep -q 'USOIL' web/index.html
+          grep -q './paper_ui.js' web/index.html
+          grep -q './momentum_ui.js' web/index.html
           grep -q '/api/mt5/pair' web/app.js
           grep -q '/api/chart' web/app.js
           grep -q '/api/paper/step' web/paper_ui.js
           grep -q '/api/paper/close' web/paper_ui.js
+          grep -q '/api/momentum/step' web/momentum_ui.js
+          grep -q '/api/demo/autoconnect' web/momentum_ui.js
           ! grep -q 'mt5.order_send' bridge/mt5_demo_bridge.py
           ! grep -q 'localStorage' web/app.js
           ! grep -q 'sessionStorage' web/app.js
           ! grep -q 'localStorage' web/paper_ui.js
           ! grep -q 'sessionStorage' web/paper_ui.js
+          ! grep -q 'localStorage' web/momentum_ui.js
+          ! grep -q 'sessionStorage' web/momentum_ui.js
           ! grep -q 'place_order' web/app.js
           ! grep -q 'place_order' web/paper_ui.js
-          echo 'M18.2 UI/MT5/paper safety contract verified'
+          ! grep -q 'place_order' web/momentum_ui.js
+          echo 'M18.3 UI/MT5/paper safety contract verified'
 
       - name: Check JavaScript syntax
         run: |
           node --check web/chart.js
           node --check web/app.js
           node --check web/paper_ui.js
+          node --check web/momentum_ui.js
           node --check web/sw.js
 
       - name: Run deterministic tests
