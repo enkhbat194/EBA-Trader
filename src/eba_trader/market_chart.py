@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from typing import Any
 
 from .providers.base import ProviderEnvironment
@@ -51,14 +51,21 @@ def normalize_candles(raw: list[Any]) -> list[dict[str, Any]]:
             close=_finite_positive(row[4], "close"),
             volume=max(0.0, float(row[5])),
         )
-        if candle.high < max(candle.open, candle.close) or candle.low > min(candle.open, candle.close):
+        invalid_geometry = candle.high < max(candle.open, candle.close) or candle.low > min(
+            candle.open, candle.close
+        )
+        if invalid_geometry:
             raise ValueError("invalid OHLC geometry")
         candles.append(asdict(candle))
         previous_time = timestamp
     return candles
 
 
-def fetch_binance_demo_chart(symbol: str, timeframe: str, limit: int = 120) -> dict[str, Any]:
+def fetch_binance_demo_chart(
+    symbol: str,
+    timeframe: str,
+    limit: int = 120,
+) -> dict[str, Any]:
     symbol = symbol.upper().strip()
     if symbol not in BINANCE_CHART_SYMBOLS:
         raise ValueError("unsupported Binance chart symbol")
@@ -89,7 +96,11 @@ def fetch_binance_demo_chart(symbol: str, timeframe: str, limit: int = 120) -> d
     }
 
 
-def normalize_mt5_chart(snapshot: dict[str, Any], symbol: str, timeframe: str) -> dict[str, Any]:
+def normalize_mt5_chart(
+    snapshot: dict[str, Any],
+    symbol: str,
+    timeframe: str,
+) -> dict[str, Any]:
     if timeframe not in SUPPORTED_TIMEFRAMES:
         raise ValueError("unsupported timeframe")
     charts = snapshot.get("charts")
