@@ -81,6 +81,13 @@ jobs:
           ! grep -q 'place_order' web/paper_ui.js
           echo 'M18.2 UI/MT5/paper safety contract verified'
 
+      - name: Check JavaScript syntax
+        run: |
+          node --check web/chart.js
+          node --check web/app.js
+          node --check web/paper_ui.js
+          node --check web/sw.js
+
       - name: Run deterministic tests
         run: python -m pytest -q
 
