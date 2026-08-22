@@ -107,7 +107,10 @@ def run_connection_test(
     return response
 
 
-def _session_credentials(payload: dict[str, Any], session_store: DemoSessionStore) -> tuple[str, CredentialEnvelope]:
+def _session_credentials(
+    payload: dict[str, Any],
+    session_store: DemoSessionStore,
+) -> tuple[str, CredentialEnvelope]:
     token = str(payload.get("sessionToken", ""))
     credentials = session_store.get(token)
     if credentials is None:
@@ -147,7 +150,8 @@ def run_paper_step_request(
 ) -> dict[str, Any]:
     token, credentials = _session_credentials(payload, session_store)
     snapshot = run_demo_fee_snapshot(credentials)
-    paper = paper_engine.step(token, snapshot)
+    allow_entry = bool(payload.get("allowEntry", True))
+    paper = paper_engine.step(token, snapshot, allow_entry=allow_entry)
     return {
         "ok": True,
         "snapshot": snapshot,
@@ -255,10 +259,14 @@ def run_chart_request(
     if provider == "binance":
         result = fetch_binance_demo_chart(symbol, timeframe, limit)
         token = str(payload.get("sessionToken", ""))
-        if token and session_store is not None and session_store.get(token) is not None:
-            if paper_engine is not None:
-                result["markers"] = paper_engine.markers(token)
-                result["paper"] = paper_engine.state(token)
+        if (
+            token
+            and session_store is not None
+            and paper_engine is not None
+            and session_store.get(token) is not None
+        ):
+            result["markers"] = paper_engine.markers(token)
+            result["paper"] = paper_engine.state(token)
         return result
     if provider == "metatrader5":
         token = str(payload.get("pairToken", ""))
@@ -318,7 +326,11 @@ class EBARequestHandler(SimpleHTTPRequestHandler):
                 {
                     "providers": [
                         {"id": "binance", "name": "Binance", "status": "ready"},
-                        {"id": "metatrader5", "name": "MetaTrader 5", "status": "bridge-ready"},
+                        {
+                            "id": "metatrader5",
+                            "name": "MetaTrader 5",
+                            "status": "bridge-ready",
+                        },
                     ],
                     "environment": "demo",
                     "liveExecutionAllowed": False,
