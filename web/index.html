@@ -9,6 +9,7 @@
   <title>EBA Trader</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="stylesheet" href="./app.css">
+  <link rel="stylesheet" href="./m18_2.css">
 </head>
 <body>
   <div class="app-shell">
@@ -27,7 +28,7 @@
         <h2>Account overview</h2>
         <div class="metric-grid">
           <article class="metric-card"><span>Connected capital</span><strong id="balanceValue">—</strong><small id="balanceDetail">Connect Binance or MT5 Demo</small></article>
-          <article class="metric-card positive"><span>Today P&amp;L</span><strong id="todayPnlValue">—</strong><small id="todayPnlDetail">No paper session</small></article>
+          <article class="metric-card positive"><span>Paper P&amp;L</span><strong id="todayPnlValue">—</strong><small id="todayPnlDetail">No paper session</small></article>
           <article class="metric-card"><span>Current opportunity</span><strong id="opportunityCount">0</strong><small id="opportunityDetail">No qualified setup</small></article>
           <article class="metric-card"><span>Expected net profit</span><strong id="expectedNetValue">—</strong><small id="expectedNetDetail">Waiting for fee-aware snapshot</small></article>
         </div>
@@ -55,11 +56,11 @@
         <article class="chart-card">
           <div class="chart-head"><div><strong id="chartTitle">BTCUSDT · 15m</strong><small id="chartSubtitle">Binance Demo</small></div><div class="chart-price"><strong id="chartLastPrice">—</strong><small id="chartChange">—</small></div></div>
           <canvas id="marketChart" aria-label="Live candlestick chart"></canvas>
-          <div id="chartLegend" class="chart-legend"><span><i class="legend-buy"></i>BUY</span><span><i class="legend-sell"></i>SELL</span><span><i class="legend-exit"></i>EXIT</span></div>
+          <div id="chartLegend" class="chart-legend"><span><i class="legend-buy"></i>PAPER BUY</span><span><i class="legend-sell"></i>SELL</span><span><i class="legend-exit"></i>PAPER EXIT</span></div>
           <div id="chartStatus" class="chart-status">Loading Binance Demo candles…</div>
         </article>
         <article class="section-card">
-          <div class="section-head"><div><span class="eyebrow">Bot overlay</span><h3>Decision & positions</h3></div><span class="pill neutral" id="chartDecisionBadge">NO_TRADE</span></div>
+          <div class="section-head"><div><span class="eyebrow">Bot overlay</span><h3>Decision &amp; positions</h3></div><span class="pill neutral" id="chartDecisionBadge">NO_TRADE</span></div>
           <div id="chartPositionSummary" class="mini-list"><p>No bot/paper position on this chart.</p></div>
         </article>
       </section>
@@ -82,16 +83,17 @@
       </section>
 
       <section class="screen" data-screen="positions">
-        <div class="screen-title"><div><span class="eyebrow">Portfolio</span><h1>Positions</h1></div><span class="pill neutral">DEMO / READ</span></div>
+        <div class="screen-title"><div><span class="eyebrow">Portfolio</span><h1>Positions</h1></div><span class="pill neutral">DEMO / PAPER</span></div>
         <div class="metric-grid three"><article class="metric-card"><span>Open</span><strong id="openPositionCount">0</strong></article><article class="metric-card"><span>Unrealized</span><strong id="unrealizedValue">—</strong></article><article class="metric-card"><span>Risk state</span><strong class="positive-text">SAFE</strong></article></div>
-        <div id="positionsList"><article class="empty-state"><div class="empty-icon">◎</div><h3>No visible positions</h3><p>MT5 bridge positions and future EBA paper positions will appear here.</p></article></div>
-        <button class="danger-btn full" disabled>⚠ LIVE CLOSE DISABLED</button>
+        <div id="positionsList"><article class="empty-state"><div class="empty-icon">◎</div><h3>No visible positions</h3><p>EBA paper positions and MT5 read-only positions will appear here.</p></article></div>
+        <button class="secondary full" id="closePaperPosition" disabled>CLOSE PAPER POSITION</button>
+        <button class="danger-btn full live-lock-button" disabled>⚠ LIVE CLOSE DISABLED</button>
       </section>
 
       <section class="screen" data-screen="history">
-        <div class="screen-title"><div><span class="eyebrow">Ledger</span><h1>History</h1></div></div>
+        <div class="screen-title"><div><span class="eyebrow">Ledger</span><h1>History</h1></div><span class="pill neutral" id="paperTradeCount">0 PAPER</span></div>
         <div class="segments"><button class="active">All</button><button>Paper</button><button disabled>Live</button></div>
-        <article class="empty-state"><div class="empty-icon">↺</div><h3>No EBA paper trades yet</h3><p>Trade markers and paper ledger will be populated by the next paper-execution layer. Live remains locked.</p></article>
+        <div id="historyList"><article class="empty-state"><div class="empty-icon">↺</div><h3>No EBA paper trades yet</h3><p>A paper trade is recorded only after the existing fee-aware candidate gate opens and later closes a virtual paired position.</p></article></div>
       </section>
 
       <section class="screen" data-screen="settings">
@@ -99,12 +101,13 @@
         <article class="section-card environment-card">
           <span class="eyebrow">Environment</span>
           <div class="environment-toggle"><button class="active" id="demoEnvironment">DEMO</button><button id="liveEnvironment" disabled>LIVE 🔒</button></div>
-          <p>Binance and MT5 are Demo/read-only first. Live remains locked until paper and risk checks pass.</p>
+          <p>Binance and MT5 are Demo/read-only/paper first. Live remains locked until separate validation and approval.</p>
         </article>
         <div id="connectionList" class="connection-list"></div>
         <article class="section-card risk-card">
           <div class="section-head"><div><span class="eyebrow">Global risk</span><h3>Cross-provider safety</h3></div><span class="pill positive-pill">ACTIVE</span></div>
           <div class="setting-row"><span>Binance paper capital cap</span><strong>$10,000</strong></div>
+          <div class="setting-row"><span>One paired Binance paper position</span><strong class="positive-text">ON</strong></div>
           <div class="setting-row"><span>MT5 live execution</span><strong class="negative">LOCKED</strong></div>
           <div class="setting-row"><span>Duplicate exposure guard</span><strong class="positive-text">ON</strong></div>
           <div class="setting-row"><span>Kill switch</span><strong class="positive-text">ON</strong></div>
