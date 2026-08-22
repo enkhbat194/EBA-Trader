@@ -11,6 +11,7 @@ from .demo_sessions import DemoSessionStore
 from .m18_demo_snapshot import run_demo_fee_snapshot
 from .market_chart import fetch_binance_demo_chart, normalize_mt5_chart
 from .mt5_bridge_store import MT5BridgeStore
+from .paper_engine import PaperExecutionEngine
 from .providers import (
     BinanceProviderAdapter,
     ConnectionManager,
@@ -25,13 +26,13 @@ from .providers import (
 WEB_ROOT = Path(__file__).resolve().parents[2] / "web"
 DEMO_SESSIONS = DemoSessionStore()
 MT5_BRIDGES = MT5BridgeStore()
+PAPER_ENGINE = PaperExecutionEngine()
 
 
 def build_default_manager() -> ConnectionManager:
     manager = ConnectionManager()
     manager.register(ProviderKind.BINANCE, BinanceProviderAdapter)
     manager.register(ProviderKind.METATRADER5, MetaTrader5ProviderAdapter)
-    # MT4 remains a compatibility scaffold in code only. It is no longer a primary UI provider.
     manager.register(ProviderKind.METATRADER4, MetaTrader4ProviderAdapter)
     return manager
 
@@ -106,15 +107,20 @@ def run_connection_test(
     return response
 
 
+def _session_credentials(payload: dict[str, Any], session_store: DemoSessionStore) -> tuple[str, CredentialEnvelope]:
+    token = str(payload.get("sessionToken", ""))
+    credentials = session_store.get(token)
+    if credentials is None:
+        raise PermissionError("Demo session is missing or expired")
+    return token, credentials
+
+
 def run_demo_snapshot_request(
     payload: dict[str, Any],
     *,
     session_store: DemoSessionStore,
 ) -> dict[str, Any]:
-    token = str(payload.get("sessionToken", ""))
-    credentials = session_store.get(token)
-    if credentials is None:
-        raise PermissionError("Demo session is missing or expired")
+    _, credentials = _session_credentials(payload, session_store)
     return run_demo_fee_snapshot(credentials)
 
 
@@ -122,12 +128,59 @@ def run_demo_disconnect_request(
     payload: dict[str, Any],
     *,
     session_store: DemoSessionStore,
+    paper_engine: PaperExecutionEngine | None = None,
 ) -> dict[str, Any]:
     token = str(payload.get("sessionToken", ""))
     if not token:
         raise ValueError("sessionToken is required")
+    if paper_engine is not None:
+        paper_engine.clear(token)
     session_store.revoke(token)
     return {"ok": True, "state": "disconnected", "liveExecutionAllowed": False}
+
+
+def run_paper_step_request(
+    payload: dict[str, Any],
+    *,
+    session_store: DemoSessionStore,
+    paper_engine: PaperExecutionEngine,
+) -> dict[str, Any]:
+    token, credentials = _session_credentials(payload, session_store)
+    snapshot = run_demo_fee_snapshot(credentials)
+    paper = paper_engine.step(token, snapshot)
+    return {
+        "ok": True,
+        "snapshot": snapshot,
+        "paper": paper,
+        "liveExecutionAllowed": False,
+    }
+
+
+def run_paper_state_request(
+    payload: dict[str, Any],
+    *,
+    session_store: DemoSessionStore,
+    paper_engine: PaperExecutionEngine,
+) -> dict[str, Any]:
+    token, _ = _session_credentials(payload, session_store)
+    return paper_engine.state(token)
+
+
+def run_paper_close_request(
+    payload: dict[str, Any],
+    *,
+    session_store: DemoSessionStore,
+    paper_engine: PaperExecutionEngine,
+) -> dict[str, Any]:
+    token, credentials = _session_credentials(payload, session_store)
+    snapshot = run_demo_fee_snapshot(credentials)
+    paper = paper_engine.close(token, snapshot)
+    return {
+        "ok": True,
+        "snapshot": snapshot,
+        "paper": paper,
+        "liveExecutionAllowed": False,
+    }
 
 
 def run_mt5_pair_request(*, bridge_store: MT5BridgeStore) -> dict[str, Any]:
@@ -192,13 +245,21 @@ def run_chart_request(
     payload: dict[str, Any],
     *,
     bridge_store: MT5BridgeStore,
+    session_store: DemoSessionStore | None = None,
+    paper_engine: PaperExecutionEngine | None = None,
 ) -> dict[str, Any]:
     provider = str(payload.get("provider", "")).lower()
     symbol = str(payload.get("symbol", "")).upper().strip()
     timeframe = str(payload.get("timeframe", "15m"))
     limit = int(payload.get("limit", 120))
     if provider == "binance":
-        return fetch_binance_demo_chart(symbol, timeframe, limit)
+        result = fetch_binance_demo_chart(symbol, timeframe, limit)
+        token = str(payload.get("sessionToken", ""))
+        if token and session_store is not None and session_store.get(token) is not None:
+            if paper_engine is not None:
+                result["markers"] = paper_engine.markers(token)
+                result["paper"] = paper_engine.state(token)
+        return result
     if provider == "metatrader5":
         token = str(payload.get("pairToken", ""))
         state = bridge_store.state(token)
@@ -214,9 +275,9 @@ def run_chart_request(
 
 
 class EBARequestHandler(SimpleHTTPRequestHandler):
-    """Static PWA + Demo-only read APIs for Binance and a local MT5 bridge."""
+    """Static PWA + Demo-only Binance/MT5/paper APIs. Live execution is absent."""
 
-    server_version = "EBA-UI/0.5"
+    server_version = "EBA-UI/0.6"
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, directory=str(WEB_ROOT), **kwargs)
@@ -246,6 +307,7 @@ class EBARequestHandler(SimpleHTTPRequestHandler):
                     "ok": True,
                     "mode": "demo-first",
                     "providers": ["binance", "metatrader5"],
+                    "paperExecution": True,
                     "liveExecutionAllowed": False,
                 },
             )
@@ -256,11 +318,7 @@ class EBARequestHandler(SimpleHTTPRequestHandler):
                 {
                     "providers": [
                         {"id": "binance", "name": "Binance", "status": "ready"},
-                        {
-                            "id": "metatrader5",
-                            "name": "MetaTrader 5",
-                            "status": "bridge-ready",
-                        },
+                        {"id": "metatrader5", "name": "MetaTrader 5", "status": "bridge-ready"},
                     ],
                     "environment": "demo",
                     "liveExecutionAllowed": False,
@@ -274,6 +332,9 @@ class EBARequestHandler(SimpleHTTPRequestHandler):
             "/api/connections/test",
             "/api/demo/snapshot",
             "/api/demo/disconnect",
+            "/api/paper/step",
+            "/api/paper/state",
+            "/api/paper/close",
             "/api/mt5/pair",
             "/api/mt5/ingest",
             "/api/mt5/state",
@@ -302,7 +363,29 @@ class EBARequestHandler(SimpleHTTPRequestHandler):
             elif self.path == "/api/demo/snapshot":
                 result = run_demo_snapshot_request(payload, session_store=DEMO_SESSIONS)
             elif self.path == "/api/demo/disconnect":
-                result = run_demo_disconnect_request(payload, session_store=DEMO_SESSIONS)
+                result = run_demo_disconnect_request(
+                    payload,
+                    session_store=DEMO_SESSIONS,
+                    paper_engine=PAPER_ENGINE,
+                )
+            elif self.path == "/api/paper/step":
+                result = run_paper_step_request(
+                    payload,
+                    session_store=DEMO_SESSIONS,
+                    paper_engine=PAPER_ENGINE,
+                )
+            elif self.path == "/api/paper/state":
+                result = run_paper_state_request(
+                    payload,
+                    session_store=DEMO_SESSIONS,
+                    paper_engine=PAPER_ENGINE,
+                )
+            elif self.path == "/api/paper/close":
+                result = run_paper_close_request(
+                    payload,
+                    session_store=DEMO_SESSIONS,
+                    paper_engine=PAPER_ENGINE,
+                )
             elif self.path == "/api/mt5/pair":
                 result = run_mt5_pair_request(bridge_store=MT5_BRIDGES)
             elif self.path == "/api/mt5/ingest":
@@ -312,7 +395,12 @@ class EBARequestHandler(SimpleHTTPRequestHandler):
             elif self.path == "/api/mt5/disconnect":
                 result = run_mt5_disconnect_request(payload, bridge_store=MT5_BRIDGES)
             else:
-                result = run_chart_request(payload, bridge_store=MT5_BRIDGES)
+                result = run_chart_request(
+                    payload,
+                    bridge_store=MT5_BRIDGES,
+                    session_store=DEMO_SESSIONS,
+                    paper_engine=PAPER_ENGINE,
+                )
         except PermissionError as exc:
             self._json_response(
                 HTTPStatus.UNAUTHORIZED,
@@ -330,7 +418,7 @@ class EBARequestHandler(SimpleHTTPRequestHandler):
                 HTTPStatus.BAD_GATEWAY,
                 {
                     "ok": False,
-                    "message": f"Demo read-only request failed: {exc}",
+                    "message": f"Demo read-only/paper request failed: {exc}",
                     "liveExecutionAllowed": False,
                 },
             )
@@ -354,7 +442,7 @@ def main() -> None:
     if not WEB_ROOT.exists():
         raise RuntimeError(f"web root missing: {WEB_ROOT}")
     server = ThreadingHTTPServer((host, port), EBARequestHandler)
-    print(f"EBA Trader UI serving on http://{host}:{port} (demo-first, live locked)")
+    print(f"EBA Trader UI serving on http://{host}:{port} (demo/paper only, live locked)")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
