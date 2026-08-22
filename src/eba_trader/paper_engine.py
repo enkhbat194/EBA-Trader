@@ -3,7 +3,7 @@ from __future__ import annotations
 import secrets
 import threading
 import time
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from typing import Any
 
 MAX_PAPER_CAPITAL_USD = 10_000.0
@@ -127,7 +127,11 @@ class PaperExecutionEngine:
         with self._lock:
             position = self._positions.get(session_key)
             if position is None:
-                return self._state_locked(session_key, event="NO_ACTION", reason="NO_OPEN_PAPER_POSITION")
+                return self._state_locked(
+                    session_key,
+                    event="NO_ACTION",
+                    reason="NO_OPEN_PAPER_POSITION",
+                )
             mark_reason = self._mark_position(position, snapshot)
             if position.spot_exit_vwap is None or position.futures_exit_vwap is None:
                 return self._state_locked(session_key, event="NO_ACTION", reason=mark_reason)
@@ -148,7 +152,11 @@ class PaperExecutionEngine:
         with self._lock:
             return [dict(item) for item in self._markers.get(session_key, [])]
 
-    def _open_candidate(self, snapshot: dict[str, Any], now_ms: int) -> tuple[PaperPosition | None, str]:
+    def _open_candidate(
+        self,
+        snapshot: dict[str, Any],
+        now_ms: int,
+    ) -> tuple[PaperPosition | None, str]:
         estimate = snapshot.get("estimate")
         if not isinstance(estimate, dict):
             return None, "MISSING_ENTRY_ESTIMATE"
@@ -164,7 +172,9 @@ class PaperExecutionEngine:
             return None, "INVALID_ENTRY_ESTIMATE"
         if capital > self._max_capital_usd:
             return None, "PAPER_CAPITAL_LIMIT"
-        futures_symbol = str(snapshot.get("futuresSymbol") or estimate.get("futures_symbol") or "")
+        futures_symbol = str(
+            snapshot.get("futuresSymbol") or estimate.get("futures_symbol") or ""
+        )
         if not futures_symbol:
             return None, "MISSING_FUTURES_SYMBOL"
         delivery_raw = snapshot.get("futuresDeliveryTimeMs")
@@ -209,7 +219,13 @@ class PaperExecutionEngine:
         position.unrealized_net_usd = gross - position.entry_fee_usd - exit_fee
         return "PAPER_MARKED"
 
-    def _close_locked(self, session_key: str, position: PaperPosition, now_ms: int, reason: str) -> None:
+    def _close_locked(
+        self,
+        session_key: str,
+        position: PaperPosition,
+        now_ms: int,
+        reason: str,
+    ) -> None:
         assert position.spot_exit_vwap is not None
         assert position.futures_exit_vwap is not None
         trade = PaperTrade(
@@ -241,7 +257,13 @@ class PaperExecutionEngine:
         )
         self._positions.pop(session_key, None)
 
-    def _state_locked(self, session_key: str, *, event: str, reason: str) -> dict[str, Any]:
+    def _state_locked(
+        self,
+        session_key: str,
+        *,
+        event: str,
+        reason: str,
+    ) -> dict[str, Any]:
         position = self._positions.get(session_key)
         history = self._history.get(session_key, [])
         realized = sum(item.net_pnl_usd for item in history)
