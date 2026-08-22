@@ -6,7 +6,7 @@ services:
     region: singapore
     branch: m18-fee-aware-execution-economics
     buildCommand: python -m compileall -q src
-    startCommand: PYTHONPATH=src python -m eba_trader.web_server
+    startCommand: PYTHONPATH=src python -m eba_trader.web_server_v2
     healthCheckPath: /api/health
     autoDeployTrigger: checksPass
     envVars:
