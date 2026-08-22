@@ -36,7 +36,10 @@ def test_paper_step_state_close_and_disconnect_are_session_scoped(monkeypatch) -
     store = DemoSessionStore(ttl_seconds=60)
     engine = PaperExecutionEngine()
     token = store.create(CredentialEnvelope(api_key="demo", api_secret="secret"))
-    monkeypatch.setattr("eba_trader.web_server.run_demo_fee_snapshot", lambda credentials: _candidate())
+    monkeypatch.setattr(
+        "eba_trader.web_server.run_demo_fee_snapshot",
+        lambda credentials: _candidate(),
+    )
 
     stepped = run_paper_step_request(
         {"sessionToken": token},
