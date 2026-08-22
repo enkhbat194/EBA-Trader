@@ -40,7 +40,9 @@
       return;
     }
 
-    const data = candles.filter((item) => finite(item.open) && finite(item.high) && finite(item.low) && finite(item.close));
+    const data = candles.filter(
+      (item) => finite(item.open) && finite(item.high) && finite(item.low) && finite(item.close),
+    );
     if (data.length < 2) {
       drawEmpty(ctx, width, height, 'Chart data unavailable');
       return;
@@ -57,13 +59,28 @@
         maxPrice = Math.max(maxPrice, Number(position.priceOpen));
       }
     });
+    markers.forEach((marker) => {
+      if (finite(marker.price)) {
+        minPrice = Math.min(minPrice, Number(marker.price));
+        maxPrice = Math.max(maxPrice, Number(marker.price));
+      }
+    });
     const span = Math.max(maxPrice - minPrice, Math.abs(maxPrice) * 0.0005, 0.0001);
     minPrice -= span * 0.06;
     maxPrice += span * 0.06;
 
-    const yFor = (price) => padding.top + ((maxPrice - Number(price)) / (maxPrice - minPrice)) * plotHeight;
+    const yFor = (price) => (
+      padding.top + ((maxPrice - Number(price)) / (maxPrice - minPrice)) * plotHeight
+    );
     const step = plotWidth / data.length;
     const candleWidth = Math.max(2, Math.min(9, step * 0.62));
+    const firstTime = Number(data[0].time || 0);
+    const lastTime = Number(data[data.length - 1].time || 0);
+    const timeSpan = Math.max(1, lastTime - firstTime);
+    const xForTime = (timestamp) => {
+      const ratio = Math.max(0, Math.min(1, (Number(timestamp) - firstTime) / timeSpan));
+      return padding.left + ratio * plotWidth;
+    };
 
     ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = '#080d12';
@@ -103,19 +120,30 @@
       ctx.fillRect(x - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
     });
 
-    const firstTime = Number(data[0].time || 0);
-    const lastTime = Number(data[data.length - 1].time || 0);
     ctx.fillStyle = '#7f8b98';
     ctx.font = '10px system-ui, sans-serif';
     ctx.textAlign = 'left';
-    if (firstTime) ctx.fillText(new Date(firstTime * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), padding.left, height - 8);
+    if (firstTime) {
+      ctx.fillText(
+        new Date(firstTime * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        padding.left,
+        height - 8,
+      );
+    }
     ctx.textAlign = 'right';
-    if (lastTime) ctx.fillText(new Date(lastTime * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), width - padding.right, height - 8);
+    if (lastTime) {
+      ctx.fillText(
+        new Date(lastTime * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        width - padding.right,
+        height - 8,
+      );
+    }
 
     positions.forEach((position) => {
       if (!finite(position.priceOpen)) return;
       const y = yFor(position.priceOpen);
-      const sell = Number(position.type) === 1 || String(position.side || '').toLowerCase() === 'sell';
+      const sell = Number(position.type) === 1
+        || String(position.side || '').toLowerCase() === 'sell';
       const color = sell ? '#ff6b6b' : '#5ce16b';
       ctx.setLineDash([5, 4]);
       ctx.strokeStyle = color;
@@ -128,31 +156,53 @@
       ctx.font = 'bold 10px system-ui, sans-serif';
       ctx.textAlign = 'left';
       const side = sell ? 'SELL' : 'BUY';
-      ctx.fillText(`${side} ${priceLabel(position.priceOpen)}`, padding.left + 4, Math.max(12, y - 5));
+      ctx.fillText(
+        `${side} ${priceLabel(position.priceOpen)}`,
+        padding.left + 4,
+        Math.max(12, y - 5),
+      );
     });
 
     markers.forEach((marker) => {
-      if (!finite(marker.price)) return;
+      if (!finite(marker.price) || !finite(marker.time)) return;
+      const x = xForTime(marker.time);
       const y = yFor(marker.price);
       const kind = String(marker.kind || marker.side || '').toUpperCase();
-      const color = kind.includes('SELL') ? '#ff5e5e' : kind.includes('EXIT') ? '#4c83ff' : '#64df58';
+      const color = kind.includes('SELL')
+        ? '#ff5e5e'
+        : kind.includes('EXIT') ? '#4c83ff' : '#64df58';
+
+      ctx.setLineDash([2, 5]);
+      ctx.strokeStyle = `${color}88`;
+      ctx.beginPath();
+      ctx.moveTo(x, padding.top);
+      ctx.lineTo(x, padding.top + plotHeight);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.arc(width - padding.right - 8, y, 5, 0, Math.PI * 2);
+      if (kind.includes('EXIT')) {
+        ctx.arc(x, y, 5.5, 0, Math.PI * 2);
+      } else {
+        ctx.moveTo(x, y - 7);
+        ctx.lineTo(x - 6, y + 5);
+        ctx.lineTo(x + 6, y + 5);
+        ctx.closePath();
+      }
       ctx.fill();
+
       ctx.fillStyle = '#dce6f0';
-      ctx.font = '10px system-ui, sans-serif';
-      ctx.textAlign = 'right';
-      ctx.fillText(marker.label || kind || 'BOT', width - padding.right - 16, y + 3);
+      ctx.font = 'bold 9px system-ui, sans-serif';
+      ctx.textAlign = x > width * 0.68 ? 'right' : 'left';
+      const labelX = x > width * 0.68 ? x - 8 : x + 8;
+      ctx.fillText(marker.label || kind || 'BOT', labelX, Math.max(12, y - 9));
     });
   }
 
   window.EBAChart = { render };
 })();
 
-// Base app.js is a deferred script after chart.js. DOMContentLoaded therefore
-// fires only after the base Binance/MT5 bindings exist. Load the optional paper
-// layer then so it can extend those bindings without duplicating the core UI.
 window.addEventListener('DOMContentLoaded', () => {
   const script = document.createElement('script');
   script.src = './paper_ui.js';
