@@ -169,7 +169,11 @@ def build_snapshot(mt5: Any, requested_symbols: tuple[str, ...], *, bars: int) -
 def run() -> None:
     parser = argparse.ArgumentParser(description="EBA Trader MT5 Demo read-only bridge")
     parser.add_argument("--eba-url", required=True, help="EBA Trader HTTPS base URL")
-    parser.add_argument("--pair-token", required=True, help="Pair token generated inside EBA Trader")
+    parser.add_argument(
+        "--pair-token",
+        required=True,
+        help="Pair token generated inside EBA Trader",
+    )
     parser.add_argument("--symbols", default=",".join(DEFAULT_SYMBOLS))
     parser.add_argument("--interval", type=float, default=15.0)
     parser.add_argument("--bars", type=int, default=120)
