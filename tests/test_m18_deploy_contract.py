@@ -37,6 +37,7 @@ def test_service_worker_never_caches_api_responses() -> None:
     worker = (ROOT / "web/sw.js").read_text(encoding="utf-8")
     assert "startsWith('/api/')" in worker
     assert "event.respondWith(fetch(event.request))" in worker
-    assert "eba-trader-ui-v4" in worker
+    assert "eba-trader-ui-v5" in worker
     assert "'./chart.js'" in worker
+    assert "'./paper_ui.js'" in worker
     assert "'./m18_2.css'" in worker
