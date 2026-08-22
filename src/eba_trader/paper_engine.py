@@ -68,14 +68,21 @@ class PaperExecutionEngine:
         self._markers: dict[str, list[dict[str, Any]]] = {}
         self._lock = threading.Lock()
 
-    def step(self, session_key: str, snapshot: dict[str, Any], *, now_ms: int | None = None) -> dict[str, Any]:
+    def step(
+        self,
+        session_key: str,
+        snapshot: dict[str, Any],
+        *,
+        allow_entry: bool = True,
+        now_ms: int | None = None,
+    ) -> dict[str, Any]:
         if not session_key:
             raise ValueError("session_key is required")
         now_ms = int(time.time() * 1000) if now_ms is None else int(now_ms)
         with self._lock:
             position = self._positions.get(session_key)
             event = "NO_ACTION"
-            reason = "NO_PAPER_CANDIDATE"
+            reason = "NO_PAPER_CANDIDATE" if allow_entry else "ENTRY_SCANNER_STOPPED"
 
             if position is not None:
                 mark_reason = self._mark_position(position, snapshot)
@@ -88,12 +95,11 @@ class PaperExecutionEngine:
                     and position.futures_exit_vwap is not None
                 ):
                     self._close_locked(session_key, position, now_ms, "DELIVERY_SAFETY_EXIT")
-                    position = None
                     event = "PAPER_EXIT"
                     reason = "DELIVERY_SAFETY_EXIT"
                 else:
                     event = "PAPER_MARK"
-            elif snapshot.get("decision") == "PAPER_CANDIDATE":
+            elif allow_entry and snapshot.get("decision") == "PAPER_CANDIDATE":
                 position, reason = self._open_candidate(snapshot, now_ms)
                 if position is not None:
                     self._positions[session_key] = position
