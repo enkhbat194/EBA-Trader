@@ -1,0 +1,29 @@
+[Unit]
+Description=EBA Trader Binance market-data service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/Eba-Trader
+EnvironmentFile=-/etc/eba-trader/eba-trader.env
+ExecStart=/opt/Eba-Trader/.venv/bin/eba-binance-data
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
+KillSignal=SIGINT
+
+# Keep failures contained while allowing network access and repo reads.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/Eba-Trader /var/lib/eba-trader
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=eba-binance-data
+
+[Install]
+WantedBy=multi-user.target
