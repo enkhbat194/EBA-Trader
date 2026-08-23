@@ -2,11 +2,11 @@
 
 _Last updated: 2026-08-24 (Asia/Ulaanbaatar)_
 
-This is the authoritative cross-chat continuation record. If older chat text, old deployment notes, or screenshots conflict with this file, this file wins.
+This is the authoritative cross-chat continuation record. If older chat text, old deployment notes, screenshots, old PRs, or old branches conflict with this file, this file wins.
 
 ## Current goal
 
-Build EBA Trader as a restart-safe, 24/7 trading system on one Linux server. Validate short-horizon strategies with paper trading first, record every trade durably, expose clear position/history/chart data to the PWA, and keep real-money execution locked until the execution path is separately proven.
+Run EBA Trader as a restart-safe 24/7 system on one Linode server, validate short-horizon strategies with paper trading first, persist every trade, expose clear position/history/chart data to the PWA, and keep real-money execution locked until the execution path is separately proven.
 
 ## Source of truth and infrastructure
 
@@ -19,14 +19,17 @@ Build EBA Trader as a restart-safe, 24/7 trading system on one Linux server. Val
 - Persistent state: `/var/lib/eba-trader/eba_trader.db`
 - Market-data service: `eba-binance-data.service`
 - Runtime API service: `eba-runtime-api.service`
+- PWA/web/scanner service: `eba-web.service`
 - Runtime API: `127.0.0.1:8765` until authenticated HTTPS proxy is added
+- PWA/web service: `127.0.0.1:8000` until authenticated HTTPS proxy is added
 
 ## Deprecated infrastructure
 
 - Replit is not part of the active EBA Trader architecture.
-- Render.com is not the target backend/runtime anymore.
+- Render.com is not an active backend/runtime target.
 - Do not add new EBA Trader work to Replit or Render.
-- The old Render-backed dashboard/PWA may remain reachable only as a temporary client during migration. It is not authoritative and should be retired after the PWA is connected to Linode.
+- Old Render-era branch/PR material is historical only and must not be treated as deployment authority.
+- PR #14 is closed and superseded.
 - BestCode integration remains separate from EBA Trader.
 
 ## What is already working
@@ -37,52 +40,64 @@ Build EBA Trader as a restart-safe, 24/7 trading system on one Linux server. Val
 - Binance public historical downloader and integrity gates exist.
 - Backtest, cost, walk-forward, regime and OOS guard tooling exists.
 - Trend V1 historical development cycle was rejected; its evidence remains preserved under `docs/`.
-- Historical research files are retained as evidence and are not active deployment instructions.
+- Historical research files are evidence, not deployment instructions.
 
-### Linode runtime
+### Linode/runtime core
 
 - Binance public market data has been observed running on Linode through NautilusTrader.
 - `eba-binance-data.service` starts at boot and restarts after failure.
 - SQLite-backed `TradeLedger` exists.
 - `eba-runtime-api.service` exists.
-- Runtime API currently exposes health, positions and events.
+- Runtime API exposes health, positions and events.
 - `scripts/install_linode_runtime.sh` is the canonical first-install script.
 - `scripts/update_linode_runtime.sh` is the canonical update script.
 
+### PWA and Fast Momentum migration
+
+- The useful PWA/dashboard source is now in GitHub `main` under `web/`.
+- Trade-detail UI, charts, PWA assets, Binance Demo connection UI and MT5 read-only bridge source are now in `main`.
+- `eba-web.service` is included for the Linode-hosted PWA/server-side scanner.
+- Fast Momentum supports LONG and SHORT paper decisions for BTCUSDT perpetual simulation.
+- Fast Momentum stores OPEN / MARK / CLOSE state in SQLite through `PersistentMomentumPaperEngine`.
+- Fast Momentum open position/history can be restored from SQLite after process restart.
+- PWA update/status text now describes Linode rather than Render.
+- `render.yaml` is not present in `main`.
+- PR #17 was merged into `main` as the migration checkpoint.
+- Main runtime CI now runs on pushes/PRs to `main`.
+
 ## Important current limitations
 
-1. The paper execution engine is not yet fully wired to `TradeLedger`; OPEN / UPDATE / CLOSE must all be persisted.
-2. Restart recovery of an active paper position is not complete until the execution engine reads OPEN positions from SQLite on startup.
-3. Runtime API is local-only and is not yet exposed to the PWA through authenticated HTTPS.
-4. The PWA/dashboard source is not present as a confirmed active frontend inside this repository, so the old Render client cannot simply be switched off before the frontend source/endpoint is migrated.
+1. Linode PWA is still private on `127.0.0.1:8000`; authenticated HTTPS/reverse-proxy exposure is not complete.
+2. Final phone smoke test against the Linode-served PWA is still pending.
+3. The older carry paper engine is not yet persisted/recovered to the same standard as Fast Momentum.
+4. GitHub `main` -> Linode automatic deployment with health check/rollback is not complete.
 5. Binance real order submission is not enabled or validated.
 
 ## Active trading direction
 
-The old Spot-only Trend research path is historical evidence, not the only runtime strategy direction.
+Fast Momentum / Micro Profit paper mode is the current short-horizon runtime strategy direction:
 
-The next paper strategy target is a separate **Fast Momentum / Micro Profit** mode for Binance perpetual futures simulation:
-
-- BTCUSDT
+- BTCUSDT perpetual simulation
 - 1m + 5m inputs
 - both LONG and SHORT eligibility
-- small margin test sizes, starting from $10
-- leverage tiers tested in paper mode first (5x / 10x / 20x; higher leverage remains aggressive-demo only until evidence supports it)
-- explicit entry, TP, SL, fees, slippage, liquidation distance and net P&L
-- each trade gets its own detail/chart record
-- strategy/indicator values must be visible in the trade detail UI
+- paper margin starts from $10
+- risk-selected leverage caps 5x / 10x / 20x
+- explicit entry, TP, SL, fees and net P&L
+- dedicated trade detail/chart record
+- indicator values visible in the trade detail UI
+- live execution remains locked
 
-This does not authorize real leveraged orders. Paper evidence comes first.
+The older Spot-only Trend path remains historical evidence, not the active deployment direction.
 
 ## Next tasks — strict order
 
-1. Integrate the paper execution engine with `TradeLedger` for every OPEN / UPDATE / CLOSE event.
-2. Add startup recovery from SQLite for OPEN paper positions.
-3. Expand runtime API for completed trade history and trade detail data.
-4. Add authenticated HTTPS reverse proxy on Linode.
-5. Locate/migrate the actual PWA/dashboard frontend and point it only at Linode; then retire Render.
-6. Add GitHub-main -> Linode automatic deployment with health-check/rollback behavior so routine updates do not require Weblish commands.
-7. Implement and validate Fast Momentum LONG/SHORT paper execution with clear TP/SL/indicator/chart visibility.
+1. Add authenticated HTTPS reverse proxy for the Linode PWA/web service without exposing port 8000 directly.
+2. Deploy/update `main` on Linode and verify `eba-binance-data`, `eba-runtime-api`, and `eba-web` are all healthy.
+3. Open the Linode-served PWA from the phone and smoke-test Dashboard / Opportunities / Positions / History / Settings / trade detail.
+4. Verify Fast Momentum OPEN -> MARK -> CLOSE persistence and restart recovery on the real Linode database.
+5. Retire/delete the old Render service only after the Linode PWA passes the phone test.
+6. Add GitHub `main` -> Linode automatic deployment with health-check and rollback behavior.
+7. Persist/recover the older carry paper engine or remove it if Fast Momentum becomes the only supported paper strategy.
 8. Run forward paper evidence and compare leverage tiers after fees/slippage.
 9. Only after the full paper path is restart-safe and statistically acceptable, design a separately gated Binance order-execution layer.
 
@@ -92,8 +107,9 @@ This does not authorize real leveraged orders. Paper evidence comes first.
 - Withdrawal permission is never required.
 - Real orders remain disabled until explicitly implemented and validated.
 - The deterministic risk layer has veto authority.
-- Server/PWA restart must not erase trade history or active paper state.
-- UI state is not the source of truth; the Linode ledger/runtime is.
+- Server/PWA restart must not erase trade history or active Fast Momentum paper state.
+- UI state is not the source of truth; Linode/SQLite is.
+- Port 8000 must not be exposed directly to the public internet without an authenticated HTTPS boundary.
 
 ## Canonical runtime docs
 
