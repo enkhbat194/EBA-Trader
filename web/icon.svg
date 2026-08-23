@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="EBA Trader">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#64df58"/>
+      <stop offset="0.55" stop-color="#41bfa5"/>
+      <stop offset="1" stop-color="#4c83ff"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4c83ff"/>
+      <stop offset="1" stop-color="#193968"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#080d12"/>
+  <path d="M256 72 414 164 256 256 98 164Z" fill="url(#g1)"/>
+  <path d="M98 164 256 256 256 440 98 348Z" fill="#183244"/>
+  <path d="M414 164 256 256 256 440 414 348Z" fill="url(#g2)"/>
+  <path d="M256 146 350 200 256 254 162 200Z" fill="#080d12"/>
+  <path d="M162 200 256 254 256 362 162 308Z" fill="#080d12"/>
+  <path d="M350 200 256 254 256 362 350 308Z" fill="#080d12"/>
+</svg>

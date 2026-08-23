@@ -1,0 +1,65 @@
+name: Linode PWA migration checks
+
+on:
+  push:
+    branches:
+      - linode-pwa-migration
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      EBA_LEDGER_DB: ${{ runner.temp }}/eba-trader/eba_trader.db
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install package and test tools
+        run: python -m pip install -e '.[dev]'
+
+      - name: Ruff migrated runtime
+        run: >-
+          ruff check
+          src/eba_trader/autonomous_runner.py
+          src/eba_trader/demo_sessions.py
+          src/eba_trader/m18_demo_snapshot.py
+          src/eba_trader/m18_fee_aware.py
+          src/eba_trader/m18_fee_policy.py
+          src/eba_trader/market_chart.py
+          src/eba_trader/momentum_engine.py
+          src/eba_trader/mt5_bridge_store.py
+          src/eba_trader/paper_engine.py
+          src/eba_trader/persistent_momentum.py
+          src/eba_trader/providers
+          src/eba_trader/web_server.py
+          src/eba_trader/web_server_v2.py
+          tests/test_persistent_momentum.py
+
+      - name: Run migration test suite
+        run: >-
+          pytest -q
+          tests/test_persistence.py
+          tests/test_persistent_momentum.py
+          tests/test_demo_sessions.py
+          tests/test_m18_demo_snapshot.py
+          tests/test_m18_fee_aware.py
+          tests/test_market_chart.py
+          tests/test_momentum_closed_candles.py
+          tests/test_mt5_bridge_store.py
+          tests/test_mt5_web_api.py
+          tests/test_paper_engine.py
+          tests/test_paper_web_api.py
+          tests/test_provider_connections.py
+          tests/test_web_server.py

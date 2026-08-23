@@ -13,6 +13,7 @@ dependencies = []
 [project.scripts]
 eba-binance-data = "eba_trader.binance_probe:run_data_only_probe"
 eba-runtime-api = "eba_trader.runtime_api:run_runtime_api"
+eba-web = "eba_trader.web_server_v2:main"
 eba-download-history = "eba_trader.history:download_history_cli"
 eba-backtest-trend = "eba_trader.backtest:backtest_trend_cli"
 eba-baseline-study = "eba_trader.locked_cli:baseline_study_cli"
