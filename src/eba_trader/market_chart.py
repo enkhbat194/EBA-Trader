@@ -11,7 +11,7 @@ from .providers.binance import BINANCE_ENDPOINTS
 
 SUPPORTED_TIMEFRAMES = {"1m", "5m", "15m", "1h"}
 BINANCE_CHART_SYMBOLS = {"BTCUSDT"}
-MAX_BARS = 240
+MAX_BARS = 300
 
 
 @dataclass(frozen=True, slots=True)
