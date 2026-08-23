@@ -1,6 +1,6 @@
-const EBA_INSTALLED_APP_VERSION = '0.9.0';
-const EBA_INSTALLED_RELEASE = 'M18.5';
-const EBA_INSTALLED_PWA_CACHE = 'eba-trader-ui-v9';
+const EBA_INSTALLED_APP_VERSION = '0.9.1';
+const EBA_INSTALLED_RELEASE = 'M18.6';
+const EBA_INSTALLED_PWA_CACHE = 'eba-trader-ui-v10';
 let ebaLatestAppInfo = null;
 let ebaReloadOnControllerChange = false;
 let ebaRunnerSyncTimer = null;
@@ -199,7 +199,7 @@ async function ebaRunnerCommand(path, payload) {
   return result;
 }
 
-// M18.5: scanner execution lives on the server. These overrides only refresh UI.
+// M18.6: scanner execution lives on the server. These overrides only refresh UI.
 refreshDemoSnapshot = async function refreshServerScannerUi() {
   if (!demoSessionToken) {
     await ebaSyncRunnerStatus();
