@@ -1,6 +1,6 @@
-const EBA_INSTALLED_APP_VERSION = '0.10.0';
-const EBA_INSTALLED_RELEASE = 'LINODE-M1';
-const EBA_INSTALLED_PWA_CACHE = 'eba-trader-ui-v11';
+const EBA_INSTALLED_APP_VERSION = '0.11.0';
+const EBA_INSTALLED_RELEASE = 'LINODE-M2';
+const EBA_INSTALLED_PWA_CACHE = 'eba-trader-ui-v12';
 let ebaLatestAppInfo = null;
 let ebaReloadOnControllerChange = false;
 let ebaRunnerSyncTimer = null;
@@ -41,6 +41,7 @@ function ebaInstallUpdateCenter() {
     <div class="setting-row"><span>Server release</span><strong id="serverAppVersion">Checking…</strong></div>
     <div class="setting-row"><span>Server build</span><strong id="serverBuildSha">—</strong></div>
     <div class="setting-row"><span>Runtime</span><strong id="serverRuntime">LINODE</strong></div>
+    <div class="setting-row"><span>Public PWA<br><small id="publicPwaUrl">Waiting for HTTPS bootstrap…</small></span><strong id="publicPwaStatus">PENDING</strong></div>
     <div class="setting-row"><span>PWA cache</span><strong id="pwaCacheVersion">${EBA_INSTALLED_PWA_CACHE}</strong></div>
     <div class="setting-row"><span>Server scanner<br><small>PWA may be closed; Linode keeps scanning while the service is running.</small></span><strong id="serverRunnerStatus">CHECKING</strong></div>
     <div class="setting-row"><span>Last server scans<br><small id="serverRunnerScans">Waiting for runner status…</small></span><strong id="serverRunnerMode">—</strong></div>
@@ -75,6 +76,16 @@ function ebaRenderUpdateInfo(info) {
   if (ebaUpdateEl('serverRuntime')) ebaUpdateEl('serverRuntime').textContent = String(info.runtime || 'linode').toUpperCase();
   if (ebaUpdateEl('pwaCacheVersion')) ebaUpdateEl('pwaCacheVersion').textContent = `${EBA_INSTALLED_PWA_CACHE} / server ${serverCache}`;
   if (ebaUpdateEl('appReleasedAt')) ebaUpdateEl('appReleasedAt').textContent = String(info.releasedAt || 'unknown');
+
+  const publicStatus = ebaUpdateEl('publicPwaStatus');
+  const publicUrl = ebaUpdateEl('publicPwaUrl');
+  if (publicStatus) {
+    publicStatus.textContent = info.httpsReady ? 'HTTPS READY' : 'PENDING';
+    publicStatus.className = info.httpsReady ? 'positive-text' : 'negative';
+  }
+  if (publicUrl) {
+    publicUrl.textContent = info.publicUrl ? String(info.publicUrl) : 'Automatic HTTPS bootstrap is pending.';
+  }
 
   const changes = Array.isArray(info.changes) ? info.changes : [];
   if (ebaUpdateEl('appChangeCount')) ebaUpdateEl('appChangeCount').textContent = `${changes.length} CHANGES`;
