@@ -12,16 +12,17 @@ from .momentum_engine import MomentumPaperEngine
 from .providers import CredentialEnvelope
 
 MOMENTUM_ENGINE = MomentumPaperEngine()
-APP_VERSION = "0.9.0"
-APP_RELEASE = "M18.5"
-PWA_CACHE_VERSION = "eba-trader-ui-v9"
+APP_VERSION = "0.9.1"
+APP_RELEASE = "M18.6"
+PWA_CACHE_VERSION = "eba-trader-ui-v10"
 APP_RELEASED_AT = "2026-08-23"
 APP_CHANGES = [
-    "Cash-and-carry and Fast Momentum scanners now run on the Render server",
-    "Closing or backgrounding the PWA no longer stops the server scan loop",
-    "PWA buttons now control the server runner instead of browser timers",
-    "Settings shows server-runner health and last scan timestamps",
-    "Live execution remains locked; all autonomous execution is paper-only",
+    "Fast Momentum open positions now count correctly in the Portfolio summary",
+    "Open and completed Fast trades can open a dedicated trade-detail terminal",
+    "Trade charts show ENTRY, CURRENT/EXIT, TP and SL levels plus EMA20/EMA50",
+    "Trade-detail charts support pinch zoom, drag pan, timeframe switching and full-chart focus",
+    "Scan UI separates the open position from the new-entry signal to reduce NO_TRADE confusion",
+    "LONG and SHORT remain symmetric paper directions; live execution remains locked",
 ]
 
 
@@ -153,9 +154,9 @@ def run_runner_close(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 class EBAExtendedRequestHandler(base.EBARequestHandler):
-    """M18.5 demo server: server-autonomous paper scanners; live remains locked."""
+    """M18.6 demo server: server-autonomous paper scanners; live remains locked."""
 
-    server_version = "EBA-UI/0.9"
+    server_version = "EBA-UI/0.9.1"
 
     def do_GET(self) -> None:  # noqa: N802
         if self.path == "/api/app-info":
