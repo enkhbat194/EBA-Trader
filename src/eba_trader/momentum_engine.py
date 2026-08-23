@@ -118,16 +118,20 @@ def _signed_get(
     return payload
 
 
-def _fetch_candles(interval: str, limit: int = 120) -> list[dict[str, float]]:
-    payload = _public_get(
-        "/fapi/v1/klines",
-        {"symbol": SYMBOL, "interval": interval, "limit": str(limit)},
-    )
-    if not isinstance(payload, list) or len(payload) < 60:
-        raise RuntimeError("insufficient Binance Demo futures candles")
+def _closed_candles_from_payload(
+    payload: Any,
+    *,
+    now_ms: int,
+    limit: int,
+) -> list[dict[str, float]]:
+    if not isinstance(payload, list):
+        raise RuntimeError("invalid Binance Demo futures candle payload")
     candles: list[dict[str, float]] = []
     for row in payload:
-        if not isinstance(row, list) or len(row) < 6:
+        if not isinstance(row, list) or len(row) < 7:
+            continue
+        close_time_ms = int(row[6])
+        if close_time_ms >= now_ms:
             continue
         candles.append(
             {
@@ -137,11 +141,26 @@ def _fetch_candles(interval: str, limit: int = 120) -> list[dict[str, float]]:
                 "low": float(row[3]),
                 "close": float(row[4]),
                 "volume": float(row[5]),
+                "closeTimeMs": float(close_time_ms),
             }
         )
+    candles = candles[-limit:]
     if len(candles) < 60:
-        raise RuntimeError("invalid Binance Demo futures candle payload")
+        raise RuntimeError("insufficient closed Binance Demo futures candles")
     return candles
+
+
+def _fetch_candles(interval: str, limit: int = 120) -> list[dict[str, float]]:
+    request_limit = min(1500, limit + 2)
+    payload = _public_get(
+        "/fapi/v1/klines",
+        {"symbol": SYMBOL, "interval": interval, "limit": str(request_limit)},
+    )
+    return _closed_candles_from_payload(
+        payload,
+        now_ms=int(time.time() * 1000),
+        limit=limit,
+    )
 
 
 def _book_ticker() -> tuple[float, float]:
@@ -370,6 +389,7 @@ def analyze_momentum(
         "score": score,
         "longScore": long_score,
         "shortScore": short_score,
+        "minimumSignalScore": MIN_SIGNAL_SCORE,
         "ema20_1m": ema20_1m,
         "ema50_1m": ema50_1m,
         "ema20_5m": ema20_5m,
@@ -385,6 +405,8 @@ def analyze_momentum(
         "breakoutDown": breakout_down,
         "fakeBreakoutRisk": fake_breakout_risk,
         "lastClose": last["close"],
+        "signalCandleTime": last["time"],
+        "signalCandleClosed": True,
         "liveExecutionAllowed": False,
     }
 
