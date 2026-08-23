@@ -8,9 +8,12 @@ fi
 
 PUBLIC_HOST="${1:-}"
 EMAIL="${2:-}"
+ENV_DIR="/etc/eba-trader"
+HOST_FILE="$ENV_DIR/public-host"
+URL_FILE="$ENV_DIR/public-url"
 
-if [[ -z "$PUBLIC_HOST" || -z "$EMAIL" ]]; then
-  echo "Usage: $0 <public-hostname> <email>" >&2
+if [[ -z "$PUBLIC_HOST" ]]; then
+  echo "Usage: $0 <public-hostname> [email]" >&2
   echo "Example: $0 trader.example.com owner@example.com" >&2
   exit 2
 fi
@@ -22,7 +25,10 @@ fi
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y nginx certbot python3-certbot-nginx
+apt-get install -y nginx certbot python3-certbot-nginx curl
+
+mkdir -p "$ENV_DIR"
+chmod 700 "$ENV_DIR"
 
 cat > /etc/nginx/sites-available/eba-trader <<EOF
 server {
@@ -30,6 +36,7 @@ server {
     listen [::]:80;
     server_name ${PUBLIC_HOST};
 
+    server_tokens off;
     client_max_body_size 1m;
 
     location / {
@@ -40,6 +47,9 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_read_timeout 60s;
+        add_header X-Content-Type-Options nosniff always;
+        add_header Referrer-Policy no-referrer always;
+        add_header X-Frame-Options DENY always;
     }
 }
 EOF
@@ -50,20 +60,30 @@ nginx -t
 systemctl enable --now nginx
 systemctl reload nginx
 
-# Certbot verifies that PUBLIC_HOST resolves to this server and then installs HTTPS.
-certbot --nginx \
-  --non-interactive \
-  --agree-tos \
-  --redirect \
-  --email "$EMAIL" \
+CERTBOT_ARGS=(
+  --nginx
+  --non-interactive
+  --agree-tos
+  --redirect
+  --keep-until-expiring
   -d "$PUBLIC_HOST"
+)
+if [[ -n "$EMAIL" ]]; then
+  CERTBOT_ARGS+=(--email "$EMAIL")
+else
+  CERTBOT_ARGS+=(--register-unsafely-without-email)
+fi
+
+certbot "${CERTBOT_ARGS[@]}"
 
 nginx -t
 systemctl reload nginx
 
-mkdir -p /etc/eba-trader
-printf '%s\n' "$PUBLIC_HOST" > /etc/eba-trader/public-host
-chmod 600 /etc/eba-trader/public-host
+printf '%s\n' "$PUBLIC_HOST" > "$HOST_FILE"
+printf 'https://%s/\n' "$PUBLIC_HOST" > "$URL_FILE"
+chmod 600 "$HOST_FILE" "$URL_FILE"
+
+curl --fail --silent --show-error --max-time 15 "https://${PUBLIC_HOST}/api/health" >/dev/null
 
 echo "HTTPS ready: https://${PUBLIC_HOST}/"
 echo "Health: https://${PUBLIC_HOST}/api/health"
