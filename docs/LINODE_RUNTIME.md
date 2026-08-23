@@ -1,84 +1,100 @@
 # EBA Trader — Linode 24/7 runtime
 
-Status: persistent-runtime implementation started 2026-08-24.
+Status: active runtime target as of 2026-08-24.
 
-## Current server
+## Canonical server
 
 - Provider: Akamai/Linode
 - Plan: Nanode 1 GB
 - Region: Singapore 2
 - OS: Ubuntu 24.04 LTS
-- Repo path: `/opt/Eba-Trader`
-- Persistent state path: `/var/lib/eba-trader`
-- Public Binance market-data service: `eba-binance-data.service`
+- Repo: `/opt/Eba-Trader`
+- Persistent state: `/var/lib/eba-trader`
+- SQLite ledger: `/var/lib/eba-trader/eba_trader.db`
+- Market-data service: `eba-binance-data.service`
+- Runtime API service: `eba-runtime-api.service`
+- Local API: `127.0.0.1:8765`
+
+This Linode is the sole active backend/runtime target. Replit and Render.com are deprecated for EBA Trader backend/runtime work.
 
 ## What already works
 
-- Starts Binance public market data automatically after boot.
-- Restarts the market-data process automatically after a crash.
-- Keeps the Binance/Nautilus data connection alive without keeping the browser or PWA open.
-- Writes logs to systemd journal.
-- Uses `live_public` market data by default, so no Binance API secret is required for the data-only service.
+- Binance public market data runs through NautilusTrader on Linode.
+- Market-data service starts after boot and restarts after failure.
+- Runtime API runs as a separate systemd service.
+- SQLite-backed `TradeLedger` exists outside the Git working tree.
+- Git updates do not remove the database.
+- Runtime API exposes health, positions and events.
 
-## Persistent runtime milestone
+## Current limitation
 
-This branch adds restart-safe local state using SQLite at:
+The ledger exists, but the paper execution engine still needs complete persistence integration. A paper position is only restart-safe after every OPEN / UPDATE / CLOSE is written to SQLite and startup recovery reloads OPEN positions.
 
-`/var/lib/eba-trader/eba_trader.db`
+The API is deliberately bound to localhost until authenticated HTTPS is added.
 
-The ledger stores positions and append-only runtime events. It is outside the Git working tree, so `git pull`, deploys, and application upgrades do not delete it.
+Real Binance order submission is not enabled.
 
-A lightweight local runtime API is also added:
+## Canonical scripts
 
-- `GET /health`
-- `GET /api/v1/positions`
-- `GET /api/v1/positions?status=OPEN`
-- `GET /api/v1/positions/<position_id>`
-- `GET /api/v1/events?limit=100`
-
-The API binds to `127.0.0.1:8765` by default. It is deliberately not exposed directly to the public internet. A later reverse-proxy/authentication step will connect the PWA safely.
-
-## Services
-
-- `eba-binance-data.service` — Binance market-data runtime
-- `eba-runtime-api.service` — local persistent-state API
-
-Both are enabled by `scripts/install_linode_runtime.sh` and refreshed by `scripts/update_linode_runtime.sh`.
-
-## Important limitation
-
-The persistent ledger now exists in code, but the paper execution engine still needs to write every OPEN / UPDATE / CLOSE event into it. Until that integration is complete, SQLite cannot recover paper positions that only existed in another process's RAM.
-
-This service still does **not** submit Binance orders. A green market-data feed is not proof of safe order execution.
-
-## Deployment
-
-From `/opt/Eba-Trader` after the branch is merged to `main`:
+First install:
 
 ```bash
+cd /opt/Eba-Trader
+bash scripts/install_linode_runtime.sh
+```
+
+Routine update:
+
+```bash
+cd /opt/Eba-Trader
 bash scripts/update_linode_runtime.sh
 ```
 
-The updater fast-forwards `main`, refreshes the Python environment, installs both systemd units, restarts both services, and verifies the local API health endpoint.
+The update script fast-forwards GitHub `main`, refreshes the Python environment, installs the canonical systemd units, restarts both runtime services and checks the local health endpoint.
 
-Check status:
+## Verification
 
 ```bash
 systemctl status eba-binance-data eba-runtime-api --no-pager
-```
-
-Check local API:
-
-```bash
 curl http://127.0.0.1:8765/health
 ```
 
-## Next strict order
+Persistent data must remain under `/var/lib/eba-trader`; do not place the ledger inside `/opt/Eba-Trader`.
 
-1. Merge and deploy the persistent-runtime branch.
-2. Verify `/health` and SQLite file creation on Linode.
-3. Integrate the paper execution engine with `TradeLedger` for OPEN / UPDATE / CLOSE events.
-4. Add recovery-on-start so open paper positions are restored after process/server restart.
-5. Add authenticated HTTPS reverse proxy.
-6. Point PWA positions/history/chart-detail screens at the Linode runtime API.
-7. Only after paper execution is proven restart-safe, consider exchange order execution.
+## PWA/dashboard migration
+
+The old Render-backed PWA/dashboard is temporary only. Render is not the target backend anymore.
+
+Migration order:
+
+1. finish persistent paper OPEN / UPDATE / CLOSE integration;
+2. implement startup recovery from SQLite;
+3. expand history/trade-detail API;
+4. add authenticated HTTPS reverse proxy on Linode;
+5. locate/migrate the actual PWA frontend source and point it at Linode;
+6. validate positions/history/chart-detail against server state;
+7. retire the Render service after Linode-backed PWA is proven working.
+
+Do not switch off the old client before the frontend source and Linode endpoint are confirmed, otherwise the UI can be lost even though the trading runtime continues running.
+
+## Automatic deployment target
+
+Manual Weblish updates are transitional. The target is GitHub `main` -> Linode automated deployment with:
+
+- fast-forward-only source update,
+- dependency refresh only when required,
+- service restart,
+- health check,
+- failed-deploy detection/rollback,
+- persistent database untouched.
+
+## Next engineering order
+
+1. Paper engine -> `TradeLedger` integration.
+2. Restart recovery.
+3. Completed-trade/history/detail API.
+4. Authenticated HTTPS.
+5. PWA migration off Render.
+6. GitHub-to-Linode automatic deployment.
+7. Fast Momentum LONG/SHORT paper validation.
+8. Only then design separately gated real Binance execution.
