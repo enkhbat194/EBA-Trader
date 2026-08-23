@@ -1,49 +1,50 @@
 # EBA Trader
 
-EBA Trader is a research-first autonomous trading system project.
+EBA Trader is a research-first trading system with deterministic risk control and a persistent 24/7 Linux runtime.
 
-## Mission
+## Active architecture
 
-Build a professional-grade trading engine that can:
+- Source of truth: GitHub `main`
+- Runtime server: Akamai/Linode Nanode 1 GB, Singapore 2
+- OS: Ubuntu 24.04 LTS
+- Market data: Binance via NautilusTrader
+- Persistent state: SQLite at `/var/lib/eba-trader/eba_trader.db`
+- Services:
+  - `eba-binance-data.service`
+  - `eba-runtime-api.service`
+- Local runtime API: `127.0.0.1:8765`
 
-1. read live market data,
-2. classify the current market regime,
-3. select among validated strategies,
-4. reject low-quality setups with `NO_TRADE`,
-5. enforce deterministic risk limits,
-6. measure every decision against benchmarks,
-7. learn through research and validation without allowing unvalidated AI output to control real capital.
+Replit and Render.com are not active backend/runtime targets. The old Render-backed PWA/dashboard is transitional only until its frontend is migrated to Linode.
 
-## V1 scope (frozen)
+## What works now
 
-- Market: `BTC/USDT`
-- Venue target: Binance
-- Product: Spot only
-- Core engine target: NautilusTrader
-- Timeframes: 5m execution, 15m signal, 1h regime
-- Strategies: Trend Following, Mean Reversion, Breakout, Momentum, NO_TRADE
-- Modes: Backtest -> Paper -> Shadow -> Micro-Live (future gated stage)
-- Futures/leverage: disabled in V1
-- Live-money execution: disabled until validation gates are passed
+- Binance public live market-data connection on Linode
+- restartable systemd market-data service
+- persistent SQLite trade ledger implementation
+- local runtime API for health, positions and events
+- historical research/backtest/evidence tooling
+- deterministic risk and `NO_TRADE` foundations
 
-## Non-negotiable design rules
+## What is not complete yet
 
-- AI is an analyst/researcher/critic, not the final risk authority.
-- The Risk Engine is deterministic code.
-- A strategy is not promoted because a backtest looks profitable.
-- Fees, slippage, latency assumptions, out-of-sample tests and walk-forward tests are required.
-- `NO_TRADE` is a first-class decision.
-- Exchange adapters must not leak venue-specific logic into strategy code.
-- API keys must never be committed to Git.
-- Withdrawal permission must never be required by the bot.
+- paper OPEN / UPDATE / CLOSE events are not yet fully connected to the persistent ledger
+- startup recovery of active paper positions is not complete
+- PWA is not yet connected to the Linode API through authenticated HTTPS
+- completed trade/history/detail API still needs expansion
+- real Binance order execution is not enabled
 
-## Current status
+## Next runtime direction
 
-**M2 — audited historical evidence pipeline**
+The next separate strategy target is Fast Momentum / Micro Profit paper trading for BTCUSDT perpetual futures simulation using 1m/5m inputs, both LONG and SHORT setups, visible TP/SL/indicators, and leverage tiers tested only in paper mode first.
 
-The deterministic core, Binance public-data path, signal research pipeline, risk-sized execution
-model, predeclared screening, and one-shot final OOS safeguards are implemented. The complete
-Python 3.12 test/lint audit passed on 2026-08-20. Real historical development evidence has not yet
-been generated, and 2025 OOS remains locked. Exchange execution remains disabled.
+Historical Spot Trend research remains preserved under `docs/` as evidence. It should not be confused with the active runtime migration plan.
 
-See `PROJECT_STATE.md` for the authoritative project continuation state.
+## Safety rules
+
+- API secrets never go into Git.
+- Withdrawal permission is never required.
+- Real orders remain locked until the execution path is separately validated.
+- Deterministic risk controls can veto every trade.
+- Runtime state belongs on Linode/SQLite, not in browser RAM.
+
+See `PROJECT_STATE.md` for the authoritative continuation state and `docs/LINODE_RUNTIME.md` for deployment details.
