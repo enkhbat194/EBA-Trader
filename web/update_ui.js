@@ -158,6 +158,45 @@ async function ebaFetchRunnerStatus() {
   return result;
 }
 
+function ebaSyncFastControls(result) {
+  const fastAvailable = Boolean(result.fastPaperAvailable);
+  const position = result.fastState?.openPosition || null;
+  window.ebaFastPaperAvailable = fastAvailable;
+
+  const start = ebaUpdateEl('startMomentum');
+  const stop = ebaUpdateEl('stopMomentum');
+  const close = ebaUpdateEl('closeMomentumPosition');
+  if (start) {
+    start.disabled = Boolean(result.fastRunning) || !fastAvailable;
+    start.textContent = result.fastRunning ? '● FAST PAPER RUNNING' : '▶ START FAST PAPER';
+  }
+  if (stop) stop.disabled = !result.fastRunning;
+  if (close) close.disabled = !position || !fastAvailable;
+
+  const secretStatus = ebaUpdateEl('serverSecretStatus');
+  const secretHelp = ebaUpdateEl('serverSecretHelp');
+  if (secretStatus) {
+    secretStatus.textContent = result.demoCredentialsConfigured ? 'AUTO' : 'OPTIONAL';
+    secretStatus.className = 'positive-text';
+  }
+  if (secretHelp) {
+    secretHelp.textContent = result.demoCredentialsConfigured
+      ? 'Server secret configured · authenticated Demo account/commission data available'
+      : 'Fast paper runs on public Binance Demo data; account key is not required';
+  }
+
+  const carryPnl = Number(result.carryState?.totalPnlUsd || 0);
+  const fastPnl = Number(result.fastState?.totalPnlUsd || 0);
+  const totalPnl = carryPnl + fastPnl;
+  const pnlValue = ebaUpdateEl('todayPnlValue');
+  const pnlDetail = ebaUpdateEl('todayPnlDetail');
+  if (pnlValue) {
+    pnlValue.textContent = formatUsd(totalPnl);
+    pnlValue.className = totalPnl >= 0 ? 'positive-text' : 'negative';
+  }
+  if (pnlDetail) pnlDetail.textContent = `Carry ${formatUsd(carryPnl)} · Fast ${formatUsd(fastPnl)}`;
+}
+
 function ebaApplyRunnerStatus(result) {
   if (!result || typeof result !== 'object') return;
 
@@ -170,6 +209,7 @@ function ebaApplyRunnerStatus(result) {
   syncBotAvailability();
   if (result.carryState) applyPaperState(result.carryState);
   if (result.fastState) updateMomentumState(result.fastState);
+  ebaSyncFastControls(result);
 
   const healthy = Boolean(result.threadAlive) && !result.lastError;
   const runnerStatus = ebaUpdateEl('serverRunnerStatus');
