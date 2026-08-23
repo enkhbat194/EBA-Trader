@@ -5,6 +5,7 @@ import os
 import subprocess
 from http import HTTPStatus
 from http.server import ThreadingHTTPServer
+from pathlib import Path
 from typing import Any
 
 from . import web_server as base
@@ -13,16 +14,16 @@ from .persistent_momentum import PersistentMomentumPaperEngine, ledger_from_env
 from .providers import CredentialEnvelope
 
 MOMENTUM_ENGINE = PersistentMomentumPaperEngine(ledger=ledger_from_env())
-APP_VERSION = "0.10.0"
-APP_RELEASE = "LINODE-M1"
-PWA_CACHE_VERSION = "eba-trader-ui-v11"
+APP_VERSION = "0.11.0"
+APP_RELEASE = "LINODE-M2"
+PWA_CACHE_VERSION = "eba-trader-ui-v12"
 APP_RELEASED_AT = "2026-08-24"
 APP_CHANGES = [
-    "PWA/dashboard source migrated from the old Render branch into the Linode runtime branch",
-    "Fast Momentum paper OPEN, MARK and CLOSE state now persists to the shared SQLite ledger",
-    "Fast Momentum state can recover from SQLite after a web-service restart",
-    "Binance Demo credentials are read once from the Linode server environment and never returned to the browser",
-    "Open and completed Fast trades keep dedicated trade-detail charts with ENTRY, CURRENT/EXIT, TP, SL and EMA overlays",
+    "Linode now bootstraps a public HTTPS PWA automatically with an IP-backed hostname",
+    "HTTPS health is retried by the existing five-minute auto-update timer without risking runtime rollback",
+    "Settings now reports the active public PWA URL and HTTPS readiness",
+    "PWA/dashboard and Fast Momentum continue to run server-side when the phone app is closed",
+    "Fast Momentum paper OPEN, MARK and CLOSE state remains restart-safe in SQLite",
     "LONG and SHORT remain symmetric paper directions; real execution remains locked",
 ]
 
@@ -59,6 +60,19 @@ def _build_sha() -> str:
     return result.stdout.strip() or "unknown"
 
 
+def _public_endpoint() -> tuple[str | None, str | None]:
+    host_path = Path("/etc/eba-trader/public-host")
+    url_path = Path("/etc/eba-trader/public-url")
+    try:
+        host = host_path.read_text(encoding="utf-8").strip() if host_path.exists() else ""
+        url = url_path.read_text(encoding="utf-8").strip() if url_path.exists() else ""
+    except OSError:
+        return None, None
+    if host and not url:
+        url = f"https://{host}/"
+    return host or None, url or None
+
+
 RUNNER = AutonomousDemoRunner(
     credentials_loader=_server_demo_credentials,
     snapshot_loader=base.run_demo_fee_snapshot,
@@ -71,6 +85,7 @@ RUNNER = AutonomousDemoRunner(
 
 
 def _app_info() -> dict[str, Any]:
+    public_host, public_url = _public_endpoint()
     return {
         "ok": True,
         "appVersion": APP_VERSION,
@@ -82,6 +97,9 @@ def _app_info() -> dict[str, Any]:
         "runtime": "linode",
         "serverRunner": True,
         "persistentLedger": True,
+        "publicHost": public_host,
+        "publicUrl": public_url,
+        "httpsReady": bool(public_url),
         "liveExecutionAllowed": False,
     }
 
@@ -177,7 +195,7 @@ def run_runner_close(payload: dict[str, Any]) -> dict[str, Any]:
 class EBAExtendedRequestHandler(base.EBARequestHandler):
     """Linode PWA server with autonomous paper scanners; real execution locked."""
 
-    server_version = "EBA-UI/0.10.0"
+    server_version = "EBA-UI/0.11.0"
 
     def do_GET(self) -> None:  # noqa: N802
         if self.path == "/api/app-info":
