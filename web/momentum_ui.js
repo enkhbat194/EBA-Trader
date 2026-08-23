@@ -63,7 +63,7 @@ function installMomentumUi() {
   if (riskCard && !momentumEl('serverSecretStatus')) {
     const row = document.createElement('div');
     row.className = 'setting-row';
-    row.innerHTML = '<span>Binance Demo auto-connect<br><small id="serverSecretHelp">Render secrets not checked yet</small></span><strong id="serverSecretStatus">CHECKING</strong>';
+    row.innerHTML = '<span>Binance Demo auto-connect<br><small id="serverSecretHelp">Linode secret not checked yet</small></span><strong id="serverSecretStatus">CHECKING</strong>';
     riskCard.appendChild(row);
     const momentumRisk = document.createElement('div');
     momentumRisk.className = 'setting-row';
@@ -247,8 +247,8 @@ async function checkServerCredentialStatus() {
       status.className = serverSecretsConfigured ? 'positive-text' : 'negative';
     }
     if (help) help.textContent = serverSecretsConfigured
-      ? 'Render secret configured · Binance key never returns to browser'
-      : 'Set EBA_BINANCE_DEMO_API_KEY + EBA_BINANCE_DEMO_API_SECRET once in Render';
+      ? 'Linode secret configured · Binance key never returns to browser'
+      : 'Set BINANCE_DEMO_API_KEY + BINANCE_DEMO_API_SECRET once on Linode';
   } catch (_) {
     serverSecretsConfigured = false;
   }
