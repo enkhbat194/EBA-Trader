@@ -14,10 +14,11 @@ DEFAULT_INTERVAL_SECONDS = 15.0
 
 
 class AutonomousDemoRunner:
-    """Server-side paper scanner that does not depend on an open PWA.
+    """Server-side paper scanners that do not depend on an open PWA.
 
-    Both strategies remain paper-only. The runner reads Demo market/account data,
-    advances the existing paper engines, and never submits an exchange order.
+    Carry and Fast Momentum run in independent threads so a slower carry snapshot
+    cannot delay the fast scanner. Both engines remain paper-only and never send
+    exchange orders.
     """
 
     def __init__(
@@ -40,36 +41,51 @@ class AutonomousDemoRunner:
         self._interval_seconds = float(interval_seconds)
         self._carry_enabled = bool(auto_start_carry)
         self._fast_enabled = bool(auto_start_fast)
-        self._thread: threading.Thread | None = None
+        self._carry_thread: threading.Thread | None = None
+        self._fast_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
-        self._wake_event = threading.Event()
+        self._carry_wake_event = threading.Event()
+        self._fast_wake_event = threading.Event()
         self._lock = threading.Lock()
         self._started_at_ms: int | None = None
-        self._last_loop_at_ms: int | None = None
         self._last_carry_scan_at_ms: int | None = None
         self._last_fast_scan_at_ms: int | None = None
-        self._last_error: str | None = None
+        self._carry_error: str | None = None
+        self._fast_error: str | None = None
         self._last_snapshot: dict[str, Any] | None = None
 
     def ensure_started(self) -> None:
         with self._lock:
-            if self._thread is not None and self._thread.is_alive():
+            carry_alive = self._carry_thread is not None and self._carry_thread.is_alive()
+            fast_alive = self._fast_thread is not None and self._fast_thread.is_alive()
+            if carry_alive and fast_alive:
                 return
             self._stop_event.clear()
-            self._thread = threading.Thread(
-                target=self._run_loop,
-                name="eba-demo-paper-runner",
-                daemon=True,
-            )
-            self._started_at_ms = int(time.time() * 1000)
-            self._thread.start()
+            if self._started_at_ms is None:
+                self._started_at_ms = int(time.time() * 1000)
+            if not carry_alive:
+                self._carry_thread = threading.Thread(
+                    target=self._carry_loop,
+                    name="eba-demo-carry-runner",
+                    daemon=True,
+                )
+                self._carry_thread.start()
+            if not fast_alive:
+                self._fast_thread = threading.Thread(
+                    target=self._fast_loop,
+                    name="eba-demo-fast-runner",
+                    daemon=True,
+                )
+                self._fast_thread.start()
 
     def shutdown(self) -> None:
         self._stop_event.set()
-        self._wake_event.set()
-        thread = self._thread
-        if thread is not None and thread.is_alive():
-            thread.join(timeout=max(1.0, self._interval_seconds + 1.0))
+        self._carry_wake_event.set()
+        self._fast_wake_event.set()
+        timeout = max(1.0, self._interval_seconds + 1.0)
+        for thread in (self._carry_thread, self._fast_thread):
+            if thread is not None and thread.is_alive():
+                thread.join(timeout=timeout)
 
     def set_enabled(
         self,
@@ -83,7 +99,10 @@ class AutonomousDemoRunner:
             if fast is not None:
                 self._fast_enabled = bool(fast)
         self.ensure_started()
-        self._wake_event.set()
+        if carry is not None:
+            self._carry_wake_event.set()
+        if fast is not None:
+            self._fast_wake_event.set()
         return self.status()
 
     def close_carry(self, *, reason: str = "SERVER_RUNNER_MANUAL_CLOSE") -> dict[str, Any]:
@@ -116,90 +135,107 @@ class AutonomousDemoRunner:
 
     def status(self) -> dict[str, Any]:
         with self._lock:
-            thread_alive = self._thread is not None and self._thread.is_alive()
+            carry_alive = self._carry_thread is not None and self._carry_thread.is_alive()
+            fast_alive = self._fast_thread is not None and self._fast_thread.is_alive()
             carry_enabled = self._carry_enabled
             fast_enabled = self._fast_enabled
             snapshot = dict(self._last_snapshot) if self._last_snapshot is not None else None
             started_at_ms = self._started_at_ms
-            last_loop_at_ms = self._last_loop_at_ms
             last_carry_scan_at_ms = self._last_carry_scan_at_ms
             last_fast_scan_at_ms = self._last_fast_scan_at_ms
-            last_error = self._last_error
+            errors = [item for item in (self._carry_error, self._fast_error) if item]
+        last_loop_values = [
+            value for value in (last_carry_scan_at_ms, last_fast_scan_at_ms) if value is not None
+        ]
         return {
             "ok": True,
             "serverSide": True,
             "pwaRequired": False,
-            "threadAlive": thread_alive,
+            "threadAlive": carry_alive and fast_alive,
+            "carryThreadAlive": carry_alive,
+            "fastThreadAlive": fast_alive,
             "carryRunning": carry_enabled,
             "fastRunning": fast_enabled,
             "intervalSeconds": self._interval_seconds,
             "startedAtMs": started_at_ms,
-            "lastLoopAtMs": last_loop_at_ms,
+            "lastLoopAtMs": max(last_loop_values) if last_loop_values else None,
             "lastCarryScanAtMs": last_carry_scan_at_ms,
             "lastFastScanAtMs": last_fast_scan_at_ms,
-            "lastError": last_error,
+            "lastError": " · ".join(errors) if errors else None,
             "snapshot": snapshot,
             "carryState": self._paper_engine.state(AUTONOMOUS_SESSION_KEY),
             "fastState": self._momentum_engine.state(AUTONOMOUS_SESSION_KEY),
             "liveExecutionAllowed": False,
         }
 
-    def _run_loop(self) -> None:
+    def _carry_loop(self) -> None:
         while not self._stop_event.is_set():
             started = time.monotonic()
-            try:
-                self._run_iteration()
-            except Exception as exc:  # pragma: no cover - final process safety net
-                with self._lock:
-                    self._last_error = f"runner loop failed: {exc}"
+            self._carry_iteration()
             elapsed = time.monotonic() - started
             delay = max(0.2, self._interval_seconds - elapsed)
-            self._wake_event.wait(delay)
-            self._wake_event.clear()
+            self._carry_wake_event.wait(delay)
+            self._carry_wake_event.clear()
 
-    def _run_iteration(self) -> None:
-        now_ms = int(time.time() * 1000)
-        credentials = self._credentials_loader()
+    def _fast_loop(self) -> None:
+        while not self._stop_event.is_set():
+            started = time.monotonic()
+            self._fast_iteration()
+            elapsed = time.monotonic() - started
+            delay = max(0.2, self._interval_seconds - elapsed)
+            self._fast_wake_event.wait(delay)
+            self._fast_wake_event.clear()
+
+    def _carry_iteration(self) -> None:
         with self._lock:
-            carry_enabled = self._carry_enabled
-            fast_enabled = self._fast_enabled
-            self._last_loop_at_ms = now_ms
-
+            enabled = self._carry_enabled
+        if not enabled:
+            return
+        credentials = self._credentials_loader()
         if credentials is None:
             with self._lock:
-                self._last_error = "Binance Demo server secret is not configured"
+                self._carry_error = "carry: Binance Demo server secret is not configured"
             return
+        now_ms = int(time.time() * 1000)
+        try:
+            snapshot = self._snapshot_loader(credentials)
+            self._paper_engine.step(
+                AUTONOMOUS_SESSION_KEY,
+                snapshot,
+                allow_entry=True,
+                now_ms=now_ms,
+            )
+            with self._lock:
+                self._last_snapshot = snapshot
+                self._last_carry_scan_at_ms = now_ms
+                self._carry_error = None
+        except Exception as exc:  # pragma: no cover - network failure path
+            with self._lock:
+                self._carry_error = f"carry: {exc}"
 
-        errors: list[str] = []
-        if carry_enabled:
-            try:
-                snapshot = self._snapshot_loader(credentials)
-                self._paper_engine.step(
-                    AUTONOMOUS_SESSION_KEY,
-                    snapshot,
-                    allow_entry=True,
-                    now_ms=now_ms,
-                )
-                with self._lock:
-                    self._last_snapshot = snapshot
-                    self._last_carry_scan_at_ms = now_ms
-            except Exception as exc:
-                errors.append(f"carry: {exc}")
-
-        fast_state = self._momentum_engine.state(AUTONOMOUS_SESSION_KEY)
-        fast_has_position = fast_state.get("openPosition") is not None
-        if fast_enabled or fast_has_position:
-            try:
-                self._momentum_engine.step(
-                    AUTONOMOUS_SESSION_KEY,
-                    credentials,
-                    allow_entry=fast_enabled,
-                    now_ms=now_ms,
-                )
-                with self._lock:
-                    self._last_fast_scan_at_ms = now_ms
-            except Exception as exc:
-                errors.append(f"fast: {exc}")
-
+    def _fast_iteration(self) -> None:
         with self._lock:
-            self._last_error = " · ".join(errors) if errors else None
+            enabled = self._fast_enabled
+        current = self._momentum_engine.state(AUTONOMOUS_SESSION_KEY)
+        has_position = current.get("openPosition") is not None
+        if not enabled and not has_position:
+            return
+        credentials = self._credentials_loader()
+        if credentials is None:
+            with self._lock:
+                self._fast_error = "fast: Binance Demo server secret is not configured"
+            return
+        now_ms = int(time.time() * 1000)
+        try:
+            self._momentum_engine.step(
+                AUTONOMOUS_SESSION_KEY,
+                credentials,
+                allow_entry=enabled,
+                now_ms=now_ms,
+            )
+            with self._lock:
+                self._last_fast_scan_at_ms = now_ms
+                self._fast_error = None
+        except Exception as exc:  # pragma: no cover - network failure path
+            with self._lock:
+                self._fast_error = f"fast: {exc}"
