@@ -1,9 +1,9 @@
-name: Linode PWA migration checks
+name: Linode runtime checks
 
 on:
   push:
     branches:
-      - linode-pwa-migration
+      - main
   pull_request:
     branches:
       - main
@@ -29,7 +29,7 @@ jobs:
       - name: Install package and test tools
         run: python -m pip install -e '.[dev]'
 
-      - name: Ruff migrated runtime
+      - name: Ruff active runtime
         run: >-
           ruff check
           src/eba_trader/autonomous_runner.py
@@ -47,7 +47,7 @@ jobs:
           src/eba_trader/web_server_v2.py
           tests/test_persistent_momentum.py
 
-      - name: Run migration test suite
+      - name: Run active runtime test suite
         run: >-
           pytest -q
           tests/test_persistence.py
