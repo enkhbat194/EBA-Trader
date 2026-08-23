@@ -1,4 +1,4 @@
-const CACHE_NAME = 'eba-trader-ui-v7';
+const CACHE_NAME = 'eba-trader-ui-v8';
 const ASSETS = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const ASSETS = [
   './mt5_ui.js',
   './paper_ui.js',
   './momentum_ui.js',
+  './update_ui.js',
   './manifest.webmanifest',
   './icon.svg',
 ];
@@ -25,6 +26,10 @@ self.addEventListener('activate', (event) => {
     )),
   );
   self.clients.claim();
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('fetch', (event) => {
