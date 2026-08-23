@@ -173,6 +173,20 @@ function ebaSyncFastControls(result) {
   if (stop) stop.disabled = !result.fastRunning;
   if (close) close.disabled = !position || !fastAvailable;
 
+  const homeStatus = ebaUpdateEl('botStatus');
+  if (homeStatus) {
+    homeStatus.textContent = result.fastRunning
+      ? 'FAST PAPER RUNNING'
+      : fastAvailable ? 'FAST PAPER READY' : 'FAST OFFLINE';
+    homeStatus.className = result.fastRunning
+      ? 'pill positive-pill'
+      : fastAvailable ? 'pill demo' : 'pill danger';
+  }
+  const connectionSummary = ebaUpdateEl('connectionSummary');
+  if (connectionSummary && !result.demoCredentialsConfigured && fastAvailable) {
+    connectionSummary.textContent = 'PUBLIC DATA';
+  }
+
   const secretStatus = ebaUpdateEl('serverSecretStatus');
   const secretHelp = ebaUpdateEl('serverSecretHelp');
   if (secretStatus) {
