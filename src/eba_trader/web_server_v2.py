@@ -2,36 +2,61 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from http import HTTPStatus
 from http.server import ThreadingHTTPServer
 from typing import Any
 
 from . import web_server as base
 from .autonomous_runner import AutonomousDemoRunner
-from .momentum_engine import MomentumPaperEngine
+from .persistent_momentum import PersistentMomentumPaperEngine, ledger_from_env
 from .providers import CredentialEnvelope
 
-MOMENTUM_ENGINE = MomentumPaperEngine()
-APP_VERSION = "0.9.1"
-APP_RELEASE = "M18.6"
-PWA_CACHE_VERSION = "eba-trader-ui-v10"
-APP_RELEASED_AT = "2026-08-23"
+MOMENTUM_ENGINE = PersistentMomentumPaperEngine(ledger=ledger_from_env())
+APP_VERSION = "0.10.0"
+APP_RELEASE = "LINODE-M1"
+PWA_CACHE_VERSION = "eba-trader-ui-v11"
+APP_RELEASED_AT = "2026-08-24"
 APP_CHANGES = [
-    "Fast Momentum open positions now count correctly in the Portfolio summary",
-    "Open and completed Fast trades can open a dedicated trade-detail terminal",
-    "Trade charts show ENTRY, CURRENT/EXIT, TP and SL levels plus EMA20/EMA50",
-    "Trade-detail charts support pinch zoom, drag pan, timeframe switching and full-chart focus",
-    "Scan UI separates the open position from the new-entry signal to reduce NO_TRADE confusion",
-    "LONG and SHORT remain symmetric paper directions; live execution remains locked",
+    "PWA/dashboard source migrated from the old Render branch into the Linode runtime branch",
+    "Fast Momentum paper OPEN, MARK and CLOSE state now persists to the shared SQLite ledger",
+    "Fast Momentum state can recover from SQLite after a web-service restart",
+    "Binance Demo credentials are read once from the Linode server environment and never returned to the browser",
+    "Open and completed Fast trades keep dedicated trade-detail charts with ENTRY, CURRENT/EXIT, TP, SL and EMA overlays",
+    "LONG and SHORT remain symmetric paper directions; real execution remains locked",
 ]
 
 
 def _server_demo_credentials() -> CredentialEnvelope | None:
-    api_key = os.getenv("EBA_BINANCE_DEMO_API_KEY", "").strip()
-    api_secret = os.getenv("EBA_BINANCE_DEMO_API_SECRET", "").strip()
+    api_key = (
+        os.getenv("EBA_BINANCE_DEMO_API_KEY", "").strip()
+        or os.getenv("BINANCE_DEMO_API_KEY", "").strip()
+    )
+    api_secret = (
+        os.getenv("EBA_BINANCE_DEMO_API_SECRET", "").strip()
+        or os.getenv("BINANCE_DEMO_API_SECRET", "").strip()
+    )
     if not api_key or not api_secret:
         return None
     return CredentialEnvelope(api_key=api_key, api_secret=api_secret)
+
+
+def _build_sha() -> str:
+    configured = os.getenv("EBA_BUILD_SHA", "").strip()
+    if configured:
+        return configured
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=os.getcwd(),
+            capture_output=True,
+            check=True,
+            text=True,
+            timeout=2,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"
+    return result.stdout.strip() or "unknown"
 
 
 RUNNER = AutonomousDemoRunner(
@@ -40,26 +65,23 @@ RUNNER = AutonomousDemoRunner(
     paper_engine=base.PAPER_ENGINE,
     momentum_engine=MOMENTUM_ENGINE,
     interval_seconds=15.0,
-    auto_start_carry=True,
+    auto_start_carry=False,
     auto_start_fast=True,
 )
 
 
 def _app_info() -> dict[str, Any]:
-    build_sha = (
-        os.getenv("RENDER_GIT_COMMIT", "").strip()
-        or os.getenv("SOURCE_VERSION", "").strip()
-        or "unknown"
-    )
     return {
         "ok": True,
         "appVersion": APP_VERSION,
         "release": APP_RELEASE,
         "pwaCache": PWA_CACHE_VERSION,
-        "buildSha": build_sha,
+        "buildSha": _build_sha(),
         "releasedAt": APP_RELEASED_AT,
         "changes": list(APP_CHANGES),
+        "runtime": "linode",
         "serverRunner": True,
+        "persistentLedger": True,
         "liveExecutionAllowed": False,
     }
 
@@ -71,7 +93,7 @@ def run_server_autoconnect() -> dict[str, Any]:
             "ok": False,
             "configured": False,
             "state": "not_configured",
-            "message": "Render server Demo secret is not configured",
+            "message": "Linode Binance Demo secret is not configured",
             "liveExecutionAllowed": False,
         }
     result = base.run_connection_test(
@@ -87,6 +109,7 @@ def run_server_autoconnect() -> dict[str, Any]:
     )
     result["configured"] = True
     result["credentialMode"] = "server_secret"
+    result["runtime"] = "linode"
     return result
 
 
@@ -119,7 +142,6 @@ def run_runner_start(payload: dict[str, Any]) -> dict[str, Any]:
     carry = payload.get("carry") if "carry" in payload else None
     fast = payload.get("fast") if "fast" in payload else None
     if carry is None and fast is None:
-        carry = True
         fast = True
     return RUNNER.set_enabled(
         carry=bool(carry) if carry is not None else None,
@@ -131,7 +153,6 @@ def run_runner_stop(payload: dict[str, Any]) -> dict[str, Any]:
     carry_requested = payload.get("carry") is True
     fast_requested = payload.get("fast") is True
     if not carry_requested and not fast_requested:
-        carry_requested = True
         fast_requested = True
     RUNNER.set_enabled(
         carry=False if carry_requested else None,
@@ -154,9 +175,9 @@ def run_runner_close(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 class EBAExtendedRequestHandler(base.EBARequestHandler):
-    """M18.6 demo server: server-autonomous paper scanners; live remains locked."""
+    """Linode PWA server with autonomous paper scanners; real execution locked."""
 
-    server_version = "EBA-UI/0.9.1"
+    server_version = "EBA-UI/0.10.0"
 
     def do_GET(self) -> None:  # noqa: N802
         if self.path == "/api/app-info":
@@ -170,6 +191,7 @@ class EBAExtendedRequestHandler(base.EBARequestHandler):
                     "ok": True,
                     "configured": configured,
                     "credentialMode": "server_secret" if configured else "manual_session",
+                    "runtime": "linode",
                     "liveExecutionAllowed": False,
                 },
             )
@@ -229,7 +251,7 @@ class EBAExtendedRequestHandler(base.EBARequestHandler):
                 HTTPStatus.BAD_GATEWAY,
                 {
                     "ok": False,
-                    "message": f"Demo server-runner request failed: {exc}",
+                    "message": f"Linode server-runner request failed: {exc}",
                     "liveExecutionAllowed": False,
                 },
             )
@@ -266,15 +288,16 @@ class EBAExtendedRequestHandler(base.EBARequestHandler):
 
 
 def main() -> None:
-    host = os.getenv("EBA_WEB_HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", os.getenv("EBA_WEB_PORT", "8000")))
+    host = os.getenv("EBA_WEB_HOST", "127.0.0.1")
+    port = int(os.getenv("EBA_WEB_PORT", "8000"))
     if not base.WEB_ROOT.exists():
         raise RuntimeError(f"web root missing: {base.WEB_ROOT}")
     RUNNER.ensure_started()
     server = ThreadingHTTPServer((host, port), EBAExtendedRequestHandler)
     print(
-        f"EBA Trader UI serving on http://{host}:{port} "
-        "(server-autonomous demo/paper scanners enabled, live locked)"
+        f"EBA Trader Linode UI serving on http://{host}:{port} "
+        "(server-autonomous paper scanner enabled, real execution locked)",
+        flush=True,
     )
     try:
         server.serve_forever()
