@@ -7,19 +7,21 @@ from http.server import ThreadingHTTPServer
 from typing import Any
 
 from . import web_server as base
+from .autonomous_runner import AutonomousDemoRunner
 from .momentum_engine import MomentumPaperEngine
 from .providers import CredentialEnvelope
 
 MOMENTUM_ENGINE = MomentumPaperEngine()
-APP_VERSION = "0.8.0"
-APP_RELEASE = "M18.4"
-PWA_CACHE_VERSION = "eba-trader-ui-v8"
+APP_VERSION = "0.9.0"
+APP_RELEASE = "M18.5"
+PWA_CACHE_VERSION = "eba-trader-ui-v9"
 APP_RELEASED_AT = "2026-08-23"
 APP_CHANGES = [
-    "Momentum signals now use closed 1m/5m candles only",
-    "Binance Demo server-secret auto-connect stays enabled",
-    "BTC Fast Momentum paper mode keeps risk-selected 5x/10x/20x caps",
-    "Settings now shows app version, server build, PWA cache and update status",
+    "Cash-and-carry and Fast Momentum scanners now run on the Render server",
+    "Closing or backgrounding the PWA no longer stops the server scan loop",
+    "PWA buttons now control the server runner instead of browser timers",
+    "Settings shows server-runner health and last scan timestamps",
+    "Live execution remains locked; all autonomous execution is paper-only",
 ]
 
 
@@ -29,6 +31,17 @@ def _server_demo_credentials() -> CredentialEnvelope | None:
     if not api_key or not api_secret:
         return None
     return CredentialEnvelope(api_key=api_key, api_secret=api_secret)
+
+
+RUNNER = AutonomousDemoRunner(
+    credentials_loader=_server_demo_credentials,
+    snapshot_loader=base.run_demo_fee_snapshot,
+    paper_engine=base.PAPER_ENGINE,
+    momentum_engine=MOMENTUM_ENGINE,
+    interval_seconds=15.0,
+    auto_start_carry=True,
+    auto_start_fast=True,
+)
 
 
 def _app_info() -> dict[str, Any]:
@@ -45,6 +58,7 @@ def _app_info() -> dict[str, Any]:
         "buildSha": build_sha,
         "releasedAt": APP_RELEASED_AT,
         "changes": list(APP_CHANGES),
+        "serverRunner": True,
         "liveExecutionAllowed": False,
     }
 
@@ -100,10 +114,48 @@ def run_momentum_close(payload: dict[str, Any]) -> dict[str, Any]:
     return MOMENTUM_ENGINE.close(token, credentials, reason=reason)
 
 
-class EBAExtendedRequestHandler(base.EBARequestHandler):
-    """M18.4 demo server: persistent Demo login + momentum paper + update metadata."""
+def run_runner_start(payload: dict[str, Any]) -> dict[str, Any]:
+    carry = payload.get("carry") if "carry" in payload else None
+    fast = payload.get("fast") if "fast" in payload else None
+    if carry is None and fast is None:
+        carry = True
+        fast = True
+    return RUNNER.set_enabled(
+        carry=bool(carry) if carry is not None else None,
+        fast=bool(fast) if fast is not None else None,
+    )
 
-    server_version = "EBA-UI/0.8"
+
+def run_runner_stop(payload: dict[str, Any]) -> dict[str, Any]:
+    carry_requested = payload.get("carry") is True
+    fast_requested = payload.get("fast") is True
+    if not carry_requested and not fast_requested:
+        carry_requested = True
+        fast_requested = True
+    RUNNER.set_enabled(
+        carry=False if carry_requested else None,
+        fast=False if fast_requested else None,
+    )
+    if carry_requested and payload.get("closeCarry") is True:
+        RUNNER.close_carry(reason="SERVER_RUNNER_STOP_CLOSE")
+    return RUNNER.status()
+
+
+def run_runner_close(payload: dict[str, Any]) -> dict[str, Any]:
+    target = str(payload.get("target") or "").strip().lower()
+    if target == "carry":
+        RUNNER.close_carry(reason="SERVER_RUNNER_MANUAL_CARRY_CLOSE")
+    elif target == "fast":
+        RUNNER.close_fast(reason="SERVER_RUNNER_MANUAL_FAST_CLOSE")
+    else:
+        raise ValueError("target must be carry or fast")
+    return RUNNER.status()
+
+
+class EBAExtendedRequestHandler(base.EBARequestHandler):
+    """M18.5 demo server: server-autonomous paper scanners; live remains locked."""
+
+    server_version = "EBA-UI/0.9"
 
     def do_GET(self) -> None:  # noqa: N802
         if self.path == "/api/app-info":
@@ -121,6 +173,9 @@ class EBAExtendedRequestHandler(base.EBARequestHandler):
                 },
             )
             return
+        if self.path == "/api/runner/status":
+            self._json_response(HTTPStatus.OK, RUNNER.status())
+            return
         super().do_GET()
 
     def do_POST(self) -> None:  # noqa: N802
@@ -129,6 +184,9 @@ class EBAExtendedRequestHandler(base.EBARequestHandler):
             "/api/momentum/step",
             "/api/momentum/state",
             "/api/momentum/close",
+            "/api/runner/start",
+            "/api/runner/stop",
+            "/api/runner/close",
         }
         if self.path not in extended_paths:
             if self.path == "/api/demo/disconnect":
@@ -145,8 +203,14 @@ class EBAExtendedRequestHandler(base.EBARequestHandler):
                 result = run_momentum_step(payload)
             elif self.path == "/api/momentum/state":
                 result = run_momentum_state(payload)
-            else:
+            elif self.path == "/api/momentum/close":
                 result = run_momentum_close(payload)
+            elif self.path == "/api/runner/start":
+                result = run_runner_start(payload)
+            elif self.path == "/api/runner/stop":
+                result = run_runner_stop(payload)
+            else:
+                result = run_runner_close(payload)
         except PermissionError as exc:
             self._json_response(
                 HTTPStatus.UNAUTHORIZED,
@@ -164,7 +228,7 @@ class EBAExtendedRequestHandler(base.EBARequestHandler):
                 HTTPStatus.BAD_GATEWAY,
                 {
                     "ok": False,
-                    "message": f"Demo momentum request failed: {exc}",
+                    "message": f"Demo server-runner request failed: {exc}",
                     "liveExecutionAllowed": False,
                 },
             )
@@ -205,16 +269,18 @@ def main() -> None:
     port = int(os.getenv("PORT", os.getenv("EBA_WEB_PORT", "8000")))
     if not base.WEB_ROOT.exists():
         raise RuntimeError(f"web root missing: {base.WEB_ROOT}")
+    RUNNER.ensure_started()
     server = ThreadingHTTPServer((host, port), EBAExtendedRequestHandler)
     print(
         f"EBA Trader UI serving on http://{host}:{port} "
-        "(demo/paper momentum enabled, live locked)"
+        "(server-autonomous demo/paper scanners enabled, live locked)"
     )
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
+        RUNNER.shutdown()
         server.server_close()
 
 
