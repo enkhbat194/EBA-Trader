@@ -1,6 +1,6 @@
-const EBA_INSTALLED_APP_VERSION = '0.9.1';
-const EBA_INSTALLED_RELEASE = 'M18.6';
-const EBA_INSTALLED_PWA_CACHE = 'eba-trader-ui-v10';
+const EBA_INSTALLED_APP_VERSION = '0.10.0';
+const EBA_INSTALLED_RELEASE = 'LINODE-M1';
+const EBA_INSTALLED_PWA_CACHE = 'eba-trader-ui-v11';
 let ebaLatestAppInfo = null;
 let ebaReloadOnControllerChange = false;
 let ebaRunnerSyncTimer = null;
@@ -40,8 +40,9 @@ function ebaInstallUpdateCenter() {
     <div class="setting-row"><span>Installed UI</span><strong id="installedAppVersion">${EBA_INSTALLED_APP_VERSION} · ${EBA_INSTALLED_RELEASE}</strong></div>
     <div class="setting-row"><span>Server release</span><strong id="serverAppVersion">Checking…</strong></div>
     <div class="setting-row"><span>Server build</span><strong id="serverBuildSha">—</strong></div>
+    <div class="setting-row"><span>Runtime</span><strong id="serverRuntime">LINODE</strong></div>
     <div class="setting-row"><span>PWA cache</span><strong id="pwaCacheVersion">${EBA_INSTALLED_PWA_CACHE}</strong></div>
-    <div class="setting-row"><span>Server scanner<br><small>PWA may be closed; server keeps scanning while the Render instance is awake.</small></span><strong id="serverRunnerStatus">CHECKING</strong></div>
+    <div class="setting-row"><span>Server scanner<br><small>PWA may be closed; Linode keeps scanning while the service is running.</small></span><strong id="serverRunnerStatus">CHECKING</strong></div>
     <div class="setting-row"><span>Last server scans<br><small id="serverRunnerScans">Waiting for runner status…</small></span><strong id="serverRunnerMode">—</strong></div>
     <div class="setting-row"><span>Released</span><strong id="appReleasedAt">—</strong></div>
     <div class="setting-row"><span>What's new<br><small id="appChangeSummary">Checking server release notes…</small></span><strong id="appChangeCount">—</strong></div>
@@ -71,6 +72,7 @@ function ebaRenderUpdateInfo(info) {
   }
   if (ebaUpdateEl('serverAppVersion')) ebaUpdateEl('serverAppVersion').textContent = `${serverVersion} · ${serverRelease}`;
   if (ebaUpdateEl('serverBuildSha')) ebaUpdateEl('serverBuildSha').textContent = ebaShortSha(info.buildSha);
+  if (ebaUpdateEl('serverRuntime')) ebaUpdateEl('serverRuntime').textContent = String(info.runtime || 'linode').toUpperCase();
   if (ebaUpdateEl('pwaCacheVersion')) ebaUpdateEl('pwaCacheVersion').textContent = `${EBA_INSTALLED_PWA_CACHE} / server ${serverCache}`;
   if (ebaUpdateEl('appReleasedAt')) ebaUpdateEl('appReleasedAt').textContent = String(info.releasedAt || 'unknown');
 
@@ -199,7 +201,7 @@ async function ebaRunnerCommand(path, payload) {
   return result;
 }
 
-// M18.6: scanner execution lives on the server. These overrides only refresh UI.
+// Scanner execution lives on Linode. These overrides only refresh UI.
 refreshDemoSnapshot = async function refreshServerScannerUi() {
   if (!demoSessionToken) {
     await ebaSyncRunnerStatus();
