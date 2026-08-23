@@ -2,7 +2,8 @@
 set -euo pipefail
 
 REPO_DIR="/opt/Eba-Trader"
-SERVICE_NAME="eba-binance-data.service"
+DATA_SERVICE="eba-binance-data.service"
+API_SERVICE="eba-runtime-api.service"
 
 if [[ $EUID -ne 0 ]]; then
   echo "Run as root." >&2
@@ -22,9 +23,17 @@ fi
 python -m pip install --upgrade pip
 python -m pip install -e '.[trading]'
 
-install -m 0644 deploy/systemd/eba-binance-data.service "/etc/systemd/system/$SERVICE_NAME"
+mkdir -p /var/lib/eba-trader
+chmod 750 /var/lib/eba-trader
+
+install -m 0644 deploy/systemd/eba-binance-data.service "/etc/systemd/system/$DATA_SERVICE"
+install -m 0644 deploy/systemd/eba-runtime-api.service "/etc/systemd/system/$API_SERVICE"
 systemctl daemon-reload
-systemctl restart "$SERVICE_NAME"
+systemctl enable "$DATA_SERVICE" "$API_SERVICE"
+systemctl restart "$DATA_SERVICE" "$API_SERVICE"
 
 sleep 2
-systemctl --no-pager --full status "$SERVICE_NAME" || true
+systemctl --no-pager --full status "$DATA_SERVICE" || true
+systemctl --no-pager --full status "$API_SERVICE" || true
+
+curl --fail --silent http://127.0.0.1:8765/health && echo
