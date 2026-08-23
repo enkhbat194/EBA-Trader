@@ -11,6 +11,16 @@ from .momentum_engine import MomentumPaperEngine
 from .providers import CredentialEnvelope
 
 MOMENTUM_ENGINE = MomentumPaperEngine()
+APP_VERSION = "0.8.0"
+APP_RELEASE = "M18.4"
+PWA_CACHE_VERSION = "eba-trader-ui-v8"
+APP_RELEASED_AT = "2026-08-23"
+APP_CHANGES = [
+    "Momentum signals now use closed 1m/5m candles only",
+    "Binance Demo server-secret auto-connect stays enabled",
+    "BTC Fast Momentum paper mode keeps risk-selected 5x/10x/20x caps",
+    "Settings now shows app version, server build, PWA cache and update status",
+]
 
 
 def _server_demo_credentials() -> CredentialEnvelope | None:
@@ -19,6 +29,24 @@ def _server_demo_credentials() -> CredentialEnvelope | None:
     if not api_key or not api_secret:
         return None
     return CredentialEnvelope(api_key=api_key, api_secret=api_secret)
+
+
+def _app_info() -> dict[str, Any]:
+    build_sha = (
+        os.getenv("RENDER_GIT_COMMIT", "").strip()
+        or os.getenv("SOURCE_VERSION", "").strip()
+        or "unknown"
+    )
+    return {
+        "ok": True,
+        "appVersion": APP_VERSION,
+        "release": APP_RELEASE,
+        "pwaCache": PWA_CACHE_VERSION,
+        "buildSha": build_sha,
+        "releasedAt": APP_RELEASED_AT,
+        "changes": list(APP_CHANGES),
+        "liveExecutionAllowed": False,
+    }
 
 
 def run_server_autoconnect() -> dict[str, Any]:
@@ -73,11 +101,14 @@ def run_momentum_close(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 class EBAExtendedRequestHandler(base.EBARequestHandler):
-    """M18.3 demo server: persistent server-secret login + momentum paper APIs."""
+    """M18.4 demo server: persistent Demo login + momentum paper + update metadata."""
 
-    server_version = "EBA-UI/0.7"
+    server_version = "EBA-UI/0.8"
 
     def do_GET(self) -> None:  # noqa: N802
+        if self.path == "/api/app-info":
+            self._json_response(HTTPStatus.OK, _app_info())
+            return
         if self.path == "/api/demo/credential-status":
             configured = _server_demo_credentials() is not None
             self._json_response(
