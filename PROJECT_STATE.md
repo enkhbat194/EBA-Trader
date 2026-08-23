@@ -1,178 +1,100 @@
 # EBA Trader — Project State
 
-_Last updated: 2026-08-20 (Asia/Ulaanbaatar)_
+_Last updated: 2026-08-24 (Asia/Ulaanbaatar)_
 
-This is the authoritative cross-chat continuation record.
+This is the authoritative cross-chat continuation record. If older chat text, old deployment notes, or screenshots conflict with this file, this file wins.
 
-## Mission
+## Current goal
 
-Build a professional-grade autonomous trading system that validates strategies with evidence, refuses low-quality trades, enforces deterministic risk limits, and only later gains exchange execution after research/paper gates pass.
+Build EBA Trader as a restart-safe, 24/7 trading system on one Linux server. Validate short-horizon strategies with paper trading first, record every trade durably, expose clear position/history/chart data to the PWA, and keep real-money execution locked until the execution path is separately proven.
 
-## Owner constraints
+## Source of truth and infrastructure
 
-- The owner should not need to master a complex exchange UI.
-- Complexity belongs in the engine; future UI stays minimal.
-- Learn from historical bot failure modes instead of copying one retail strategy.
-- Preserve all state/decisions in repo for cross-chat continuity.
-- Bootstrap infrastructure budget is **$0 until edge evidence exists**.
-- BestCode integration is deferred; V1 stays standalone.
-- Replit is only a temporary network runtime, not the development center.
+- Repository: `enkhbat194/EBA-Trader`
+- Source of truth: GitHub `main`
+- Sole active runtime target: Akamai/Linode Nanode 1 GB
+- Region: Singapore 2
+- OS: Ubuntu 24.04 LTS
+- Server repo path: `/opt/Eba-Trader`
+- Persistent state: `/var/lib/eba-trader/eba_trader.db`
+- Market-data service: `eba-binance-data.service`
+- Runtime API service: `eba-runtime-api.service`
+- Runtime API: `127.0.0.1:8765` until authenticated HTTPS proxy is added
 
-## Frozen V1
+## Deprecated infrastructure
 
-- Repo: `enkhbat194/EBA-Trader`
-- Market: BTC/USDT Spot
-- Primary exchange: Binance; backup target: OKX
-- Engine: `nautilus_trader==1.230.0`
-- Python: 3.12–3.14
-- Runtime: standalone Linux/Python
-- Paid 24/7 server: forbidden until edge evidence exists
-- Timeframes: 5m execution / 15m signal / 1h regime target
-- Strategies planned: Trend, Mean Reversion, Breakout, Momentum, NO_TRADE
-- AI: research/analysis/critique only
-- Risk authority: deterministic Risk Engine
-- Real money / futures / leverage: disabled
+- Replit is not part of the active EBA Trader architecture.
+- Render.com is not the target backend/runtime anymore.
+- Do not add new EBA Trader work to Replit or Render.
+- The old Render-backed dashboard/PWA may remain reachable only as a temporary client during migration. It is not authoritative and should be retired after the PWA is connected to Linode.
+- BestCode integration remains separate from EBA Trader.
 
-## Completed
+## What is already working
 
-### M0 — Safe bootstrap
+### Research/evidence core
 
-- [x] architecture / strategy / risk / backtest contracts
-- [x] deterministic Risk Engine + position sizing
-- [x] LIVE/MICRO_LIVE locked by default
-- [x] baseline Regime Detector + first-class NO_TRADE
-- [x] initial deterministic tests passed
+- Deterministic risk engine and `NO_TRADE` behavior exist.
+- Binance public historical downloader and integrity gates exist.
+- Backtest, cost, walk-forward, regime and OOS guard tooling exists.
+- Trend V1 historical development cycle was rejected; its evidence remains preserved under `docs/`.
+- Historical research files are retained as evidence and are not active deployment instructions.
 
-### M1 — Binance data-only pipeline
+### Linode runtime
 
-- [x] NautilusTrader pinned and installed
-- [x] public Binance data mode requiring no API key
-- [x] no execution client in data path
-- [x] quote/trade/bar subscriptions
-- [x] stale-data hard veto
-- [x] Replit Python 3.12.12 runtime validated
-- [x] actual Binance BTC/USDT `QuoteTick` observed
-- [x] actual Binance BTC/USDT `TradeTick` observed
-- [x] M1 runtime connectivity **PASSED**
+- Binance public market data has been observed running on Linode through NautilusTrader.
+- `eba-binance-data.service` starts at boot and restarts after failure.
+- SQLite-backed `TradeLedger` exists.
+- `eba-runtime-api.service` exists.
+- Runtime API currently exposes health, positions and events.
+- `scripts/install_linode_runtime.sh` is the canonical first-install script.
+- `scripts/update_linode_runtime.sh` is the canonical update script.
 
-### M2A — Historical/backtest plumbing
+## Important current limitations
 
-- [x] Binance public REST historical downloader
-- [x] timestamp / duplicate / OHLC / interval-gap integrity gates
-- [x] exclusive end timestamps to prevent split-boundary leakage
-- [x] Trend Following V1: long-only EMA 20/50 baseline
-- [x] strict crossover semantics: no synthetic BUY merely because fast EMA is already above slow EMA at a window boundary
-- [x] signal-at-close / execution-next-open
-- [x] optional causal `trade_start_time_ms` gate: pre-start candles may warm indicators but cannot contribute trades/equity/benchmark/exposure
-- [x] fee + slippage model
-- [x] BTC buy-and-hold benchmark
-- [x] total/annualized return, drawdown, expectancy, profit factor, avg win/loss, Sharpe, Sortino, exposure, costs
-- [x] base/adverse/severe cost scenarios
-- [x] complete Python 3.12 deterministic suite passed on 2026-08-20
-- [x] seven reproducible 2021/2023 Binance source gaps (70 candles) explicitly allowlisted and
-  reported, including four exact outage-adjacent and one standalone early close; every other
-  anomaly remains a hard failure
+1. The paper execution engine is not yet fully wired to `TradeLedger`; OPEN / UPDATE / CLOSE must all be persisted.
+2. Restart recovery of an active paper position is not complete until the execution engine reads OPEN positions from SQLite on startup.
+3. Runtime API is local-only and is not yet exposed to the PWA through authenticated HTTPS.
+4. The PWA/dashboard source is not present as a confirmed active frontend inside this repository, so the old Render client cannot simply be switched off before the frontend source/endpoint is migrated.
+5. Binance real order submission is not enabled or validated.
 
-### M2B — Robustness/evidence tooling
+## Active trading direction
 
-- [x] parameter neighborhood: fast EMA 15/20/25 × slow EMA 40/50/60
-- [x] parameter-neighborhood stability report
-- [x] neighborhood explicitly diagnostic-only for first cycle, not a tuning menu
-- [x] rolling walk-forward: default 180d train / 30d test / 30d step
-- [x] walk-forward parameter selection uses train data only
-- [x] unseen test uses full causal train history as EMA warm-up context while all trading/performance starts at test boundary
-- [x] causal regression test ensuring future test-tail changes cannot alter first-fold train selection
-- [x] causal bull/bear/range historical regime diagnostics
-- [x] trade PnL/win-rate/return breakdown by regime
-- [x] fixed same-candle regime look-ahead bug: entry uses previous fully completed candle
-- [x] regression test for same-open-timestamp leakage
-- [x] `eba-validate-trend`
-- [x] `eba-regime-report`
-- [x] one-command `eba-development-study`
-- [x] `eba-development-study` accepts no EMA override; first cycle is hard-locked to predeclared EMA 20/50
-- [x] regression tests added for strict crossover, causal evaluation boundary and no development EMA override
-- [x] methodology documented in `docs/M2B_ROBUSTNESS.md`
+The old Spot-only Trend research path is historical evidence, not the only runtime strategy direction.
 
-### M2C — Risk-sized execution gate
+The next paper strategy target is a separate **Fast Momentum / Micro Profit** mode for Binance perpetual futures simulation:
 
-- [x] predeclared ATR 14 / 2× stop and 0.5% planned-risk Spot execution model
-- [x] deterministic daily-loss and 8% drawdown entry halts
-- [x] development evidence and screening bind the signal report and dataset hashes
-- [x] one-command `scripts/run_m2_full_development.sh` workflow
+- BTCUSDT
+- 1m + 5m inputs
+- both LONG and SHORT eligibility
+- small margin test sizes, starting from $10
+- leverage tiers tested in paper mode first (5x / 10x / 20x; higher leverage remains aggressive-demo only until evidence supports it)
+- explicit entry, TP, SL, fees, slippage, liquidation distance and net P&L
+- each trade gets its own detail/chart record
+- strategy/indicator values must be visible in the trade detail UI
 
-### M2D — Final frozen OOS safeguards
-
-- [x] final freeze requires eligible signal and risk-execution evidence
-- [x] evidence, verdict, dataset, Git commit, and full execution configuration binding
-- [x] one-shot OOS open marker fails closed on interrupted runs
-- [x] predeclared final OOS screening only promotes to forward PAPER eligibility
-- [x] signal-only OOS console commands removed from public packaging
-
-## Evidence-window policy
-
-Development windows:
-- research: `2021-01-01` → `2024-01-01` exclusive
-- validation: `2024-01-01` → `2025-01-01` exclusive
-
-Frozen holdout:
-- OOS: `2025-01-01` → `2026-01-01` exclusive
-
-Forward-only future:
-- 2026+ cannot be relabeled pristine historical OOS; it is reserved for evidence collected forward
-  from a later PAPER/SHADOW freeze timestamp.
-
-### Critical OOS lock
-
-The old baseline design exposed 2025 together with development data. This was corrected before historical study execution.
-
-- [x] `eba-baseline-study` opens research + validation only
-- [x] 2025 OOS is not downloaded/exposed by preferred development study
-- [x] development study fails closed if a 2025 OOS cache file already exists
-- [x] development report records holdout cache absence
-- [x] direct OOS use through baseline function is rejected
-- [x] first-cycle development commands accept no market, capital, or EMA overrides
-- [x] generic downloader blocks BTCUSDT 2025 overlap across all timeframes before network access
-- [x] renamed development windows cannot overlap the date-based holdout guard
-- [x] `eba-final-freeze` binds signal plus risk evidence and exact cached development datasets
-- [x] `eba-final-oos --confirm-frozen` verifies the clean matching Git commit before opening
-- [x] existing OOS cache, open marker, or report blocks rerun
-- [x] retuning after OOS open is forbidden
-
-## First-cycle development outcome
-
-The real-data workflow ran on 2026-08-20 from clean commit `4f8f908`.
-
-- Signal verdict: `REJECT_DEVELOPMENT_CYCLE` (8/10 gates failed).
-- Validation base return: -45.07%; expectancy: -$1.34; profit factor: 0.770.
-- Validation severe-cost return: -85.74%.
-- Parameter-neighborhood positive expectancy: 0%.
-- Risk execution evidence/verdict: not run, blocked by rejected signal authority.
-- 2025 OOS: `LOCKED_NOT_ACCESSED`.
-- Full record: `docs/M2_TREND_V1_DEVELOPMENT_RESULT_2026-08-20.md`.
-
-## Current validation caveat
-
-- M1 live public data is proven.
-- Python 3.12.14: complete deterministic suite passed (124 tests) and Ruff passed on 2026-08-20.
-- Editable packaging was verified with the authoritative development/risk/final console commands.
-- Real historical signal evidence was generated and rejected; no risk or OOS evidence was opened.
+This does not authorize real leveraged orders. Paper evidence comes first.
 
 ## Next tasks — strict order
 
-1. Trend V2 policy is frozen by `docs/M3_TREND_V2_POLICY_FREEZE.json`; do not change parameters.
-2. Implement causal indicator/resampling/entry/exit/risk tests before evidence.
-3. Use only 2021–2024 development data for the new cycle; keep 2025 locked.
-4. Keep Mean Reversion / Breakout / Momentum sequencing explicit and independently screened.
-5. Paid server only after forward evidence justifies it.
-6. Futures/crowding/liquidation remains a later scope.
+1. Integrate the paper execution engine with `TradeLedger` for every OPEN / UPDATE / CLOSE event.
+2. Add startup recovery from SQLite for OPEN paper positions.
+3. Expand runtime API for completed trade history and trade detail data.
+4. Add authenticated HTTPS reverse proxy on Linode.
+5. Locate/migrate the actual PWA/dashboard frontend and point it only at Linode; then retire Render.
+6. Add GitHub-main -> Linode automatic deployment with health-check/rollback behavior so routine updates do not require Weblish commands.
+7. Implement and validate Fast Momentum LONG/SHORT paper execution with clear TP/SL/indicator/chart visibility.
+8. Run forward paper evidence and compare leverage tiers after fees/slippage.
+9. Only after the full paper path is restart-safe and statistically acceptable, design a separately gated Binance order-execution layer.
 
-## Explicitly forbidden now
+## Safety invariants
 
-- paid permanent VPS
-- real-money orders
-- futures / leverage
-- copy trading
-- martingale
-- AI-controlled order submission
-- strategy self-deployment
-- API withdrawal permission
+- No API secret is committed to GitHub.
+- Withdrawal permission is never required.
+- Real orders remain disabled until explicitly implemented and validated.
+- The deterministic risk layer has veto authority.
+- Server/PWA restart must not erase trade history or active paper state.
+- UI state is not the source of truth; the Linode ledger/runtime is.
+
+## Canonical runtime docs
+
+See `docs/LINODE_RUNTIME.md` for deployment/runtime details. Historical M1/M2/M3 documents remain evidence records only.
