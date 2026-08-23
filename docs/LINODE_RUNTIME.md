@@ -1,71 +1,84 @@
-# Linode 24/7 runtime
+# EBA Trader — Linode 24/7 runtime
 
-This deployment turns the proven Binance **market-data probe** into a persistent Linux service on the owner's Linode Nanode.
+Status: persistent-runtime implementation started 2026-08-24.
 
-## What this service does
+## Current server
 
-- Starts automatically after boot.
-- Restarts automatically after a crash.
-- Keeps the Binance/Nautilus market-data connection alive without keeping the browser or PWA open.
+- Provider: Akamai/Linode
+- Plan: Nanode 1 GB
+- Region: Singapore 2
+- OS: Ubuntu 24.04 LTS
+- Repo path: `/opt/Eba-Trader`
+- Persistent state path: `/var/lib/eba-trader`
+- Public Binance market-data service: `eba-binance-data.service`
+
+## What already works
+
+- Starts Binance public market data automatically after boot.
+- Restarts the market-data process automatically after a crash.
+- Keeps the Binance/Nautilus data connection alive without keeping the browser or PWA open.
 - Writes logs to systemd journal.
 - Uses `live_public` market data by default, so no Binance API secret is required for the data-only service.
 
-## What this service does not do yet
+## Persistent runtime milestone
 
-- It does not submit Binance orders.
-- It is not the PWA backend/API.
-- It does not persist paper trades yet.
-- It does not turn the current research strategy into live execution.
+This branch adds restart-safe local state using SQLite at:
 
-Those are separate gates and must not be implied by a green market-data feed.
+`/var/lib/eba-trader/eba_trader.db`
 
-## First install
+The ledger stores positions and append-only runtime events. It is outside the Git working tree, so `git pull`, deploys, and application upgrades do not delete it.
 
-From `/opt/Eba-Trader` on the Linode:
+A lightweight local runtime API is also added:
+
+- `GET /health`
+- `GET /api/v1/positions`
+- `GET /api/v1/positions?status=OPEN`
+- `GET /api/v1/positions/<position_id>`
+- `GET /api/v1/events?limit=100`
+
+The API binds to `127.0.0.1:8765` by default. It is deliberately not exposed directly to the public internet. A later reverse-proxy/authentication step will connect the PWA safely.
+
+## Services
+
+- `eba-binance-data.service` — Binance market-data runtime
+- `eba-runtime-api.service` — local persistent-state API
+
+Both are enabled by `scripts/install_linode_runtime.sh` and refreshed by `scripts/update_linode_runtime.sh`.
+
+## Important limitation
+
+The persistent ledger now exists in code, but the paper execution engine still needs to write every OPEN / UPDATE / CLOSE event into it. Until that integration is complete, SQLite cannot recover paper positions that only existed in another process's RAM.
+
+This service still does **not** submit Binance orders. A green market-data feed is not proof of safe order execution.
+
+## Deployment
+
+From `/opt/Eba-Trader` after the branch is merged to `main`:
 
 ```bash
-git checkout main
-git pull --ff-only origin main
-bash scripts/install_linode_runtime.sh
+bash scripts/update_linode_runtime.sh
 ```
 
-After installation, the Weblish/SSH terminal can be closed. The process runs under `systemd`.
+The updater fast-forwards `main`, refreshes the Python environment, installs both systemd units, restarts both services, and verifies the local API health endpoint.
 
 Check status:
 
 ```bash
-systemctl status eba-binance-data --no-pager
+systemctl status eba-binance-data eba-runtime-api --no-pager
 ```
 
-Follow live logs:
+Check local API:
 
 ```bash
-journalctl -u eba-binance-data -f
+curl http://127.0.0.1:8765/health
 ```
 
-## Updating after a GitHub release
+## Next strict order
 
-```bash
-cd /opt/Eba-Trader
-bash scripts/update_linode_runtime.sh
-```
-
-The updater fast-forwards `main`, refreshes the Python environment including the `trading` extra, and restarts the service.
-
-## Environment
-
-Runtime environment lives at:
-
-`/etc/eba-trader/eba-trader.env`
-
-Default:
-
-```text
-EBA_BINANCE_DATA_ENV=live_public
-```
-
-Binance Demo data requires `demo` plus demo API credentials in that root-readable env file. Do not commit secrets to GitHub.
-
-## Persistence plan
-
-The current data service is stateless. Before the PWA paper engine is moved from the temporary host, add a durable ledger under `/var/lib/eba-trader` (SQLite first; migration path to PostgreSQL later). Open positions, entries/exits, TP/SL, strategy metadata, and completed-trade history must survive service restarts and deploys.
+1. Merge and deploy the persistent-runtime branch.
+2. Verify `/health` and SQLite file creation on Linode.
+3. Integrate the paper execution engine with `TradeLedger` for OPEN / UPDATE / CLOSE events.
+4. Add recovery-on-start so open paper positions are restored after process/server restart.
+5. Add authenticated HTTPS reverse proxy.
+6. Point PWA positions/history/chart-detail screens at the Linode runtime API.
+7. Only after paper execution is proven restart-safe, consider exchange order execution.
