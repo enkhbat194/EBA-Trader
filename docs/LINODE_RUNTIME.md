@@ -13,88 +13,92 @@ Status: active runtime target as of 2026-08-24.
 - SQLite ledger: `/var/lib/eba-trader/eba_trader.db`
 - Market-data service: `eba-binance-data.service`
 - Runtime API service: `eba-runtime-api.service`
-- Local API: `127.0.0.1:8765`
+- PWA/web service: `eba-web.service`
+- Auto-deploy timer: `eba-auto-update.timer`
+- Local runtime API: `127.0.0.1:8765`
+- Local web/PWA: `127.0.0.1:8000`
 
 This Linode is the sole active backend/runtime target. Replit and Render.com are deprecated for EBA Trader backend/runtime work.
 
-## What already works
+## Current runtime layout
 
-- Binance public market data runs through NautilusTrader on Linode.
-- Market-data service starts after boot and restarts after failure.
-- Runtime API runs as a separate systemd service.
-- SQLite-backed `TradeLedger` exists outside the Git working tree.
-- Git updates do not remove the database.
-- Runtime API exposes health, positions and events.
+`eba-binance-data.service` keeps Binance market data alive, `eba-runtime-api.service` serves persistent runtime state, and `eba-web.service` serves the PWA/dashboard and paper scanner. All three are systemd-managed and restart after failure. The browser is not the source of truth: persistent state stays in SQLite under `/var/lib/eba-trader`.
 
-## Current limitation
+Fast Momentum paper state is stored through the persistent momentum layer so OPEN/MARK/CLOSE records and restart recovery are not dependent on browser RAM.
 
-The ledger exists, but the paper execution engine still needs complete persistence integration. A paper position is only restart-safe after every OPEN / UPDATE / CLOSE is written to SQLite and startup recovery reloads OPEN positions.
+Real Binance order submission remains disabled.
 
-The API is deliberately bound to localhost until authenticated HTTPS is added.
-
-Real Binance order submission is not enabled.
-
-## Canonical scripts
-
-First install:
+## First install
 
 ```bash
 cd /opt/Eba-Trader
 bash scripts/install_linode_runtime.sh
 ```
 
-Routine update:
+The installer creates/updates the Python environment, installs all systemd units, starts the three runtime services, and enables the automatic deployment timer.
+
+## Automatic GitHub main deployment
+
+Routine Weblish commands are no longer the intended update path. `eba-auto-update.timer` checks GitHub `main` every five minutes.
+
+When a new main commit appears, `scripts/update_linode_runtime.sh --auto`:
+
+1. refuses to overwrite local uncommitted server edits;
+2. records the previous and target commit SHAs under `/var/lib/eba-trader/deploy-state`;
+3. updates the checkout to the exact `origin/main` commit;
+4. refreshes Python dependencies and systemd units;
+5. restarts market-data, runtime API and web services;
+6. requires all services and both local health endpoints to pass;
+7. automatically rolls back to the previous commit if deployment or health verification fails;
+8. never replaces or deletes the SQLite ledger.
+
+Manual forced check remains available:
 
 ```bash
 cd /opt/Eba-Trader
 bash scripts/update_linode_runtime.sh
 ```
 
-The update script fast-forwards GitHub `main`, refreshes the Python environment, installs the canonical systemd units, restarts both runtime services and checks the local health endpoint.
-
-## Verification
+Useful status commands:
 
 ```bash
-systemctl status eba-binance-data eba-runtime-api --no-pager
+systemctl status eba-binance-data eba-runtime-api eba-web eba-auto-update.timer --no-pager
+journalctl -u eba-auto-update.service --no-pager -n 100
 curl http://127.0.0.1:8765/health
+curl http://127.0.0.1:8000/api/health
 ```
 
-Persistent data must remain under `/var/lib/eba-trader`; do not place the ledger inside `/opt/Eba-Trader`.
+## HTTPS / public PWA
 
-## PWA/dashboard migration
+The application itself intentionally remains bound to loopback. Public access should go through Nginx HTTPS, not by opening port 8000.
 
-The old Render-backed PWA/dashboard is temporary only. Render is not the target backend anymore.
+Before running the HTTPS script, point a hostname's DNS A/AAAA record at the Linode and ensure firewall inbound TCP 80 and 443 are allowed. Then run once:
 
-Migration order:
+```bash
+cd /opt/Eba-Trader
+bash scripts/configure_linode_https.sh trader.example.com owner@example.com
+```
 
-1. finish persistent paper OPEN / UPDATE / CLOSE integration;
-2. implement startup recovery from SQLite;
-3. expand history/trade-detail API;
-4. add authenticated HTTPS reverse proxy on Linode;
-5. locate/migrate the actual PWA frontend source and point it at Linode;
-6. validate positions/history/chart-detail against server state;
-7. retire the Render service after Linode-backed PWA is proven working.
+The script installs Nginx + Certbot, reverse-proxies the hostname to `127.0.0.1:8000`, obtains a TLS certificate, and redirects HTTP to HTTPS. Certbot's system integration handles certificate renewal.
 
-Do not switch off the old client before the frontend source and Linode endpoint are confirmed, otherwise the UI can be lost even though the trading runtime continues running.
+Do not expose `8765` or `8000` directly to the internet.
 
-## Automatic deployment target
+## Persistent data rule
 
-Manual Weblish updates are transitional. The target is GitHub `main` -> Linode automated deployment with:
+Persistent data must remain under `/var/lib/eba-trader`; never place the ledger inside `/opt/Eba-Trader`. Git checkout/reset operations are therefore isolated from trade history and deployment state.
 
-- fast-forward-only source update,
-- dependency refresh only when required,
-- service restart,
-- health check,
-- failed-deploy detection/rollback,
-- persistent database untouched.
+## Deployment/state troubleshooting
 
-## Next engineering order
+Successful deployment state is written to:
 
-1. Paper engine -> `TradeLedger` integration.
-2. Restart recovery.
-3. Completed-trade/history/detail API.
-4. Authenticated HTTPS.
-5. PWA migration off Render.
-6. GitHub-to-Linode automatic deployment.
-7. Fast Momentum LONG/SHORT paper validation.
-8. Only then design separately gated real Binance execution.
+- `/var/lib/eba-trader/deploy-state/current_sha`
+- `/var/lib/eba-trader/deploy-state/succeeded_at`
+
+A failed deployment records `failed_at` and `rolled_back_to`. Check `journalctl -u eba-auto-update.service` for the actual failure.
+
+## Remaining engineering direction
+
+1. Prove the Linode-backed PWA over HTTPS on the phone.
+2. Retire the old Render instance only after that URL is verified.
+3. Continue Fast Momentum LONG/SHORT paper-forward evidence, leverage-tier comparison, fee/slippage accounting and trade-detail chart improvements.
+4. Keep real Binance execution separately gated until the paper/runtime path is proven reliable.

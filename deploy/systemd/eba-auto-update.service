@@ -1,0 +1,21 @@
+[Unit]
+Description=EBA Trader automatic GitHub main deployment
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/Eba-Trader
+ExecStart=/opt/Eba-Trader/scripts/update_linode_runtime.sh --auto
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=eba-auto-update
