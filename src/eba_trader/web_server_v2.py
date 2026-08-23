@@ -19,11 +19,11 @@ APP_RELEASE = "LINODE-M2"
 PWA_CACHE_VERSION = "eba-trader-ui-v12"
 APP_RELEASED_AT = "2026-08-24"
 APP_CHANGES = [
-    "Linode now bootstraps a public HTTPS PWA automatically with an IP-backed hostname",
-    "HTTPS health is retried by the existing five-minute auto-update timer without risking runtime rollback",
-    "Settings now reports the active public PWA URL and HTTPS readiness",
-    "PWA/dashboard and Fast Momentum continue to run server-side when the phone app is closed",
-    "Fast Momentum paper OPEN, MARK and CLOSE state remains restart-safe in SQLite",
+    "Linode bootstraps a public HTTPS PWA automatically with an IP-backed hostname",
+    "Fast Momentum paper runs from public Binance Demo market data even without account secrets",
+    "The five-minute deployment timer also retries HTTPS without risking runtime rollback",
+    "Settings reports the active public PWA URL, HTTPS readiness and server scanner state",
+    "Fast Momentum OPEN, MARK and CLOSE state remains restart-safe in SQLite",
     "LONG and SHORT remain symmetric paper directions; real execution remains locked",
 ]
 
@@ -84,6 +84,22 @@ RUNNER = AutonomousDemoRunner(
 )
 
 
+def _credential_status() -> dict[str, Any]:
+    configured = _server_demo_credentials() is not None
+    return {
+        "ok": True,
+        "configured": configured,
+        "credentialMode": "server_secret" if configured else "optional_for_fast_paper",
+        "fastPaperAvailable": True,
+        "fastMarketDataMode": "authenticated_demo" if configured else "public_demo",
+        "fastFeeMode": (
+            "account_commission_with_fallback" if configured else "conservative_fallback"
+        ),
+        "runtime": "linode",
+        "liveExecutionAllowed": False,
+    }
+
+
 def _app_info() -> dict[str, Any]:
     public_host, public_url = _public_endpoint()
     return {
@@ -111,7 +127,11 @@ def run_server_autoconnect() -> dict[str, Any]:
             "ok": False,
             "configured": False,
             "state": "not_configured",
-            "message": "Linode Binance Demo secret is not configured",
+            "message": (
+                "Binance Demo account secret is not configured; "
+                "Fast paper still runs from public Demo market data"
+            ),
+            "fastPaperAvailable": True,
             "liveExecutionAllowed": False,
         }
     result = base.run_connection_test(
@@ -202,17 +222,7 @@ class EBAExtendedRequestHandler(base.EBARequestHandler):
             self._json_response(HTTPStatus.OK, _app_info())
             return
         if self.path == "/api/demo/credential-status":
-            configured = _server_demo_credentials() is not None
-            self._json_response(
-                HTTPStatus.OK,
-                {
-                    "ok": True,
-                    "configured": configured,
-                    "credentialMode": "server_secret" if configured else "manual_session",
-                    "runtime": "linode",
-                    "liveExecutionAllowed": False,
-                },
-            )
+            self._json_response(HTTPStatus.OK, _credential_status())
             return
         if self.path == "/api/runner/status":
             self._json_response(HTTPStatus.OK, RUNNER.status())
