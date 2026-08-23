@@ -37,19 +37,23 @@ def test_service_worker_never_caches_api_responses() -> None:
     worker = (ROOT / "web/sw.js").read_text(encoding="utf-8")
     assert "startsWith('/api/')" in worker
     assert "event.respondWith(fetch(event.request))" in worker
-    assert "eba-trader-ui-v8" in worker
+    assert "eba-trader-ui-v10" in worker
     assert "'./chart.js'" in worker
     assert "'./paper_ui.js'" in worker
     assert "'./momentum_ui.js'" in worker
+    assert "'./trade_detail.js'" in worker
+    assert "'./trade_detail.css'" in worker
     assert "'./update_ui.js'" in worker
     assert "'./m18_2.css'" in worker
 
 
-def test_m18_4_ui_loads_paper_momentum_and_update_layers() -> None:
+def test_m18_6_ui_loads_trade_detail_and_update_layers() -> None:
     page = (ROOT / "web/index.html").read_text(encoding="utf-8")
     assert '<script src="./paper_ui.js" defer></script>' in page
     assert '<script src="./momentum_ui.js" defer></script>' in page
+    assert '<script src="./trade_detail.js" defer></script>' in page
     assert '<script src="./update_ui.js" defer></script>' in page
+    assert '<link rel="stylesheet" href="./trade_detail.css">' in page
 
 
 def test_momentum_server_remains_demo_paper_only() -> None:
@@ -66,12 +70,28 @@ def test_momentum_server_remains_demo_paper_only() -> None:
 def test_update_center_exposes_server_build_and_pwa_versions() -> None:
     server = (ROOT / "src/eba_trader/web_server_v2.py").read_text(encoding="utf-8")
     ui = (ROOT / "web/update_ui.js").read_text(encoding="utf-8")
-    assert 'APP_VERSION = "0.8.0"' in server
-    assert 'APP_RELEASE = "M18.4"' in server
-    assert 'PWA_CACHE_VERSION = "eba-trader-ui-v8"' in server
+    assert 'APP_VERSION = "0.9.1"' in server
+    assert 'APP_RELEASE = "M18.6"' in server
+    assert 'PWA_CACHE_VERSION = "eba-trader-ui-v10"' in server
     assert 'self.path == "/api/app-info"' in server
     assert "RENDER_GIT_COMMIT" in server
-    assert "EBA_INSTALLED_APP_VERSION = '0.8.0'" in ui
-    assert "EBA_INSTALLED_PWA_CACHE = 'eba-trader-ui-v8'" in ui
+    assert "EBA_INSTALLED_APP_VERSION = '0.9.1'" in ui
+    assert "EBA_INSTALLED_RELEASE = 'M18.6'" in ui
+    assert "EBA_INSTALLED_PWA_CACHE = 'eba-trader-ui-v10'" in ui
     assert "UPDATE AVAILABLE" in ui
     assert "UP TO DATE" in ui
+
+
+def test_trade_detail_terminal_exposes_fast_trade_controls() -> None:
+    detail = (ROOT / "web/trade_detail.js").read_text(encoding="utf-8")
+    css = (ROOT / "web/trade_detail.css").read_text(encoding="utf-8")
+    assert "tradeDetailDialog" in detail
+    assert "ENTRY" in detail
+    assert "TAKE PROFIT" in detail
+    assert "STOP LOSS" in detail
+    assert "emaSeries" in detail
+    assert "touchmove" in detail
+    assert "openPositionCount" in detail
+    assert "NEW ENTRY SIGNAL" in detail
+    assert "trade-detail-dialog" in css
+    assert "#tradeDetailChart" in css
