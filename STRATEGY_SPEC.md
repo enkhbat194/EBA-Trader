@@ -1,110 +1,125 @@
 # EBA Trader Strategy Specification
 
-## V1 strategy contract
+## Active strategy contract
 
-Every strategy must return a structured proposal with:
+Every runtime strategy must return a structured proposal with:
 
 - strategy name,
-- decision: `BUY`, `EXIT`, or `NO_TRADE`,
-- confidence score in `[0, 1]`,
+- decision: `LONG`, `SHORT`, `EXIT`, or `NO_TRADE`,
+- confidence/score inputs,
 - entry reference price,
 - stop/invalidation price,
-- optional target/reference exit logic,
+- target/exit logic,
 - compatible market regime,
+- leverage tier requested for paper simulation,
+- indicator/feature snapshot used for the decision,
 - machine-readable reason codes,
 - human-readable explanation.
 
-A strategy may not submit orders directly.
+A strategy may not submit exchange orders directly.
 
-## Initial strategy library
+## Historical research library
 
-### 1. Trend Following
-Purpose: participate when directional structure is persistent.
+Trend Following, Mean Reversion, Breakout, Momentum and `NO_TRADE` remain valid research categories. Existing M1/M2/M3 evidence files are preserved and should be treated as historical research records.
 
-Candidate features:
-- EMA alignment,
+The rejected Spot Trend evidence does not block development of a separate, independently validated short-horizon strategy.
+
+## Fast Momentum / Micro Profit — next runtime target
+
+Purpose: test whether short-horizon directional BTCUSDT moves can produce positive **net** expectancy after fees/slippage using small paper margin and controlled leverage.
+
+### Inputs
+
+Primary target inputs:
+
+- 1m execution context,
+- 5m confirmation context,
+- price momentum / rate of change,
+- trend alignment,
+- volume expansion/relative volume,
+- RSI,
 - ADX/trend strength,
-- higher-high / higher-low structure,
-- volume confirmation,
-- ATR-normalized distance.
+- spread/cost filter,
+- volatility/exhaustion filter.
 
-Eligible regimes:
-- `BULL_TREND`
-- future V2: `BEAR_TREND` with short-capable products.
+Additional indicators may be added only when they have a defined role and can be persisted/displayed in trade detail.
 
-### 2. Mean Reversion
-Purpose: trade reversion inside a validated range.
+### Direction
 
-Candidate features:
-- distance from rolling mean,
-- Bollinger/z-score style deviation,
-- range boundary proximity,
-- volatility contraction,
-- failed breakout evidence.
+Both directions must be supported:
 
-Eligible regime:
-- `RANGE`
+- `LONG` when qualified bullish momentum/structure passes risk and cost gates;
+- `SHORT` when qualified bearish momentum/structure passes risk and cost gates;
+- `NO_TRADE` when neither side has adequate edge.
 
-Must disable when trend/breakout evidence exceeds threshold.
+A rising market is not the only valid opportunity source. Bearish momentum must be evaluated symmetrically rather than forcing LONG-only behavior.
 
-### 3. Breakout
-Purpose: participate when price exits a well-defined compression/range with confirmation.
+### Paper leverage tiers
 
-Candidate features:
-- range duration,
-- volatility compression,
-- breakout distance,
-- volume expansion,
-- retest/hold confirmation.
+Normal paper evaluation starts with:
 
-Eligible regimes:
-- `BREAKOUT`
-- transition from `RANGE`.
+- 5x,
+- 10x,
+- 20x.
 
-### 4. Momentum
-Purpose: participate in accelerating price/volume continuation when the move is not already excessively extended.
+50x/100x remain aggressive-demo tiers and must not silently become normal or live defaults.
 
-Candidate features:
-- rate of change,
-- volume acceleration,
-- short/medium horizon alignment,
-- ATR-normalized extension,
-- exhaustion filter.
+### Required trade record
 
-Eligible regimes:
-- `BULL_TREND`
-- `BREAKOUT`
+Each opened paper trade must persist:
 
-### 5. NO_TRADE
-`NO_TRADE` is not a fallback bug. It is a first-class strategy decision.
+- unique trade/position id,
+- symbol,
+- side,
+- entry time/price,
+- margin,
+- leverage,
+- notional,
+- TP,
+- SL,
+- current/exit price,
+- fees/slippage,
+- gross/net P&L,
+- strategy and reason codes,
+- indicator snapshot,
+- exit time/reason,
+- chart metadata sufficient for a dedicated trade-detail view.
 
-Mandatory examples:
-- conflicting regime evidence,
-- insufficient signal quality,
-- abnormal volatility,
-- stale data,
-- risk veto,
-- expected edge <= estimated cost,
-- strategy disagreement without a clear winner.
+### UI visibility requirement
 
-## Meta Trader selection
+For every open or completed trade the PWA must be able to show:
 
-The Meta Trader:
+- where the trade entered,
+- current/exit point,
+- TP and SL lines,
+- LONG/SHORT and leverage,
+- indicators/values used at entry,
+- realized/unrealized net P&L,
+- exit reason,
+- a dedicated zoomable trade chart.
 
-1. filters strategies by regime compatibility,
-2. rejects invalid proposals,
-3. applies risk/cost pre-checks,
-4. ranks remaining proposals,
-5. may choose `NO_TRADE` even if one or more strategies suggest an entry.
+## NO_TRADE
 
-No ensemble vote automatically creates a trade.
+`NO_TRADE` is a first-class decision, not a bug. It is mandatory when:
 
-## Future research, not V1
+- signal quality is insufficient,
+- LONG/SHORT evidence conflicts,
+- spread/fees/slippage erase expected edge,
+- data is stale,
+- runtime persistence/health is degraded,
+- volatility is outside the tested envelope,
+- risk engine vetoes the setup.
 
-- funding crowding,
-- open-interest divergence,
-- liquidation rebound,
-- order-book crowding fingerprints,
-- grid-breaker logic,
-- cross-exchange arbitrage,
-- gold/macro strategies.
+## Selection and risk authority
+
+The strategy layer proposes; the deterministic Risk Engine decides whether the proposal may become a paper position. No score, ensemble vote, or AI recommendation can bypass a veto.
+
+## Later research
+
+- funding/open-interest crowding,
+- liquidation data,
+- order-book imbalance/crowding,
+- gold/MT5 strategies,
+- cross-exchange logic.
+
+These are separate research tracks and should not be mixed into Fast Momentum without explicit testing.
