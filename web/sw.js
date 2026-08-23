@@ -1,4 +1,4 @@
-const CACHE_NAME = 'eba-trader-ui-v11';
+const CACHE_NAME = 'eba-trader-ui-v12';
 const ASSETS = [
   './',
   './index.html',
