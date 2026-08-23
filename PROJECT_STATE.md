@@ -50,29 +50,44 @@ Run EBA Trader as a restart-safe 24/7 system on one Linode server, validate shor
 - Runtime API exposes health, positions and events.
 - `scripts/install_linode_runtime.sh` is the canonical first-install script.
 - `scripts/update_linode_runtime.sh` supports automatic exact-main deployment with service/health verification and rollback.
-- `eba-auto-update.timer` checks GitHub `main` every five minutes after one-time activation on the server.
+- `eba-auto-update.timer` is already activated on the Linode and checks GitHub `main` every five minutes.
 - Deployment state is recorded under `/var/lib/eba-trader/deploy-state` and does not overwrite the trade database.
-- `scripts/configure_linode_https.sh` provides the one-time Nginx + Certbot reverse-proxy/TLS setup for a public hostname.
-- PR #18 was merged into `main` as the Linode production deployment bundle.
+- `scripts/bootstrap_linode_public_https.sh` automatically derives an IP-backed hostname and attempts Nginx + Certbot HTTPS setup, with sslip.io and nip.io fallback.
+- HTTPS failure is non-fatal to the trading runtime and is retried by the existing auto-update timer.
+- PR #18 added the production deployment bundle.
+- PR #19 added hands-free public HTTPS bootstrap and credential-independent Fast paper operation.
 
 ### PWA and Fast Momentum
 
 - PWA/dashboard source is in GitHub `main` under `web/`.
-- Trade-detail UI, charts, PWA assets, Binance Demo connection UI and MT5 read-only bridge source are in `main`.
+- Settings reports app/server version, build, PWA cache, Linode runtime state, public-PWA HTTPS state and server scanner freshness.
+- Live chart code supports touch pinch zoom, drag/pan, mouse-wheel zoom, EMA20 and EMA50 overlays, and paper markers.
+- Fast trades have dedicated trade-detail UI with entry/current-or-exit, TP, SL, leverage, P&L, fees, indicators, EMA overlays, zoom/pan and history access.
 - Fast Momentum supports LONG and SHORT paper decisions for BTCUSDT perpetual simulation.
 - Fast Momentum stores OPEN / MARK / CLOSE state in SQLite through `PersistentMomentumPaperEngine`.
 - Fast Momentum open position/history can be restored from SQLite after process restart.
+- Fast Momentum server scanning no longer requires a Binance account secret: it can use public Binance Demo market data and a conservative fallback taker fee. A Demo API key is optional for authenticated balances/account commission/account-dependent features.
+- Fast Momentum runs server-side and is not dependent on keeping the phone PWA open.
 - `render.yaml` is not present in `main`.
-- PR #17 was the PWA/Fast Momentum migration checkpoint.
+- Real Binance order execution remains locked.
+
+## Production state now
+
+1. The Linode exists, is RUNNING, and the canonical services have been installed.
+2. The one-time production activation has already been performed.
+3. The GitHub-main auto-update timer has been observed active on Linode.
+4. PR #19 is merged to `main`; Linode should pull it automatically on the next timer cycle without another routine Weblish command.
+5. The merged runtime now attempts public HTTPS bootstrap automatically and records the resulting URL for Settings to display.
+6. Final external phone/browser verification of that HTTPS URL is still required before declaring public-PWA deployment proven.
 
 ## Important current limitations
 
-1. The production bundle is merged, but the Linode server still needs the one-time activation pull/install so the auto-update timer and HTTPS setup script exist on that machine.
-2. A public hostname must resolve to the Linode before Certbot HTTPS can be completed.
-3. Final phone smoke test against the Linode-served HTTPS PWA is still pending.
-4. Fast Momentum persistence/restart recovery still needs a real Linode restart smoke test against the production SQLite database.
-5. The older carry paper engine is not persisted/recovered to the same standard as Fast Momentum.
-6. Binance real order submission is not enabled or validated.
+1. Public HTTPS still needs a live external smoke test after Linode has consumed the latest `main`.
+2. Fast Momentum persistence/restart recovery is covered by repository tests but still needs one real Linode service/reboot smoke test against the production SQLite database.
+3. The older carry paper engine is not persisted/recovered to the same standard as Fast Momentum.
+4. Forward-paper evidence is not yet large enough to claim the strategy is profitable.
+5. Binance real order submission is not enabled or validated.
+6. The current public Demo PWA is not the place to enable real-money execution; authentication/gating must be added before any future live-order layer.
 
 ## Active trading direction
 
@@ -86,18 +101,20 @@ Fast Momentum / Micro Profit paper mode is the current short-horizon runtime str
 - explicit entry, TP, SL, fees and net P&L
 - dedicated trade detail/chart record
 - indicator values visible in the trade detail UI
+- server-side scanning continues while the PWA is closed
+- public Demo market data is sufficient for Fast paper scanning
 - live execution remains locked
 
 ## Next tasks — strict order
 
-1. Perform the one-time Linode activation of the merged production bundle.
-2. Point a public hostname to Linode and run the one-time HTTPS setup.
-3. Open the Linode HTTPS PWA from the phone and smoke-test Dashboard / Opportunities / Positions / History / Settings / trade detail.
-4. Verify Fast Momentum OPEN -> MARK -> CLOSE persistence and restart recovery on the real Linode database.
-5. Retire/delete the old Render service only after the Linode PWA passes the phone test.
-6. Run forward paper evidence and compare leverage tiers after fees/slippage.
-7. Persist/recover the older carry paper engine or remove it if Fast Momentum becomes the only supported paper strategy.
-8. Only after the full paper path is restart-safe and statistically acceptable, design a separately gated Binance order-execution layer.
+1. Confirm Linode has automatically consumed the latest `main` and that Settings shows the new LINODE-M2 release/server build.
+2. Confirm automatic public HTTPS succeeded and open the Linode HTTPS PWA from the phone/browser.
+3. Smoke-test Home / Chart / Scan / Positions / History / Settings / trade detail from the Linode-served PWA.
+4. Perform a real Linode restart/service-restart smoke test and verify Fast Momentum OPEN -> recovery -> MARK/CLOSE plus History persistence.
+5. Run forward paper evidence and compare leverage tiers after fees/slippage; do not judge profitability from a handful of trades.
+6. Persist/recover the older carry paper engine or remove it if Fast Momentum becomes the only supported paper strategy.
+7. Before any future real-order work, add authenticated control-plane access and a separate execution gate.
+8. Only after the full paper path is restart-safe and statistically acceptable, design and validate a separately gated Binance order-execution layer.
 
 ## Safety invariants
 
@@ -108,6 +125,8 @@ Fast Momentum / Micro Profit paper mode is the current short-horizon runtime str
 - Server/PWA restart must not erase trade history or active Fast Momentum paper state.
 - UI state is not the source of truth; Linode/SQLite is.
 - Ports 8000 and 8765 remain loopback-only; public access goes through HTTPS reverse proxy.
+- Fast paper may use public market data; account secrets are not a prerequisite for paper scanning.
+- Public Demo controls must not be reused as a real-money execution surface.
 
 ## Canonical runtime docs
 
