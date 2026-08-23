@@ -24,12 +24,12 @@
         <div class="status-row">
           <span class="pill demo">◉ DEMO</span>
           <span class="pill neutral" id="connectionSummary">0 CONNECTIONS</span>
-          <span class="pill danger" id="botStatus">BOT LOCKED</span>
+          <span class="pill neutral" id="botStatus">SERVER CHECK</span>
         </div>
         <h2>Account overview</h2>
         <div class="metric-grid">
-          <article class="metric-card"><span>Connected capital</span><strong id="balanceValue">—</strong><small id="balanceDetail">Connect Binance or MT5 Demo</small></article>
-          <article class="metric-card positive"><span>Paper P&amp;L</span><strong id="todayPnlValue">—</strong><small id="todayPnlDetail">No paper session</small></article>
+          <article class="metric-card"><span>Connected capital</span><strong id="balanceValue">—</strong><small id="balanceDetail">Optional authenticated Demo accounts</small></article>
+          <article class="metric-card positive"><span>Paper P&amp;L</span><strong id="todayPnlValue">—</strong><small id="todayPnlDetail">Checking Linode paper engine</small></article>
           <article class="metric-card"><span>Current opportunity</span><strong id="opportunityCount">0</strong><small id="opportunityDetail">No qualified setup</small></article>
           <article class="metric-card"><span>Expected net profit</span><strong id="expectedNetValue">—</strong><small id="expectedNetDetail">Waiting for fee-aware snapshot</small></article>
         </div>
@@ -39,7 +39,7 @@
         </div>
         <article class="notice-card">
           <div class="notice-icon">⊘</div>
-          <div><strong id="decisionTitle">NO TRADE</strong><p id="decisionReason">Connect Binance Unified Demo to start scanning.</p><small>Live execution remains locked.</small></div>
+          <div><strong id="decisionTitle">NO TRADE</strong><p id="decisionReason">Checking Linode server scanner.</p><small>Fast Momentum is paper-only; live execution remains locked.</small></div>
         </article>
         <article class="section-card">
           <div class="section-head"><div><span class="eyebrow">Connections</span><h3>Demo providers</h3></div><button class="text-btn" data-nav="settings">Manage</button></div>
@@ -102,7 +102,7 @@
         <article class="section-card environment-card">
           <span class="eyebrow">Environment</span>
           <div class="environment-toggle"><button class="active" id="demoEnvironment">DEMO</button><button id="liveEnvironment" disabled>LIVE 🔒</button></div>
-          <p>Binance and MT5 are Demo/read-only/paper first. Live remains locked until separate validation and approval.</p>
+          <p>Fast Momentum can use public Binance Demo market data. Authenticated Binance and MT5 connections remain Demo/read-only/paper first. Live remains locked until separate validation and approval.</p>
         </article>
         <div id="connectionList" class="connection-list"></div>
         <article class="section-card risk-card">
@@ -131,14 +131,14 @@
       <div class="dialog-head"><div><span class="eyebrow">Demo connection</span><h2 id="dialogTitle">Binance Demo</h2></div><button value="cancel" class="icon-btn">✕</button></div>
       <label>Provider<select id="providerSelect"><option value="binance">Binance</option><option value="metatrader5">MetaTrader 5</option></select></label>
       <div id="binanceFields">
-        <div class="security-note">Use a Binance <strong>Demo Trading</strong> API key, not a real-money key. One Demo key covers Spot + USD-M.</div>
-        <label>Binance Demo API Key<input id="apiKey" autocomplete="off" spellcheck="false" placeholder="Paste Demo API key"></label>
-        <label>Binance Demo API Secret<input id="apiSecret" type="password" autocomplete="new-password" placeholder="Paste Demo API secret"></label>
-        <button type="button" class="primary full" id="testConnection">TEST BINANCE DEMO</button>
+        <div class="security-note">Fast Momentum paper does <strong>not</strong> require an API key. Add a Binance <strong>Demo Trading</strong> key only for authenticated balances, account commission data and account-dependent Demo features. Never use a real-money key here.</div>
+        <label>Binance Demo API Key<input id="apiKey" autocomplete="off" spellcheck="false" placeholder="Optional Demo API key"></label>
+        <label>Binance Demo API Secret<input id="apiSecret" type="password" autocomplete="new-password" placeholder="Optional Demo API secret"></label>
+        <button type="button" class="primary full" id="testConnection">CONNECT AUTHENTICATED DEMO</button>
         <button type="button" class="danger-btn full" id="disconnectDemo" hidden>DISCONNECT BINANCE DEMO</button>
       </div>
       <div id="mt5Fields" hidden>
-        <div class="security-note"><strong>Safer MT5 bridge:</strong> keep MT5 logged into a Demo account on your Windows PC. Broker password never goes to Render. The local bridge sends only read-only account/quote/chart/position data.</div>
+        <div class="security-note"><strong>Safer MT5 bridge:</strong> keep MT5 logged into a Demo account on your Windows PC. Broker password stays on the PC; the Linode runtime receives only the bridge data required by the Demo/read-only workflow.</div>
         <button type="button" class="primary full" id="createMt5Pair">CREATE MT5 PAIR CODE</button>
         <div id="mt5PairPanel" class="pair-panel" hidden>
           <label>Pair token<input id="mt5PairToken" readonly></label>
