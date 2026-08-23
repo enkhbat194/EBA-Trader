@@ -11,14 +11,16 @@ from .providers import CredentialEnvelope
 
 AUTONOMOUS_SESSION_KEY = "server-autonomous-demo"
 DEFAULT_INTERVAL_SECONDS = 15.0
+PUBLIC_PAPER_CREDENTIALS = CredentialEnvelope(api_key="", api_secret="")
 
 
 class AutonomousDemoRunner:
     """Server-side paper scanners that do not depend on an open PWA.
 
     Carry and Fast Momentum run in independent threads so a slower carry snapshot
-    cannot delay the fast scanner. Both engines remain paper-only and never send
-    exchange orders.
+    cannot delay the fast scanner. Fast Momentum may use public Binance Demo market
+    data with a conservative fallback taker fee when account credentials are absent.
+    Both engines remain paper-only and never send exchange orders.
     """
 
     def __init__(
@@ -121,9 +123,7 @@ class AutonomousDemoRunner:
         return state
 
     def close_fast(self, *, reason: str = "SERVER_RUNNER_MANUAL_CLOSE") -> dict[str, Any]:
-        credentials = self._credentials_loader()
-        if credentials is None:
-            raise RuntimeError("Binance Demo server secret is not configured")
+        credentials = self._fast_credentials()
         state = self._momentum_engine.close(
             AUTONOMOUS_SESSION_KEY,
             credentials,
@@ -134,6 +134,7 @@ class AutonomousDemoRunner:
         return state
 
     def status(self) -> dict[str, Any]:
+        credentials_configured = self._credentials_loader() is not None
         with self._lock:
             carry_alive = self._carry_thread is not None and self._carry_thread.is_alive()
             fast_alive = self._fast_thread is not None and self._fast_thread.is_alive()
@@ -156,6 +157,16 @@ class AutonomousDemoRunner:
             "fastThreadAlive": fast_alive,
             "carryRunning": carry_enabled,
             "fastRunning": fast_enabled,
+            "fastPaperAvailable": True,
+            "demoCredentialsConfigured": credentials_configured,
+            "fastMarketDataMode": (
+                "authenticated_demo" if credentials_configured else "public_demo"
+            ),
+            "fastFeeMode": (
+                "account_commission_with_fallback"
+                if credentials_configured
+                else "conservative_fallback"
+            ),
             "intervalSeconds": self._interval_seconds,
             "startedAtMs": started_at_ms,
             "lastLoopAtMs": max(last_loop_values) if last_loop_values else None,
@@ -167,6 +178,10 @@ class AutonomousDemoRunner:
             "fastState": self._momentum_engine.state(AUTONOMOUS_SESSION_KEY),
             "liveExecutionAllowed": False,
         }
+
+    def _fast_credentials(self) -> CredentialEnvelope:
+        credentials = self._credentials_loader()
+        return credentials if credentials is not None else PUBLIC_PAPER_CREDENTIALS
 
     def _carry_loop(self) -> None:
         while not self._stop_event.is_set():
@@ -220,11 +235,7 @@ class AutonomousDemoRunner:
         has_position = current.get("openPosition") is not None
         if not enabled and not has_position:
             return
-        credentials = self._credentials_loader()
-        if credentials is None:
-            with self._lock:
-                self._fast_error = "fast: Binance Demo server secret is not configured"
-            return
+        credentials = self._fast_credentials()
         now_ms = int(time.time() * 1000)
         try:
             self._momentum_engine.step(

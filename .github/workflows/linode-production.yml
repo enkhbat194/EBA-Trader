@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - linode-production-bundle
+      - linode-handsfree-public-pwa
   pull_request:
     branches:
       - main
@@ -30,7 +31,12 @@ jobs:
         run: python -m pip install -e '.[dev]'
 
       - name: Python tests
-        run: pytest -q tests/test_persistence.py tests/test_persistent_momentum.py tests/test_web_server.py
+        run: >-
+          pytest -q
+          tests/test_persistence.py
+          tests/test_persistent_momentum.py
+          tests/test_autonomous_runner.py
+          tests/test_web_server.py
 
       - name: Ruff
         run: ruff check src tests
@@ -40,6 +46,7 @@ jobs:
           bash -n scripts/install_linode_runtime.sh
           bash -n scripts/update_linode_runtime.sh
           bash -n scripts/configure_linode_https.sh
+          bash -n scripts/bootstrap_linode_public_https.sh
 
       - name: Deployment contract
         run: |
@@ -47,5 +54,7 @@ jobs:
           test -f deploy/systemd/eba-auto-update.timer
           grep -q 'OnUnitActiveSec=5min' deploy/systemd/eba-auto-update.timer
           grep -q 'rollback' scripts/update_linode_runtime.sh
+          grep -q 'bootstrap_linode_public_https.sh' scripts/update_linode_runtime.sh
+          grep -q 'sslip.io' scripts/bootstrap_linode_public_https.sh
           grep -q '127.0.0.1:8000' scripts/configure_linode_https.sh
           ! test -f render.yaml

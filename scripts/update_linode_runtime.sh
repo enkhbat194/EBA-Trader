@@ -33,7 +33,10 @@ CURRENT_SHA="$(git rev-parse HEAD)"
 TARGET_SHA="$(git rev-parse origin/main)"
 
 if [[ "$CURRENT_SHA" == "$TARGET_SHA" ]]; then
-  if [[ $AUTO_MODE -eq 0 ]]; then
+  # In automatic mode, use the 5-minute timer as a lightweight HTTPS self-heal loop too.
+  if [[ $AUTO_MODE -eq 1 && -f scripts/bootstrap_linode_public_https.sh ]]; then
+    bash scripts/bootstrap_linode_public_https.sh >/dev/null 2>&1 || true
+  elif [[ $AUTO_MODE -eq 0 ]]; then
     echo "EBA Trader already up to date: $CURRENT_SHA"
   fi
   exit 0
@@ -92,6 +95,13 @@ systemctl is-active --quiet "$API_SERVICE"
 systemctl is-active --quiet "$WEB_SERVICE"
 curl --fail --silent --max-time 5 http://127.0.0.1:8765/health >/dev/null
 curl --fail --silent --max-time 5 http://127.0.0.1:8000/api/health >/dev/null
+
+# HTTPS is not part of the rollback boundary. A temporary DNS/CA outage must not roll
+# back an otherwise healthy runtime deployment; the timer retries bootstrap later.
+if [[ -f scripts/bootstrap_linode_public_https.sh ]]; then
+  bash scripts/bootstrap_linode_public_https.sh || \
+    echo "Public HTTPS bootstrap deferred; runtime deployment remains healthy." >&2
+fi
 
 trap - ERR
 printf '%s\n' "$TARGET_SHA" > "$DEPLOY_STATE/current_sha"
