@@ -4,66 +4,92 @@
 
 Risk control has higher authority than strategy selection, AI analysis and profit targets.
 
-## V1 hard defaults
+## Active rule split
 
-These are conservative research defaults, not claims of optimality. They may only be changed after evidence from backtest, paper and shadow stages.
+EBA Trader has two distinct risk scopes:
 
-- Maximum risk per trade: **0.50% of account equity**
-- Maximum daily realized loss: **2.00% of start-of-day equity**
-- Maximum strategy/account drawdown: **8.00%**
-- Maximum simultaneously open positions: **1**
-- Futures/leverage: **disabled**
-- Short selling: **disabled in BTC/USDT spot V1**
-- Martingale / loss-size multiplication: **prohibited**
-- Averaging down without an explicit validated strategy rule: **prohibited**
+1. **Historical Spot research** — the earlier conservative BTC/USDT Spot evidence pipeline.
+2. **Fast Momentum paper simulation** — a separate futures-style simulation used to measure whether small-margin leveraged setups have positive net expectancy after fees/slippage.
+
+These scopes must not be confused. Paper leverage permission does **not** authorize real leveraged orders.
+
+## Hard runtime defaults
+
+- Maximum simultaneously open Fast Momentum paper positions: **1** initially.
+- Paper margin test baseline: **$10**.
+- Paper leverage tiers: **5x / 10x / 20x** for normal evaluation.
+- 50x / 100x: **aggressive-demo research only** until lower tiers have evidence.
+- Real futures/leverage order submission: **disabled**.
+- Martingale / loss-size multiplication: **prohibited**.
+- Averaging down without an explicit validated strategy rule: **prohibited**.
+- Every entry must have a defined stop/invalidation rule.
+- Fees and slippage must be included in net P&L.
+- Leveraged paper records must include liquidation-distance/risk metadata.
+
+Historical Spot risk defaults (0.50% risk per trade, 2% daily loss, 8% drawdown) remain part of the preserved research/evidence track and are not silently reused as claims of optimality for Fast Momentum.
 
 ## Mandatory veto conditions
 
-Any of the following produces `DENY` / `HALT`:
+Any of the following produces `DENY` / `HALT` for a new entry:
 
 - market data is stale,
-- exchange/account state cannot be reconciled,
-- daily-loss limit is reached,
-- maximum drawdown is reached,
-- position size exceeds calculated risk budget,
+- runtime/API health is degraded,
+- persistent state cannot be read/written reliably,
+- an existing position conflicts with requested exposure,
 - strategy proposal lacks a valid stop/invalidation level,
-- estimated fees/slippage invalidate positive expectancy,
-- volatility is outside the validated operating envelope,
-- execution/API health is degraded,
+- fees/slippage invalidate the expected edge,
+- spread/volatility is outside the tested operating envelope,
+- requested leverage exceeds the allowed mode/tier,
 - mode is not explicitly allowed for the requested action.
 
-## Position sizing
+## Leveraged paper accounting
 
-V1 uses risk-based position sizing:
+For a paper position:
 
 ```text
-risk_budget = equity * risk_per_trade
-unit_risk   = abs(entry_price - stop_price)
-raw_size    = risk_budget / unit_risk
+notional      = margin * leverage
+gross_pnl     = signed_price_return * notional
+net_pnl       = gross_pnl - entry_fee - exit_fee - slippage_cost
 ```
 
-The final quantity must also obey exchange minimums, available cash, fees and configured exposure caps.
+The engine must record at least:
+
+- margin,
+- leverage,
+- notional,
+- side,
+- entry,
+- current/exit,
+- TP,
+- SL,
+- fees,
+- slippage,
+- gross P&L,
+- net P&L,
+- liquidation-distance estimate,
+- exit reason.
 
 ## AI authority
 
-AI may recommend `BUY`, `SELL`, `WAIT` or `NO_TRADE`, but the Risk Engine can only return:
-
-- `ALLOW`
-- `DENY`
-- `HALT`
-
-AI cannot override `DENY` or `HALT`.
+AI may research, critique or explain a setup. It cannot bypass a deterministic `DENY` / `HALT`, cannot change hard risk limits at runtime, and cannot directly submit exchange orders.
 
 ## Promotion to real capital
 
-Micro-live is forbidden until all conditions in `BACKTEST_PROTOCOL.md` are satisfied and the project state explicitly records approval.
+Real execution remains locked until all of the following are true:
+
+- paper execution is persistent across process/server restart,
+- server and PWA show the same authoritative position/history state,
+- order sizing/fees/slippage/risk calculations are tested,
+- forward paper evidence is acceptable,
+- the exchange execution adapter is separately tested,
+- project state explicitly records a promotion decision.
 
 ## API security
 
 Future live API keys must use least privilege:
 
-- read: enabled only as needed,
-- spot trading: enabled only for the bot subaccount,
+- read permission only as needed,
+- trading permission only when a live gate is explicitly opened,
 - withdrawals: **disabled**,
 - IP allowlist: **required where supported**,
-- keys/secrets: environment or secret manager only, never Git.
+- keys/secrets: server environment or secret manager only, never Git.
