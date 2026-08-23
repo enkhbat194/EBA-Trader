@@ -37,7 +37,13 @@ def _ms_from_iso(value: str | None) -> int | None:
 
 
 def ledger_from_env() -> TradeLedger:
-    path = Path(os.getenv("EBA_LEDGER_DB", str(DEFAULT_DB_PATH)))
+    configured = os.getenv("EBA_LEDGER_DB", "").strip()
+    if configured:
+        path = Path(configured)
+    elif hasattr(os, "geteuid") and os.geteuid() == 0:
+        path = DEFAULT_DB_PATH
+    else:
+        path = Path(os.getenv("TMPDIR", "/tmp")) / "eba-trader" / "eba_trader.db"
     return TradeLedger(path)
 
 
@@ -45,7 +51,7 @@ class PersistentMomentumPaperEngine(MomentumPaperEngine):
     """Fast Momentum simulator backed by the shared SQLite TradeLedger.
 
     The parent engine remains responsible for signal/risk/P&L calculations.
-    This class makes its paper state restart-safe and auditable. It never sends
+    This class makes paper state restart-safe and auditable. It never sends
     Binance orders and does not change exchange leverage.
     """
 
@@ -281,13 +287,15 @@ class PersistentMomentumPaperEngine(MomentumPaperEngine):
                 entry_time_ms = _ms_from_iso(row.get("opened_at"))
                 if entry_time_ms is None:
                     continue
-                entry_marker = {
-                    "time": entry_time_ms // 1000,
-                    "price": float(row["entry_price"]),
-                    "kind": "BUY" if row["side"] == "LONG" else "SELL",
-                    "label": f"MOM {row['side']} {float(row.get('leverage') or 1.0):.1f}x",
-                }
-                markers.append(entry_marker)
+                leverage = float(row.get("leverage") or 1.0)
+                markers.append(
+                    {
+                        "time": entry_time_ms // 1000,
+                        "price": float(row["entry_price"]),
+                        "kind": "BUY" if row["side"] == "LONG" else "SELL",
+                        "label": f"MOM {row['side']} {leverage:.1f}x",
+                    }
+                )
 
                 if row.get("status") == "OPEN" and open_position is None:
                     open_position = MomentumPosition(
@@ -299,14 +307,20 @@ class PersistentMomentumPaperEngine(MomentumPaperEngine):
                         quantity=float(row["quantity"]),
                         notional_usd=float(metadata.get("notionalUsd") or 0.0),
                         margin_usd=float(metadata.get("marginUsd") or self._margin_usd),
-                        leverage_cap=int(metadata.get("leverageCap") or round(float(row.get("leverage") or 1.0))),
-                        effective_leverage=float(metadata.get("effectiveLeverage") or row.get("leverage") or 1.0),
+                        leverage_cap=int(
+                            metadata.get("leverageCap") or round(leverage)
+                        ),
+                        effective_leverage=float(
+                            metadata.get("effectiveLeverage") or leverage
+                        ),
                         stop_price=float(row.get("stop_loss") or 0.0),
                         take_profit_price=float(row.get("take_profit") or 0.0),
                         fee_rate=float(metadata.get("feeRate") or 0.0),
                         entry_fee_usd=float(metadata.get("entryFeeUsd") or 0.0),
                         score=int(metadata.get("score") or 0),
-                        unrealized_gross_usd=float(metadata.get("grossPnlUsd") or 0.0),
+                        unrealized_gross_usd=float(
+                            metadata.get("grossPnlUsd") or 0.0
+                        ),
                         unrealized_net_usd=float(metadata.get("netPnlUsd") or 0.0),
                         mark_price=(
                             float(metadata["markPrice"])
@@ -319,29 +333,38 @@ class PersistentMomentumPaperEngine(MomentumPaperEngine):
 
                 if row.get("status") != "CLOSED" or row.get("exit_price") is None:
                     continue
-                exit_time_ms = _ms_from_iso(row.get("closed_at")) or int(metadata.get("exitTimeMs") or 0)
+                exit_time_ms = _ms_from_iso(row.get("closed_at")) or int(
+                    metadata.get("exitTimeMs") or 0
+                )
                 if exit_time_ms <= 0:
                     continue
-                trade = MomentumTrade(
-                    position_id=str(row["position_id"]),
-                    symbol=str(row["symbol"]),
-                    side=str(row["side"]),
-                    entry_time_ms=entry_time_ms,
-                    exit_time_ms=exit_time_ms,
-                    entry_price=float(row["entry_price"]),
-                    exit_price=float(row["exit_price"]),
-                    quantity=float(row["quantity"]),
-                    notional_usd=float(metadata.get("notionalUsd") or 0.0),
-                    margin_usd=float(metadata.get("marginUsd") or self._margin_usd),
-                    effective_leverage=float(metadata.get("effectiveLeverage") or row.get("leverage") or 1.0),
-                    entry_fee_usd=float(metadata.get("entryFeeUsd") or 0.0),
-                    exit_fee_usd=float(metadata.get("exitFeeUsd") or 0.0),
-                    gross_pnl_usd=float(metadata.get("grossPnlUsd") or 0.0),
-                    net_pnl_usd=float(row.get("realized_pnl") or 0.0),
-                    exit_reason=str(metadata.get("exitReason") or "RECOVERED_CLOSE"),
-                    score=int(metadata.get("score") or 0),
+                history.append(
+                    MomentumTrade(
+                        position_id=str(row["position_id"]),
+                        symbol=str(row["symbol"]),
+                        side=str(row["side"]),
+                        entry_time_ms=entry_time_ms,
+                        exit_time_ms=exit_time_ms,
+                        entry_price=float(row["entry_price"]),
+                        exit_price=float(row["exit_price"]),
+                        quantity=float(row["quantity"]),
+                        notional_usd=float(metadata.get("notionalUsd") or 0.0),
+                        margin_usd=float(
+                            metadata.get("marginUsd") or self._margin_usd
+                        ),
+                        effective_leverage=float(
+                            metadata.get("effectiveLeverage") or leverage
+                        ),
+                        entry_fee_usd=float(metadata.get("entryFeeUsd") or 0.0),
+                        exit_fee_usd=float(metadata.get("exitFeeUsd") or 0.0),
+                        gross_pnl_usd=float(metadata.get("grossPnlUsd") or 0.0),
+                        net_pnl_usd=float(row.get("realized_pnl") or 0.0),
+                        exit_reason=str(
+                            metadata.get("exitReason") or "RECOVERED_CLOSE"
+                        ),
+                        score=int(metadata.get("score") or 0),
+                    )
                 )
-                history.append(trade)
                 markers.append(
                     {
                         "time": exit_time_ms // 1000,
