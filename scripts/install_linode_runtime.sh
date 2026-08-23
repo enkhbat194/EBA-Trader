@@ -64,6 +64,13 @@ systemctl --no-pager --full status "$API_SERVICE" || true
 systemctl --no-pager --full status "$WEB_SERVICE" || true
 systemctl --no-pager --full status "$UPDATE_TIMER" || true
 
+# Public PWA bootstrap is intentionally non-fatal: trading/runtime services must stay up
+# even if a DNS/TLS provider is temporarily unavailable. The auto-update timer retries it.
+if [[ -f scripts/bootstrap_linode_public_https.sh ]]; then
+  bash scripts/bootstrap_linode_public_https.sh || \
+    echo "Public HTTPS bootstrap deferred; auto-update will retry." >&2
+fi
+
 echo
 echo "EBA Trader Linode runtime installed."
 echo "Market-data logs: journalctl -u $DATA_SERVICE -f"
@@ -72,4 +79,9 @@ echo "PWA/server logs: journalctl -u $WEB_SERVICE -f"
 echo "Auto-update logs: journalctl -u $UPDATE_SERVICE"
 echo "Runtime health: curl http://127.0.0.1:8765/health"
 echo "PWA health: curl http://127.0.0.1:8000/api/health"
+if [[ -s "$ENV_DIR/public-url" ]]; then
+  echo "Public PWA: $(cat "$ENV_DIR/public-url")"
+else
+  echo "Public PWA: pending automatic HTTPS bootstrap"
+fi
 echo "GitHub main is checked automatically every 5 minutes."
