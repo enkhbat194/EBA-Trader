@@ -10,11 +10,11 @@ _Last handoff prepared: 2026-08-26 (Asia/Ulaanbaatar)_
 - The two ablation arms consume the exact same aligned feature dataset and share EMA exits, next-bar execution, fees and slippage.
 - Tests prove a permissive order-flow gate reproduces the candle-only metrics and negative delta/CVD gates suppress otherwise valid entries.
 - Fixed pre-existing annualized-return overflow on very short/high-return synthetic windows and made non-finite evidence metrics JSON-safe.
-- Started PR #32 for phone-first Research / AI Lab visibility.
+- Completed PR #32 and squash-merged it to `main` at `931b8a7dff68c659f2fa21d4fea33c87053c5022`.
 - Added read-only `/api/research/status`, backed by repository continuity plus optional read-only M4 research SQLite counts.
 - Added a seventh PWA `Research` tab showing M5 focus/progress, data-plane readiness, ablation adapters/features, experiment/lifecycle counts and explicit safety locks.
 - Bumped PWA cache to `eba-trader-ui-v13` and added backend/UI contract tests.
-- PR #32 first implementation head passed full regression, Ruff, shell/deployment, Linode runtime and Continuity guard checks; continuity updates require final-head revalidation before merge.
+- PR #32 final head passed full regression, Ruff, shell/deployment, Linode runtime and Continuity guard checks before merge.
 
 ## Current project state
 
@@ -24,8 +24,7 @@ _Last handoff prepared: 2026-08-26 (Asia/Ulaanbaatar)_
 - M5 AI Strategy Factory is in progress.
 - Historical Binance USD-M aggregate-trade acquisition, gap repair, footprint windows, causal candle alignment and aligned feature-dataset materialization are implemented.
 - Candle-only and candle+delta/CVD ablation adapters are merged and tested.
-- Research / AI Lab is implemented in PR #32 but must not be called merged until final CI succeeds and the PR is merged.
-- Research / AI Lab is read-only observability; it has no lifecycle, risk, OOS-unlock or execution authority.
+- Research / AI Lab is merged and read-only; it has no lifecycle, risk, OOS-unlock or execution authority.
 - Real Binance order submission remains locked.
 - Frozen OOS automation remains locked pending lifecycle-order reconciliation.
 
@@ -61,13 +60,12 @@ Still not proven by repository CI:
 
 ## Next exact task
 
-1. Re-run PR #32 CI after continuity updates and squash-merge it only if all checks are green.
-2. Implement a deterministic ablation orchestrator that emits paired candle-only vs candle+delta/CVD experiments with identical dataset identity, EMA parameters, fees and slippage.
-3. Add a CLI/workflow to materialize a real historical BTCUSDT USD-M development feature dataset from candle CSV + verified order-flow/acquisition manifests.
-4. Run controlled development ablations through the M4 worker/evidence/gate path.
-5. Surface real experiment counts/results automatically in Research / AI Lab when a research DB is present on the runtime used for research.
-6. Keep frozen OOS and real execution locked.
-7. In parallel, complete the external Linode HTTPS + restart/recovery proof.
+1. Implement a deterministic ablation orchestrator that emits paired candle-only vs candle+delta/CVD experiments with identical dataset identity, EMA parameters, fees and slippage.
+2. Add a CLI/workflow to materialize a real historical BTCUSDT USD-M development feature dataset from candle CSV + verified order-flow/acquisition manifests.
+3. Run controlled development ablations through the M4 worker/evidence/gate path.
+4. Surface real experiment counts/results automatically in Research / AI Lab when a research DB is present on the runtime used for research.
+5. Keep frozen OOS and real execution locked.
+6. In parallel, complete the external Linode HTTPS + restart/recovery proof.
 
 ## Notes for the next AI session
 
