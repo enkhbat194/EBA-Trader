@@ -129,8 +129,9 @@ class EmaTrendV1Adapter:
 
         overlap = sorted(set(fixed) & set(experiment_parameters))
         if overlap:
+            joined = ", ".join(overlap)
             raise ValueError(
-                "Experiment parameters cannot override immutable fixed fields: " + ", ".join(overlap)
+                f"Experiment parameters cannot override immutable fixed fields: {joined}"
             )
 
         symbol = str(dataset.get("symbol", "")).strip().upper()
