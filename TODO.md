@@ -10,6 +10,7 @@ This list is ordered by current project priority and must be reconciled with act
 - [x] Add allowlisted candle-only and order-flow backtest adapters that consume the exact same causally aligned feature dataset through the M4 worker path.
 - [x] Prove with tests that a permissive order-flow gate matches the candle-only arm and that delta/CVD gates actually suppress candidate entries.
 - [x] Add a read-only Research / AI Lab PWA dashboard backed by repo continuity plus optional M4 research-store counts.
+- [x] Clarify Home carry metrics and add a read-only Fast Momentum server heartbeat with last/next scan visibility.
 - [ ] Add a deterministic ablation orchestrator that emits paired candle-only vs candle+delta/CVD experiments with identical EMA/cost parameters and dataset identity.
 - [ ] Add a CLI/workflow to materialize a real historical development feature dataset from candle CSV + verified order-flow/acquisition manifests.
 - [ ] Run controlled development ablations on real historical BTCUSDT USD-M data under identical fees/slippage/gates.
@@ -17,9 +18,9 @@ This list is ordered by current project priority and must be reconciled with act
 
 ## NOW — Production proof (parallel track)
 
-- [ ] Confirm the Linode runtime has consumed the latest GitHub `main` after current merges.
-- [ ] Verify the public HTTPS PWA from an external phone/browser.
-- [ ] Smoke-test Home / Chart / Scan / Positions / History / Research / Settings / trade detail against server truth.
+- [x] Confirm Linode consumed GitHub `main` through state commit `050cd9be203a09aca95a152d7102fa280c397ee7` on 2026-08-26.
+- [x] Verify public HTTPS PWA from an external iPhone at `https://eba-trader-172-236-150-62.sslip.io/`.
+- [ ] Complete smoke-test Home / Chart / Scan / Positions / History / Research / Settings / trade detail against server truth. Home, Scan and Settings were observed working on 2026-08-26.
 - [ ] Perform one real service/server restart and prove Fast Momentum `OPEN -> recovery -> MARK/CLOSE` persistence in production SQLite.
 - [ ] Decide whether to persist/recover the older carry paper engine or retire it explicitly.
 
@@ -67,4 +68,4 @@ This list is ordered by current project priority and must be reconciled with act
 - [x] Repository continuity system installed with mandatory agent protocol and CI guard (#29).
 - [x] Deterministic Binance aggregate-trade acquisition, missing-ID repair and causal candle alignment merged (#30).
 - [x] Causal feature-dataset materialization plus allowlisted candle-only/order-flow ablation adapters merged (#31).
-- [x] Research / AI Lab PWA dashboard implemented in PR #32 with read-only research status and safety-lock visibility.
+- [x] Research / AI Lab PWA dashboard merged (#32) with read-only research status and safety-lock visibility.
