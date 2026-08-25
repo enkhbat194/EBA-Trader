@@ -22,8 +22,9 @@ selection bias. M4 creates the control plane that the later AI factory must use.
    and lifecycle history.
 4. Add deterministic experiment identities so duplicate parameter/dataset work can be
    recognized.
-5. Next: add experiment queue/worker state, generic backtest adapters, evidence records and
-   automated screening gates.
+5. Add a restart-safe experiment queue with transactional worker claims, leases, retries and
+   expired-worker recovery.
+6. Next: generic backtest adapters, evidence/provenance records and automated screening gates.
 
 ## Lifecycle
 
@@ -70,8 +71,27 @@ Initial tables:
 - `lifecycle_history`
 
 Strategy versions are immutable. Changing a strategy specification requires a new version.
-Experiment IDs are deterministic from strategy/version/stage/parameters/dataset, which is
-the base for later duplicate detection and resumable queues.
+Experiment IDs are deterministic from strategy/version/stage/parameters/dataset.
+
+The experiment queue extends `experiment_runs` with scheduling state including worker owner,
+attempt count, retry availability and lease expiry. Queue initialization migrates an existing
+foundation database in place by adding missing scheduling columns.
+
+## Experiment queue
+
+```text
+QUEUED
+  -> RUNNING
+      -> PASSED
+      -> FAILED
+      -> QUEUED (retry/recovery while attempts remain)
+```
+
+Claims are serialized with SQLite `BEGIN IMMEDIATE`. A worker result is accepted only while
+that worker still owns an unexpired lease. Expired work is requeued when attempts remain or
+failed when the configured attempt limit is exhausted.
+
+See `M4_EXPERIMENT_QUEUE.md` for the detailed contract.
 
 ## Safety constraints
 
@@ -79,9 +99,10 @@ the base for later duplicate detection and resumable queues.
 - Existing Linode/PWA/Fast Momentum runtime remains the active paper runtime.
 - `TradeLedger` remains the source of runtime position/event persistence.
 - Research evidence cannot directly promote itself to live execution.
+- Queue completion cannot skip strategy lifecycle gates.
 - OOS and robustness rules in the existing backtest protocol remain mandatory.
 
-## Acceptance criteria for the foundation slice
+## Acceptance criteria completed
 
 - LONG and SHORT proposal stop-direction invariants are unit tested.
 - Historical `Decision.BUY` resolves to LONG during migration.
@@ -90,11 +111,15 @@ the base for later duplicate detection and resumable queues.
 - Strategy version mutation is rejected.
 - Experiment IDs are deterministic across JSON key order.
 - Experiment metadata/results round-trip through SQLite.
+- Duplicate enqueue resolves to one deterministic experiment row.
+- One queued experiment cannot be actively leased by two workers.
+- Worker ownership is enforced on lease renewal and result publication.
+- Expired leases recover automatically.
+- Retry delay and max-attempt terminal failure are covered by tests.
 
 ## Next implementation slice
 
-1. `ExperimentQueue` with `QUEUED/RUNNING/PASSED/FAILED/CANCELLED` state.
-2. Worker claim/lease and restart recovery.
-3. Generic adapter from strategy spec to existing backtest runner.
-4. Evidence table with source data/provenance hashes.
-5. Automated cheap-screen -> development -> robustness -> OOS gates.
+1. Generic adapter from immutable strategy spec to existing backtest runner.
+2. Evidence table with source data, code and configuration provenance hashes.
+3. Queue worker executor using the adapter contract.
+4. Automated cheap-screen -> development -> robustness -> OOS gates.
