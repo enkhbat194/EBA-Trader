@@ -1,142 +1,176 @@
 # EBA Trader — Project State
 
-_Last updated: 2026-08-26 (Asia/Ulaanbaatar)_
+_Last reconciled: 2026-08-26 (Asia/Ulaanbaatar)_
+_Verified against GitHub `main` baseline: `2f823ca918bc8d8b2866a5e77fa8372063121a25` plus the continuity-system branch changes._
 
-This is the authoritative cross-chat continuation record. If older chat text, old deployment notes, screenshots, old PRs, or old branches conflict with this file, this file wins.
+This is the primary cross-chat continuation summary. Actual current implementation/config/tests and Git history override stale text.
 
 ## Current goal
 
-Run EBA Trader as a restart-safe 24/7 Linode system, validate strategies with paper trading first, persist every trade, expose clear runtime state to the PWA, and keep real-money execution locked until separately proven.
+Operate EBA Trader as a restart-safe 24/7 Linode paper/research system, build a controlled AI Strategy Factory on top of the M4 evidence platform, test whether order-flow/footprint features add incremental edge over candle-only baselines, and keep real-money execution locked until a separate evidence chain proves it.
 
-M4 research control plane is complete. M5 AI Strategy Factory is in progress. M5 now includes a constrained strategy DSL, bounded family generation, duplicate control, cheap screening and a reproducible Order Flow / Footprint historical-data foundation.
+The repository is also the shared memory bridge for ChatGPT branch chats and AI coding sessions. New sessions must read `AGENTS.md` and the continuity files before work, then write state/handoff back after meaningful work.
 
-## Source of truth and infrastructure
+## Current stage
+
+- Research platform: **M4 COMPLETE**.
+- AI Strategy Factory: **M5 IN PROGRESS**.
+- Current M5 frontier: historical order-flow acquisition/alignment -> allowlisted order-flow backtest adapter -> candle-vs-order-flow ablation.
+- Runtime: persistent paper system on the Linode architecture; external production-proof checks remain partially unverified from repository evidence alone.
+- Real-money execution: **LOCKED**.
+- Frozen OOS automation: **LOCKED pending lifecycle-order reconciliation**.
+
+## Source of truth and active infrastructure
 
 - Repository: `enkhbat194/EBA-Trader`
-- Source of truth: GitHub `main`
-- Sole active runtime target: Akamai/Linode Nanode 1 GB, Singapore 2, Ubuntu 24.04 LTS
-- Server repo path: `/opt/Eba-Trader`
-- Persistent runtime state: `/var/lib/eba-trader/eba_trader.db`
+- Code source of truth: GitHub `main`
+- Active runtime target: Akamai/Linode Nanode 1 GB, Singapore 2, Ubuntu 24.04 LTS
+- Server repository path: `/opt/Eba-Trader`
+- Persistent runtime DB: `/var/lib/eba-trader/eba_trader.db`
 - Market-data service: `eba-binance-data.service`
-- Runtime API service: `eba-runtime-api.service`
-- PWA/web/scanner service: `eba-web.service`
-- Automatic deploy timer: `eba-auto-update.timer`
-- Runtime API: `127.0.0.1:8765`
-- PWA/web service: `127.0.0.1:8000`
+- Runtime API service: `eba-runtime-api.service` on `127.0.0.1:8765`
+- PWA/web service: `eba-web.service` on `127.0.0.1:8000` behind public HTTPS bootstrap
+- Auto deploy: `eba-auto-update.timer`; exact `origin/main`, dirty-checkout refusal, service/API health checks and rollback are implemented in `scripts/update_linode_runtime.sh`
+- Replit/Render: deprecated EBA Trader backend/runtime paths
 
-## Deprecated infrastructure
+## Completed research milestones
 
-- Replit is not part of the active EBA Trader architecture.
-- Render.com is not an active backend/runtime target.
-- Do not add new EBA Trader work to Replit or Render.
-- BestCode integration remains separate from EBA Trader.
+### M4 — complete
 
-## M4 research platform — COMPLETE
+Merged PRs:
 
-Merged milestones:
+- #20 strategy-platform foundation;
+- #21 restart-safe experiment queue and worker leases;
+- #22 generic backtest worker and immutable evidence;
+- #23 development screening gates and immutable verdicts;
+- #24 bounded robustness fan-out and aggregate verdicts.
 
-- PR #20 — strategy-platform foundation
-- PR #21 — restart-safe experiment queue and worker leases
-- PR #22 — generic backtest worker and immutable evidence
-- PR #23 — development screening gates and immutable verdicts
-- PR #24 — bounded robustness fan-out and aggregate verdicts
+M4 provides immutable strategy versions, deterministic experiment IDs, restart-safe queue/leases, allowlisted workers, content-addressed evidence, declarative gates and evidence-required lifecycle transitions. Generic workers do not unlock frozen OOS or execution.
 
-M4 provides immutable strategy versions, deterministic experiment IDs, a restart-safe experiment queue, allowlisted generic backtest workers, content-addressed evidence/provenance, declarative screening gates, bounded robustness fan-out, aggregate robustness verdicts and evidence-required lifecycle transitions. Generic M4 workers do not unlock frozen OOS or execution.
+### M5 — completed foundation so far
 
-## M5 AI Strategy Factory — IN PROGRESS
+- #25 order-flow/footprint research foundation.
+- #26 constrained strategy DSL, approved feature registry, bounded deterministic parameter expansion and M4 candidate emission.
+- #27 strategy-family templates, near-duplicate guard, cheap screening and deterministic survivor ranking.
+- #28 historical Binance aggregate-trade normalization/cache, sequence/integrity gate and deterministic footprint windows.
 
-Merged M5 milestones:
+Enabled order-flow feature registry entries today:
 
-- PR #25 — Order Flow / Footprint numerical feature foundation
-- PR #26 — constrained strategy DSL and deterministic candidate emission
-- PR #27 — bounded family templates, near-duplicate guard, cheap screening and survivor ranking
-- PR #28 — historical aggregate-trade dataset integrity/provenance and closed footprint windows
+- executed buy volume;
+- executed sell volume;
+- delta;
+- delta ratio;
+- CVD;
+- POC price.
 
-### Strategy-generation control plane
+Disabled/not yet implemented entries:
 
-M5 now has:
+- stacked imbalance;
+- absorption;
+- exhaustion;
+- LOB depth imbalance.
 
-1. An approved feature registry separating enabled candle/order-flow features from reserved disabled features.
-2. A constrained LONG/SHORT strategy-hypothesis DSL with numeric comparisons only; arbitrary Python/expression execution is prohibited.
-3. Structural hypothesis fingerprints that ignore free-text rationale so cosmetic AI explanations do not create new strategies.
-4. Exact and near-duplicate suppression.
-5. Bounded deterministic parameter-family expansion with a hard 500-variant cap.
-6. Deterministic candidate IDs and an M5 emitter into the existing M4 `ResearchStore`/`ExperimentQueue`.
-7. Initial bounded candle-only `ema_momentum` and candle+order-flow `ema_orderflow_momentum` templates.
-8. Static cheap-screen rejection for excessive complexity/fan-out.
-9. Deterministic survivor ranking for PASSED development experiments; ranking is triage only and has no lifecycle authority.
+## Current implementation reality
 
-### Order Flow / Footprint research data
+### M5 Strategy Factory
 
-Order flow remains a candidate feature family, not a trusted signal. The current implementation provides:
+AI hypotheses are constrained structured data. Unknown/disabled features fail closed. Parameter fan-out is bounded and candidates are deterministically identified/emitted into the M4 research store/queue. Cheap screening and ranking are triage only and carry no lifecycle promotion authority.
 
-1. Typed executed `TradeEvent` and aggressor-side contracts.
-2. Binance aggregate-trade parsing using `m` semantics: buyer-is-maker means seller was aggressive; otherwise buyer was aggressive.
-3. Deterministic aggregate-trade normalization with duplicate/conflict/backward-timestamp rejection.
-4. Sequence-gap accounting. Gapped datasets may be cached for diagnosis but `require_research_ready()` rejects them for research until repaired/re-downloaded.
-5. Canonical JSONL content-addressed records and manifest provenance with SHA-256 verification.
-6. Deterministic fixed-width `[start,end)` footprint windows.
-7. Buy volume, sell volume, delta, delta ratio, total volume, trade count, price-bucket POC and cumulative delta.
-8. Empty windows retained as neutral rows and exact range/window alignment required.
-9. Explicit anti-leakage rule: completed footprint values are unavailable before `end_ms`.
+Key modules:
 
-Footprint features are derived from raw market events, never chart pixels. Executed flow and resting order-book liquidity remain separate datasets. No claim is made that footprint identifies all hidden/institutional orders.
+- `src/eba_trader/m5_hypothesis.py`
+- `src/eba_trader/m5_features.py`
+- `src/eba_trader/m5_factory.py`
+- `src/eba_trader/m5_emitter.py`
+- `src/eba_trader/m5_family.py`
+- `src/eba_trader/m5_similarity.py`
+- `src/eba_trader/m5_selection.py`
 
-### Next M5 implementation order
+### Order flow / footprint
 
-1. Add a paginated historical Binance aggregate-trade acquisition layer that fills/retries ranges until sequence integrity passes.
-2. Join research-ready footprint windows to candle datasets by timestamp with explicit feature availability time.
-3. Add an allowlisted order-flow backtest adapter that consumes only approved causal features.
-4. Run controlled candle-only vs candle+order-flow ablation families through M4 development/robustness gates.
-5. Add stacked/diagonal imbalance, absorption/exhaustion and price/delta divergence only after explicit numerical definitions/tests.
-6. Add separately reconstructed limit-order-book depth/imbalance only after event-sequence integrity is proven.
-7. Add cheap-screen -> development-screen orchestration and survivor promotion workflow without opening frozen OOS.
-8. Reconcile lifecycle validation order before separately authorized frozen-OOS orchestration.
-9. Later expand validated survivors into Verified Strategy KB, forward-paper factory, Binance Demo execution lab, Market Brain/Selector, portfolio selection and outcome/drift engine.
+Footprint is derived from raw executed market events, not chart pixels. Binance aggregate-trade buyer-maker semantics are normalized into aggressor BUY/SELL. Historical datasets are content-addressed and validated for duplicate/conflicting IDs, timestamp ordering, file hash and sequence gaps. Unresolved gaps mean the dataset is not backtest-ready.
 
-## Validation-order issue
+Fixed footprint windows use causal `[start,end)` boundaries and can emit buy/sell volume, delta, delta ratio, POC and cumulative delta.
 
-Current lifecycle is `GENERATED -> BACKTESTED -> OOS_VERIFIED -> ROBUSTNESS_VERIFIED -> ...`, while desired research workflow conceptually performs robustness before opening frozen OOS. Do not bypass lifecycle states manually. M5/M6 must reconcile this before automated frozen-OOS promotion.
+Key modules:
 
-## Existing runtime
+- `src/eba_trader/orderflow.py`
+- `src/eba_trader/orderflow_dataset.py`
+- `src/eba_trader/footprint_dataset.py`
 
-- Binance public market data has been observed running on Linode through NautilusTrader.
-- Canonical services are `eba-binance-data.service`, `eba-runtime-api.service`, and `eba-web.service`.
-- SQLite runtime `TradeLedger` remains separate from research state.
-- `eba-auto-update.timer` checks GitHub `main` every five minutes and exact-main deployment has health/rollback support.
-- PWA source is in `web/`.
-- Fast Momentum supports LONG/SHORT BTCUSDT perpetual paper decisions and persistent OPEN/MARK/CLOSE state.
-- Real Binance order execution remains locked.
+### Runtime / paper state
 
-## Production proof still pending
+- Binance public market-data path exists through NautilusTrader.
+- `TradeLedger` SQLite runtime persistence is separate from M4/M5 research state.
+- Fast Momentum supports BTCUSDT perpetual paper LONG/SHORT decisions and persistent OPEN/MARK/CLOSE history/recovery.
+- PWA consumes server truth rather than browser memory.
+- Real exchange order submission is still disabled.
 
-Repository CI does not prove these external items:
+## Known problems / unresolved architecture
 
-1. Confirm Linode consumed latest `main`.
-2. Confirm public HTTPS from an external phone/browser.
-3. Smoke-test Home / Chart / Scan / Positions / History / Settings / trade detail.
-4. Perform one real Linode restart/service-restart and verify Fast Momentum `OPEN -> recovery -> MARK/CLOSE` plus History persistence against production SQLite.
-5. Continue forward-paper evidence collection; profitability is not proven from a handful of trades.
-6. Persist/recover the older carry paper engine or retire it.
+### Lifecycle validation order
 
-External production proof and research development may proceed independently, but this does not waive the proof gate.
+Current `src/eba_trader/lifecycle.py` promotion path is:
 
-## Safety invariants
+`GENERATED -> BACKTESTED -> OOS_VERIFIED -> ROBUSTNESS_VERIFIED -> PAPER_CANDIDATE -> ...`
 
-- No API secret is committed to GitHub.
+The desired research policy conceptually wants robustness before opening frozen OOS. This mismatch is real. Do not bypass the machine lifecycle manually; redesign/migrate/test it before automated frozen-OOS orchestration.
+
+### External production proof
+
+Repository code/CI cannot prove the following current external state:
+
+- latest `main` is actually deployed on Linode;
+- public HTTPS works from an external phone/browser at this moment;
+- one real restart/service-restart preserved a live Fast Momentum paper position through recovery and later MARK/CLOSE;
+- older carry paper engine persistence has been completed or retired.
+
+These remain explicit manual/remote proof tasks.
+
+## Immediate Next
+
+1. Implement deterministic historical Binance `aggTrades` downloader/pagination with source/range provenance.
+2. Implement missing-ID-range detection and repair; unresolved gaps remain fail-closed.
+3. Implement causal footprint-to-candle alignment and boundary tests.
+4. Add an allowlisted M4 backtest adapter for approved order-flow features.
+5. Run controlled candle-only vs candle+delta/CVD development ablations under identical fees/slippage/gates.
+6. Rank survivors only for triage; keep frozen OOS closed.
+7. In parallel, complete the Linode external HTTPS + restart/recovery production proof.
+
+See `TODO.md` for the full ordered backlog.
+
+## Important constraints
+
+- No API secrets in Git.
 - Withdrawal permission is never required.
-- Real orders remain disabled until explicitly implemented and validated.
 - Deterministic risk has veto authority.
-- Runtime restart must not erase trade history or active Fast Momentum paper state.
-- UI is not the source of truth; Linode/SQLite is.
-- Public Demo controls are not a real-money execution surface.
-- Strategy versions are immutable; changed specs require new versions/evidence.
-- Generic workers cannot open frozen first-cycle OOS.
-- Robustness verdicts do not silently promote OOS/live lifecycle state.
-- Order-flow features cannot bypass lifecycle/risk gates.
-- Incomplete/gapped order-flow datasets cannot be used for research.
-- AI hypotheses cannot execute arbitrary code or directly reach exchange execution.
+- Runtime state must survive Git pulls, browser refreshes and process/server restarts.
+- Strategy versions/evidence are immutable.
+- AI strategy generation does not execute arbitrary generated Python.
+- Order-flow executed trades and resting LOB liquidity are separate data domains.
+- Order-flow dataset gaps fail closed.
+- A development win-rate increase is not promotion evidence.
+- Generic research workers cannot open frozen OOS or real execution.
 
-## Canonical docs
+## Validation status
 
-See `docs/LINODE_RUNTIME.md`, `docs/DEPLOYMENT_CHECKLIST.md`, `ARCHITECTURE.md`, `BACKTEST_PROTOCOL.md`, `STRATEGY_SPEC.md`, M4 documents under `docs/`, `docs/M5_ORDER_FLOW_FOUNDATION.md`, `docs/M5_STRATEGY_DSL.md`, `docs/M5_FAMILY_SCREENING.md`, and `docs/M5_ORDER_FLOW_DATASET.md`. Historical M1/M2/M3 documents remain evidence records only.
+- PR #26 CI: full regression/Ruff/deployment/runtime checks passed before merge.
+- PR #27 CI: full regression/Ruff/deployment/runtime checks passed after lint correction before merge.
+- PR #28 CI: full regression/Ruff/deployment/runtime checks passed before merge.
+- Continuity branch: `scripts/check_continuity.py` + dedicated CI workflow added; final PR CI must pass before merge.
+- External Linode/public-phone/restart proof: still not established by repo CI.
+
+## Continuity system
+
+Canonical continuity files:
+
+- `AGENTS.md`
+- `PROJECT_STATE.md`
+- `ARCHITECTURE.md`
+- `DECISIONS.md`
+- `TODO.md`
+- `CHANGELOG.md`
+- `SESSION_HANDOFF.md`
+- `docs/CONTINUITY_PROTOCOL.md`
+
+Every meaningful AI/coding session must update these when state changes. `python scripts/check_continuity.py` verifies that the continuity contract has not regressed to empty/template state.
