@@ -33,6 +33,10 @@ jobs:
       - name: Python tests
         run: >-
           pytest -q
+          tests/test_domain.py
+          tests/test_risk.py
+          tests/test_lifecycle.py
+          tests/test_research_store.py
           tests/test_persistence.py
           tests/test_persistent_momentum.py
           tests/test_autonomous_runner.py
