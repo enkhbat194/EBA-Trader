@@ -143,3 +143,20 @@ Runtime deploy success is gated by local systemd/API health. Public HTTPS bootst
 
 ### Status
 Accepted.
+
+## 2026-08-26 — Order-flow acquisition is venue-specific and causal
+
+### Decision
+Historical order-flow acquisition records the exact Binance venue and request/range provenance. USD-M futures is the default acquisition venue for the current BTCUSDT perpetual research target; Spot remains an explicit alternative dataset rather than being silently mixed with futures flow.
+
+Closed footprint features are aligned causally: a footprint covering `[t-step, t)` may be used by the candle opening at `t`. The current candle's still-forming `[t, t+step)` footprint is not injected into that same candle.
+
+### Reason
+Spot and perpetual futures have different executed order flow, so mixing them would contaminate the experiment. Explicit feature-availability time prevents future-event leakage in candle-vs-footprint ablations.
+
+### Related implementation
+- `src/eba_trader/orderflow_acquisition.py`
+- `src/eba_trader/orderflow_alignment.py`
+
+### Status
+Accepted in PR #30.
