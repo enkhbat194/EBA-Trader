@@ -1,7 +1,7 @@
 # EBA Trader — Project State
 
 _Last reconciled: 2026-08-26 (Asia/Ulaanbaatar)_
-_Verified through GitHub `main` PR #31 merge: `5443f19e93a1d1cf7f305bb212d7e744c680bba4`; Research / AI Lab is implemented in PR #32 pending merge._
+_Verified through GitHub `main` PR #32 merge: `931b8a7dff68c659f2fa21d4fea33c87053c5022`._
 
 This is the primary cross-chat continuation summary. Actual current implementation/config/tests and Git history override stale text.
 
@@ -18,7 +18,7 @@ The repository is the shared memory bridge for ChatGPT branch chats and AI codin
 - Continuity system: **INSTALLED / ENFORCED IN CI**.
 - Current M5 frontier: deterministic candle-only vs candle+delta/CVD development ablation orchestration on verified BTCUSDT USD-M historical data.
 - Historical order-flow acquisition, missing-ID repair, causal candle alignment, feature-dataset materialization and allowlisted ablation adapters: **IMPLEMENTED / MERGED through #31**.
-- Research / AI Lab PWA: **IMPLEMENTED in #32 pending merge**; read-only observability only.
+- Research / AI Lab PWA: **IMPLEMENTED / MERGED in #32**; read-only observability only.
 - Runtime: persistent paper system on the Linode architecture; external production-proof checks remain partially unverified from repository evidence alone.
 - Real-money execution: **LOCKED**.
 - Frozen OOS automation: **LOCKED pending lifecycle-order reconciliation**.
@@ -58,7 +58,7 @@ M4 provides immutable strategy versions, deterministic experiment IDs, restart-s
 - #28 historical Binance aggregate-trade normalization/cache, sequence/integrity gate and deterministic footprint windows.
 - #30 venue-aware historical aggregate-trade acquisition, request/range provenance, missing-ID repair and causal closed-footprint/candle alignment.
 - #31 causal feature-dataset materialization plus allowlisted candle-only/order-flow backtest adapters on the exact same aligned feature CSV.
-- #32 Research / AI Lab PWA dashboard implemented and under validation/merge in the current session.
+- #32 phone-first Research / AI Lab PWA dashboard with read-only research status and explicit safety-lock visibility.
 
 Enabled order-flow feature registry entries today:
 
@@ -160,10 +160,10 @@ These remain explicit manual/remote proof tasks.
 
 ## Immediate Next
 
-1. Merge PR #32 after full regression/Ruff/deployment/runtime/continuity validation.
-2. Add a deterministic ablation orchestrator that emits paired candle-only vs candle+delta/CVD experiments with identical dataset/EMA/cost parameters.
-3. Add a CLI/workflow to materialize the real development feature dataset from candle CSV + verified order-flow/acquisition manifests.
-4. Run controlled BTCUSDT USD-M development ablations through M4 evidence/gates.
+1. Add a deterministic ablation orchestrator that emits paired candle-only vs candle+delta/CVD experiments with identical dataset/EMA/cost parameters.
+2. Add a CLI/workflow to materialize the real development feature dataset from candle CSV + verified order-flow/acquisition manifests.
+3. Run controlled BTCUSDT USD-M development ablations through M4 evidence/gates.
+4. Surface real experiment counts/results automatically in Research / AI Lab when a research DB is present on the runtime used for research.
 5. Persist/rank survivors only for triage; do not open frozen OOS from ranking results.
 6. Reconcile lifecycle ordering before any automated frozen-OOS orchestration.
 7. In parallel, complete the Linode external HTTPS + restart/recovery production proof.
@@ -191,7 +191,7 @@ See `TODO.md` for the full ordered backlog.
 - PR #29 continuity system: Continuity guard/full regression/Ruff/shell/deployment/runtime checks passed before merge.
 - PR #30 acquisition/alignment: full regression/Ruff/shell/deployment/runtime/continuity checks passed before merge.
 - PR #31 ablation adapters: full regression/Ruff/shell/deployment/runtime/continuity checks passed before merge.
-- PR #32 Research / AI Lab: first implementation head passed full regression/Ruff/shell/deployment/runtime/continuity checks; continuity updates require the final head to be revalidated before merge.
+- PR #32 Research / AI Lab: final head passed full regression/Ruff/shell/deployment/runtime/continuity checks before squash merge.
 - External Linode/public-phone/restart proof: still not established by repo CI.
 
 ## Continuity system
