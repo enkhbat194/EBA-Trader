@@ -1,7 +1,7 @@
 # EBA Trader — Project State
 
 _Last reconciled: 2026-08-26 (Asia/Ulaanbaatar)_
-_Verified through GitHub `main` continuity merge: `368679fd232a1b9ef943147361346f57c36ff01c`._
+_Verified through GitHub `main` PR #30 merge: `fb3d3fc4cb084413ec28ff77e1e2e7e718a9c26b`._
 
 This is the primary cross-chat continuation summary. Actual current implementation/config/tests and Git history override stale text.
 
@@ -16,7 +16,8 @@ The repository is also the shared memory bridge for ChatGPT branch chats and AI 
 - Research platform: **M4 COMPLETE**.
 - AI Strategy Factory: **M5 IN PROGRESS**.
 - Continuity system: **INSTALLED / ENFORCED IN CI**.
-- Current M5 frontier: historical order-flow acquisition/alignment -> allowlisted order-flow backtest adapter -> candle-vs-order-flow ablation.
+- Current M5 frontier: allowlisted order-flow M4 backtest adapter -> candle-vs-order-flow development ablation.
+- Historical order-flow acquisition, missing-ID repair and causal candle alignment: **IMPLEMENTED / MERGED in #30**.
 - Runtime: persistent paper system on the Linode architecture; external production-proof checks remain partially unverified from repository evidence alone.
 - Real-money execution: **LOCKED**.
 - Frozen OOS automation: **LOCKED pending lifecycle-order reconciliation**.
@@ -54,6 +55,7 @@ M4 provides immutable strategy versions, deterministic experiment IDs, restart-s
 - #26 constrained strategy DSL, approved feature registry, bounded deterministic parameter expansion and M4 candidate emission.
 - #27 strategy-family templates, near-duplicate guard, cheap screening and deterministic survivor ranking.
 - #28 historical Binance aggregate-trade normalization/cache, sequence/integrity gate and deterministic footprint windows.
+- #30 venue-aware historical aggregate-trade acquisition, request/range provenance, missing-ID repair and causal closed-footprint/candle alignment.
 
 Enabled order-flow feature registry entries today:
 
@@ -91,13 +93,17 @@ Key modules:
 
 Footprint is derived from raw executed market events, not chart pixels. Binance aggregate-trade buyer-maker semantics are normalized into aggressor BUY/SELL. Historical datasets are content-addressed and validated for duplicate/conflicting IDs, timestamp ordering, file hash and sequence gaps. Unresolved gaps mean the dataset is not backtest-ready.
 
-Fixed footprint windows use causal `[start,end)` boundaries and can emit buy/sell volume, delta, delta ratio, POC and cumulative delta.
+The acquisition layer supports Binance Spot and USD-M Futures explicitly. USD-M Futures is the default for the current BTCUSDT perpetual research target; Spot is not silently mixed with futures order flow. Acquisition uses a time bootstrap followed by deterministic aggregate-trade ID pagination, records request/range provenance, detects missing ID ranges and attempts exact `fromId` repairs. An unsuccessful repair remains fail-closed through the research-ready gate.
+
+Fixed footprint windows use `[start,end)` event boundaries and emit buy/sell volume, delta, delta ratio, POC and cumulative delta. Candle alignment is causal: the closed footprint `[t-step,t)` becomes available to the candle opening at `t`; the same candle's still-forming `[t,t+step)` footprint is never injected into its decision.
 
 Key modules:
 
 - `src/eba_trader/orderflow.py`
 - `src/eba_trader/orderflow_dataset.py`
 - `src/eba_trader/footprint_dataset.py`
+- `src/eba_trader/orderflow_acquisition.py`
+- `src/eba_trader/orderflow_alignment.py`
 
 ### Runtime / paper state
 
@@ -130,13 +136,12 @@ These remain explicit manual/remote proof tasks.
 
 ## Immediate Next
 
-1. Implement deterministic historical Binance `aggTrades` downloader/pagination with source/range provenance.
-2. Implement missing-ID-range detection and repair; unresolved gaps remain fail-closed.
-3. Implement causal footprint-to-candle alignment and boundary tests.
-4. Add an allowlisted M4 backtest adapter for approved order-flow features.
-5. Run controlled candle-only vs candle+delta/CVD development ablations under identical fees/slippage/gates.
-6. Rank survivors only for triage; keep frozen OOS closed.
-7. In parallel, complete the Linode external HTTPS + restart/recovery production proof.
+1. Add an allowlisted M4 backtest adapter for approved, causally aligned order-flow features.
+2. Define candle-only baseline and candle+delta/CVD variants using identical dataset range, fees, slippage and execution assumptions.
+3. Run controlled development ablations through M4 evidence/gates.
+4. Persist/rank survivors only for triage; do not open frozen OOS from ranking results.
+5. Reconcile lifecycle ordering before any automated frozen-OOS orchestration.
+6. In parallel, complete the Linode external HTTPS + restart/recovery production proof.
 
 See `TODO.md` for the full ordered backlog.
 
@@ -150,6 +155,8 @@ See `TODO.md` for the full ordered backlog.
 - AI strategy generation does not execute arbitrary generated Python.
 - Order-flow executed trades and resting LOB liquidity are separate data domains.
 - Order-flow dataset gaps fail closed.
+- Spot and USD-M futures order flow are separate experiment datasets.
+- Same-candle still-forming footprint data cannot be used in candle decisions.
 - A development win-rate increase is not promotion evidence.
 - Generic research workers cannot open frozen OOS or real execution.
 
@@ -159,6 +166,7 @@ See `TODO.md` for the full ordered backlog.
 - PR #27 CI: full regression/Ruff/deployment/runtime checks passed after lint correction before merge.
 - PR #28 CI: full regression/Ruff/deployment/runtime checks passed before merge.
 - PR #29 continuity system: dedicated Continuity guard PASS; full regression/Ruff/shell/deployment contract PASS; Linode runtime checks PASS before merge.
+- PR #30: full regression PASS, Ruff PASS, shell syntax PASS, deployment contract PASS, Linode runtime checks PASS and Continuity guard PASS before merge.
 - External Linode/public-phone/restart proof: still not established by repo CI.
 
 ## Continuity system
