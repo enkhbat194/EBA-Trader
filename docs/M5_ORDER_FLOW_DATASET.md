@@ -1,6 +1,6 @@
 # M5 Historical Order-Flow Dataset
 
-This M5 data plane converts Binance aggregate-trade records into deterministic, provenance-friendly research datasets and closed footprint windows. PR #30 extends the original cache with venue-aware acquisition, missing-ID repair, request provenance and causal candle alignment.
+This M5 data plane converts Binance aggregate-trade records into deterministic, provenance-friendly research datasets, closed footprint windows, causally aligned candle-feature rows and controlled ablation inputs. PR #30 added venue-aware acquisition, missing-ID repair, request provenance and causal candle alignment. PR #31 adds the first allowlisted candle-only vs candle+order-flow M4 backtest path.
 
 ## Binance aggregate-trade semantics
 
@@ -72,7 +72,7 @@ The normalized records are canonical JSONL. Their SHA-256 hash participates in t
 - records SHA-256;
 - immutable records path.
 
-`require_research_ready()` re-hashes the records file before research, so tampered or corrupted caches fail closed.
+`require_research_ready()` re-hashes and reloads the records file before research, checks record count/first-last IDs and recomputes sequence gaps, so tampered or corrupted caches fail closed.
 
 The acquisition manifest complements rather than replaces this manifest: dataset identity describes *what data was stored*; acquisition provenance describes *how that range was requested and repaired*.
 
@@ -103,12 +103,38 @@ The still-forming footprint `[t, t+step)` is never attached to that same candle.
 
 By default, missing prior footprint rows fail closed rather than silently dropping or imputing the candle.
 
+## Feature dataset
+
+`orderflow_feature_dataset.py` joins the validated candle range with the prior-closed footprint windows and writes a deterministic feature CSV containing the candle fields plus:
+
+- `of_buy_volume`;
+- `of_sell_volume`;
+- `of_delta`;
+- `of_delta_ratio`;
+- `of_cvd`;
+- `of_poc_price`;
+- `footprint_available_at_ms`.
+
+The feature manifest binds the exact candle SHA-256, order-flow dataset ID/hash, acquisition ID/venue, range, interval and price bucket. Loading the feature CSV requires `footprint_available_at_ms == candle.open_time_ms` for every row.
+
+## Controlled ablation adapters
+
+The default M4 `BacktestAdapterRegistry` now allowlists:
+
+- `ema_feature_baseline_v1` — candle-only EMA arm reading the same aligned feature CSV but ignoring order-flow fields;
+- `ema_orderflow_v1` — identical EMA exit/next-bar/cost logic, with a causal entry gate using `delta_ratio_threshold` and/or `cvd_threshold`.
+
+The order-flow adapter fails closed when no order-flow gate is configured. Tests prove that a permissive gate reproduces the baseline metrics exactly on the same dataset and that negative delta/CVD gates can suppress an otherwise valid EMA crossover entry.
+
+This is an ablation mechanism, not evidence that footprint has edge. Real historical development data still needs to be run through the paired experiments.
+
 ## Next batch
 
-1. Add an allowlisted M4 order-flow backtest adapter that consumes only approved, causally aligned footprint features.
-2. Define candle-only and candle+delta/CVD strategy variants with identical execution/cost assumptions.
-3. Run development ablations under the same fee, slippage and gate policy.
-4. Preserve evidence/ranking for comparison, but keep survivor ranking as triage rather than lifecycle authority.
-5. Keep frozen OOS closed until lifecycle ordering is explicitly reconciled.
+1. Add a deterministic ablation orchestrator that emits paired candle-only and candle+delta/CVD experiments with identical EMA/cost parameters and dataset identity into M4.
+2. Add an operational feature-materialization CLI/workflow for a verified historical development range.
+3. Acquire/materialize a real BTCUSDT USD-M development dataset outside frozen OOS.
+4. Run paired development ablations under the same fee, slippage and gate policy.
+5. Preserve evidence/ranking for comparison, but keep survivor ranking as triage rather than lifecycle authority.
+6. Keep frozen OOS closed until lifecycle ordering is explicitly reconciled.
 
 All exchange order submission remains locked.

@@ -9,9 +9,11 @@ from typing import Any, Protocol
 from . import backtest as backtest_module
 from . import history as history_module
 from . import holdout_guard as holdout_guard_module
+from . import orderflow_feature_dataset as orderflow_feature_dataset_module
 from .backtest import BacktestResult, TrendBacktestConfig, run_trend_backtest
 from .history import load_csv, validate_interval_window
 from .holdout_guard import assert_not_first_cycle_oos_overlap
+from .orderflow_feature_dataset import load_orderflow_feature_csv
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,7 +50,8 @@ def _result_metrics(result: BacktestResult) -> dict[str, Any]:
         "initial_cash": result.initial_cash,
         "final_equity": result.final_equity,
         "total_return": result.total_return,
-        "annualized_return": result.annualized_return,
+        "annualized_return": _json_number(result.annualized_return),
+        "annualized_return_infinite": math.isinf(result.annualized_return),
         "benchmark_return": result.benchmark_return,
         "benchmark_max_drawdown": result.benchmark_max_drawdown,
         "benchmark_relative_return": result.benchmark_relative_return,
@@ -88,7 +91,91 @@ def _as_int(value: object, *, name: str) -> int:
 def _as_float(value: object, *, name: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{name} must be numeric")
-    return float(value)
+    result = float(value)
+    if not math.isfinite(result):
+        raise ValueError(f"{name} must be finite")
+    return result
+
+
+def _parse_dataset_spec(
+    strategy_spec: Mapping[str, Any],
+    *,
+    adapter_name: str,
+    config_fields: set[str],
+    experiment_parameters: Mapping[str, Any],
+    stage: str,
+    allow_frozen_oos: bool,
+) -> tuple[Mapping[str, Any], str, str, int, int, dict[str, Any]]:
+    spec_fields = {"adapter", "fixed", "dataset"}
+    dataset_fields = {"symbol", "interval", "start_ms", "end_ms"}
+    _reject_unknown(strategy_spec, spec_fields, name="strategy spec")
+    if strategy_spec.get("adapter") != adapter_name:
+        raise ValueError(f"Strategy spec adapter must be {adapter_name!r}")
+
+    fixed = _require_mapping(strategy_spec.get("fixed", {}), name="strategy fixed config")
+    dataset = _require_mapping(strategy_spec.get("dataset"), name="strategy dataset")
+    _reject_unknown(fixed, config_fields, name="fixed config")
+    _reject_unknown(dataset, dataset_fields, name="dataset")
+    _reject_unknown(experiment_parameters, config_fields, name="experiment parameter")
+
+    overlap = sorted(set(fixed) & set(experiment_parameters))
+    if overlap:
+        joined = ", ".join(overlap)
+        raise ValueError(f"Experiment parameters cannot override immutable fixed fields: {joined}")
+
+    symbol = str(dataset.get("symbol", "")).strip().upper()
+    interval = str(dataset.get("interval", "")).strip()
+    if not symbol:
+        raise ValueError("dataset.symbol is required")
+    if not interval:
+        raise ValueError("dataset.interval is required")
+    start_ms = _as_int(dataset.get("start_ms"), name="dataset.start_ms")
+    end_ms = _as_int(dataset.get("end_ms"), name="dataset.end_ms")
+    if start_ms >= end_ms:
+        raise ValueError("dataset.start_ms must be earlier than dataset.end_ms")
+
+    if not allow_frozen_oos:
+        assert_not_first_cycle_oos_overlap(
+            symbol=symbol,
+            interval=interval,
+            start_ms=start_ms,
+            end_ms=end_ms,
+            context=f"Generic adapter stage={stage}",
+        )
+    return fixed, symbol, interval, start_ms, end_ms, {**fixed, **experiment_parameters}
+
+
+def _resolve_trend_config(merged: Mapping[str, Any]) -> tuple[TrendBacktestConfig, int | None]:
+    config_kwargs: dict[str, Any] = {}
+    if "fast_ema" in merged:
+        config_kwargs["fast_ema"] = _as_int(merged["fast_ema"], name="fast_ema")
+    if "slow_ema" in merged:
+        config_kwargs["slow_ema"] = _as_int(merged["slow_ema"], name="slow_ema")
+    if "initial_cash" in merged:
+        config_kwargs["initial_cash"] = _as_float(merged["initial_cash"], name="initial_cash")
+    if "fee_bps" in merged:
+        config_kwargs["fee_bps"] = _as_float(merged["fee_bps"], name="fee_bps")
+    if "slippage_bps" in merged:
+        config_kwargs["slippage_bps"] = _as_float(merged["slippage_bps"], name="slippage_bps")
+
+    trade_start_time_ms = None
+    if "trade_start_time_ms" in merged:
+        trade_start_time_ms = _as_int(merged["trade_start_time_ms"], name="trade_start_time_ms")
+    return TrendBacktestConfig(**config_kwargs), trade_start_time_ms
+
+
+def _resolved_trend_config(
+    config: TrendBacktestConfig,
+    trade_start_time_ms: int | None,
+) -> dict[str, Any]:
+    return {
+        "fast_ema": config.fast_ema,
+        "slow_ema": config.slow_ema,
+        "initial_cash": config.initial_cash,
+        "fee_bps": config.fee_bps,
+        "slippage_bps": config.slippage_bps,
+        "trade_start_time_ms": trade_start_time_ms,
+    }
 
 
 class EmaTrendV1Adapter:
@@ -96,9 +183,6 @@ class EmaTrendV1Adapter:
 
     name = "ema_trend_v1"
     version = "1"
-
-    _SPEC_FIELDS = {"adapter", "fixed", "dataset"}
-    _DATASET_FIELDS = {"symbol", "interval", "start_ms", "end_ms"}
     _CONFIG_FIELDS = {
         "fast_ema",
         "slow_ema",
@@ -117,106 +201,193 @@ class EmaTrendV1Adapter:
         stage: str,
         allow_frozen_oos: bool = False,
     ) -> BacktestExecution:
-        _reject_unknown(strategy_spec, self._SPEC_FIELDS, name="strategy spec")
-        if strategy_spec.get("adapter") != self.name:
-            raise ValueError(f"Strategy spec adapter must be {self.name!r}")
-
-        fixed = _require_mapping(strategy_spec.get("fixed", {}), name="strategy fixed config")
-        dataset = _require_mapping(strategy_spec.get("dataset"), name="strategy dataset")
-        _reject_unknown(fixed, self._CONFIG_FIELDS, name="fixed config")
-        _reject_unknown(dataset, self._DATASET_FIELDS, name="dataset")
-        _reject_unknown(experiment_parameters, self._CONFIG_FIELDS, name="experiment parameter")
-
-        overlap = sorted(set(fixed) & set(experiment_parameters))
-        if overlap:
-            joined = ", ".join(overlap)
-            raise ValueError(
-                f"Experiment parameters cannot override immutable fixed fields: {joined}"
-            )
-
-        symbol = str(dataset.get("symbol", "")).strip().upper()
-        interval = str(dataset.get("interval", "")).strip()
-        if not symbol:
-            raise ValueError("dataset.symbol is required")
-        if not interval:
-            raise ValueError("dataset.interval is required")
-        start_ms = _as_int(dataset.get("start_ms"), name="dataset.start_ms")
-        end_ms = _as_int(dataset.get("end_ms"), name="dataset.end_ms")
-        if start_ms >= end_ms:
-            raise ValueError("dataset.start_ms must be earlier than dataset.end_ms")
-
-        if not allow_frozen_oos:
-            assert_not_first_cycle_oos_overlap(
-                symbol=symbol,
-                interval=interval,
-                start_ms=start_ms,
-                end_ms=end_ms,
-                context=f"Generic adapter stage={stage}",
-            )
-
-        merged = {**fixed, **experiment_parameters}
-        config_kwargs: dict[str, Any] = {}
-        if "fast_ema" in merged:
-            config_kwargs["fast_ema"] = _as_int(merged["fast_ema"], name="fast_ema")
-        if "slow_ema" in merged:
-            config_kwargs["slow_ema"] = _as_int(merged["slow_ema"], name="slow_ema")
-        if "initial_cash" in merged:
-            config_kwargs["initial_cash"] = _as_float(
-                merged["initial_cash"], name="initial_cash"
-            )
-        if "fee_bps" in merged:
-            config_kwargs["fee_bps"] = _as_float(merged["fee_bps"], name="fee_bps")
-        if "slippage_bps" in merged:
-            config_kwargs["slippage_bps"] = _as_float(
-                merged["slippage_bps"], name="slippage_bps"
-            )
-
-        trade_start_time_ms = None
-        if "trade_start_time_ms" in merged:
-            trade_start_time_ms = _as_int(
-                merged["trade_start_time_ms"], name="trade_start_time_ms"
-            )
-
-        config = TrendBacktestConfig(**config_kwargs)
+        _, symbol, interval, start_ms, end_ms, merged = _parse_dataset_spec(
+            strategy_spec,
+            adapter_name=self.name,
+            config_fields=self._CONFIG_FIELDS,
+            experiment_parameters=experiment_parameters,
+            stage=stage,
+            allow_frozen_oos=allow_frozen_oos,
+        )
+        config, trade_start_time_ms = _resolve_trend_config(merged)
         path = Path(dataset_path)
-        candles = validate_interval_window(
-            load_csv(path),
-            interval,
-            start_ms,
-            end_ms,
-        )
-        result = run_trend_backtest(
-            candles,
-            config,
-            trade_start_time_ms=trade_start_time_ms,
-        )
-
-        resolved_config = {
-            "fast_ema": config.fast_ema,
-            "slow_ema": config.slow_ema,
-            "initial_cash": config.initial_cash,
-            "fee_bps": config.fee_bps,
-            "slippage_bps": config.slippage_bps,
-            "trade_start_time_ms": trade_start_time_ms,
-        }
-        dataset_metadata = {
-            "symbol": symbol,
-            "interval": interval,
-            "start_ms": start_ms,
-            "end_ms": end_ms,
-            "candle_count": len(candles),
-        }
+        candles = validate_interval_window(load_csv(path), interval, start_ms, end_ms)
+        result = run_trend_backtest(candles, config, trade_start_time_ms=trade_start_time_ms)
         return BacktestExecution(
             adapter_name=self.name,
             adapter_version=self.version,
             metrics=_result_metrics(result),
-            resolved_config=resolved_config,
-            dataset_metadata=dataset_metadata,
+            resolved_config=_resolved_trend_config(config, trade_start_time_ms),
+            dataset_metadata={
+                "symbol": symbol,
+                "interval": interval,
+                "start_ms": start_ms,
+                "end_ms": end_ms,
+                "candle_count": len(candles),
+            },
             source_files=(
                 Path(__file__),
                 Path(backtest_module.__file__),
                 Path(history_module.__file__),
                 Path(holdout_guard_module.__file__),
+            ),
+        )
+
+
+class EmaFeatureBaselineV1Adapter:
+    """EMA baseline that uses the exact same aligned feature CSV as the order-flow arm."""
+
+    name = "ema_feature_baseline_v1"
+    version = "1"
+    _CONFIG_FIELDS = EmaTrendV1Adapter._CONFIG_FIELDS
+
+    def run(
+        self,
+        *,
+        dataset_path: str | Path,
+        strategy_spec: Mapping[str, Any],
+        experiment_parameters: Mapping[str, Any],
+        stage: str,
+        allow_frozen_oos: bool = False,
+    ) -> BacktestExecution:
+        _, symbol, interval, start_ms, end_ms, merged = _parse_dataset_spec(
+            strategy_spec,
+            adapter_name=self.name,
+            config_fields=self._CONFIG_FIELDS,
+            experiment_parameters=experiment_parameters,
+            stage=stage,
+            allow_frozen_oos=allow_frozen_oos,
+        )
+        config, trade_start_time_ms = _resolve_trend_config(merged)
+        path = Path(dataset_path)
+        feature_rows = load_orderflow_feature_csv(path)
+        candles = validate_interval_window(
+            [row.candle for row in feature_rows], interval, start_ms, end_ms
+        )
+        result = run_trend_backtest(candles, config, trade_start_time_ms=trade_start_time_ms)
+        metadata = {
+            "symbol": symbol,
+            "interval": interval,
+            "start_ms": start_ms,
+            "end_ms": end_ms,
+            "candle_count": len(candles),
+            "ablation_arm": "candle_only",
+            "orderflow_features_consumed": [],
+        }
+        return BacktestExecution(
+            adapter_name=self.name,
+            adapter_version=self.version,
+            metrics=_result_metrics(result),
+            resolved_config=_resolved_trend_config(config, trade_start_time_ms),
+            dataset_metadata=metadata,
+            source_files=(
+                Path(__file__),
+                Path(backtest_module.__file__),
+                Path(history_module.__file__),
+                Path(holdout_guard_module.__file__),
+                Path(orderflow_feature_dataset_module.__file__),
+            ),
+        )
+
+
+class EmaOrderFlowV1Adapter:
+    """EMA crossover with a causal footprint gate at the candidate entry bar open."""
+
+    name = "ema_orderflow_v1"
+    version = "1"
+    _CONFIG_FIELDS = EmaTrendV1Adapter._CONFIG_FIELDS | {
+        "delta_ratio_threshold",
+        "cvd_threshold",
+    }
+
+    def run(
+        self,
+        *,
+        dataset_path: str | Path,
+        strategy_spec: Mapping[str, Any],
+        experiment_parameters: Mapping[str, Any],
+        stage: str,
+        allow_frozen_oos: bool = False,
+    ) -> BacktestExecution:
+        _, symbol, interval, start_ms, end_ms, merged = _parse_dataset_spec(
+            strategy_spec,
+            adapter_name=self.name,
+            config_fields=self._CONFIG_FIELDS,
+            experiment_parameters=experiment_parameters,
+            stage=stage,
+            allow_frozen_oos=allow_frozen_oos,
+        )
+        config, trade_start_time_ms = _resolve_trend_config(merged)
+        has_delta = "delta_ratio_threshold" in merged
+        has_cvd = "cvd_threshold" in merged
+        if not has_delta and not has_cvd:
+            raise ValueError("order-flow adapter requires delta_ratio_threshold or cvd_threshold")
+        delta_threshold = (
+            _as_float(merged["delta_ratio_threshold"], name="delta_ratio_threshold")
+            if has_delta
+            else None
+        )
+        cvd_threshold = (
+            _as_float(merged["cvd_threshold"], name="cvd_threshold") if has_cvd else None
+        )
+
+        path = Path(dataset_path)
+        feature_rows = load_orderflow_feature_csv(path)
+        candles = validate_interval_window(
+            [row.candle for row in feature_rows], interval, start_ms, end_ms
+        )
+        by_open = {row.candle.open_time_ms: row for row in feature_rows}
+
+        def entry_filter(open_time_ms: int) -> bool:
+            try:
+                row = by_open[open_time_ms]
+            except KeyError as exc:
+                raise RuntimeError("missing causal order-flow row at candidate entry") from exc
+            if row.footprint_available_at_ms != open_time_ms:
+                raise RuntimeError("order-flow feature is not available at candidate entry")
+            if delta_threshold is not None and row.of_delta_ratio < delta_threshold:
+                return False
+            return cvd_threshold is None or row.of_cvd >= cvd_threshold
+
+        result = run_trend_backtest(
+            candles,
+            config,
+            trade_start_time_ms=trade_start_time_ms,
+            entry_filter=entry_filter,
+        )
+        resolved = _resolved_trend_config(config, trade_start_time_ms)
+        resolved.update(
+            {
+                "delta_ratio_threshold": delta_threshold,
+                "cvd_threshold": cvd_threshold,
+            }
+        )
+        consumed = []
+        if delta_threshold is not None:
+            consumed.append("of_delta_ratio")
+        if cvd_threshold is not None:
+            consumed.append("of_cvd")
+        metadata = {
+            "symbol": symbol,
+            "interval": interval,
+            "start_ms": start_ms,
+            "end_ms": end_ms,
+            "candle_count": len(candles),
+            "ablation_arm": "candle_plus_orderflow",
+            "orderflow_features_consumed": consumed,
+        }
+        return BacktestExecution(
+            adapter_name=self.name,
+            adapter_version=self.version,
+            metrics=_result_metrics(result),
+            resolved_config=resolved,
+            dataset_metadata=metadata,
+            source_files=(
+                Path(__file__),
+                Path(backtest_module.__file__),
+                Path(history_module.__file__),
+                Path(holdout_guard_module.__file__),
+                Path(orderflow_feature_dataset_module.__file__),
             ),
         )
 
@@ -229,7 +400,13 @@ class BacktestAdapterRegistry:
 
     @classmethod
     def default(cls) -> BacktestAdapterRegistry:
-        return cls((EmaTrendV1Adapter(),))
+        return cls(
+            (
+                EmaTrendV1Adapter(),
+                EmaFeatureBaselineV1Adapter(),
+                EmaOrderFlowV1Adapter(),
+            )
+        )
 
     def register(self, adapter: BacktestAdapter) -> None:
         name = adapter.name.strip()

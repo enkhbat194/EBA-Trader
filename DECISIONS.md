@@ -160,3 +160,22 @@ Spot and perpetual futures have different executed order flow, so mixing them wo
 
 ### Status
 Accepted in PR #30.
+
+## 2026-08-26 — Order-flow ablations must use the same aligned dataset and execution assumptions
+
+### Decision
+The candle-only arm and candle+order-flow arm of an M5 ablation must consume the exact same causally aligned feature dataset. The candle-only arm ignores the order-flow columns; the order-flow arm may only reject an otherwise valid EMA crossover entry using allowlisted, already-available footprint gates. EMA exits, next-bar execution, fees and slippage remain identical between arms.
+
+The order-flow adapter must name at least one actual order-flow threshold (`delta_ratio_threshold` and/or `cvd_threshold`) or fail closed. A permissive threshold must reproduce the candle-only metrics exactly on the same dataset.
+
+### Reason
+Using different time ranges, candle files, execution logic or cost assumptions would confound the comparison. Requiring a real feature gate prevents an adapter labelled “order flow” from silently behaving as the candle baseline.
+
+### Related implementation
+- `src/eba_trader/orderflow_feature_dataset.py`
+- `src/eba_trader/backtest.py`
+- `src/eba_trader/backtest_adapter.py`
+- `tests/test_orderflow_backtest_adapter.py`
+
+### Status
+Accepted in PR #31.

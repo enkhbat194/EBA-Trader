@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import argparse
 import math
-from collections.abc import Iterable
+import sys
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from statistics import mean, median, pstdev
 
 from .history import Candle, load_csv
 
 YEAR_MS = 365.0 * 24.0 * 60.0 * 60.0 * 1000.0
+EntryFilter = Callable[[int], bool]
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,7 +121,15 @@ def _annualized_return(initial: float, final: float, bars: list[Candle]) -> floa
     if initial <= 0 or final <= 0 or elapsed_ms <= 0:
         return 0.0
     years = elapsed_ms / YEAR_MS
-    return (final / initial) ** (1.0 / years) - 1.0 if years > 0 else 0.0
+    if years <= 0:
+        return 0.0
+    log_annual_growth = math.log(final / initial) / years
+    max_log = math.log(sys.float_info.max)
+    if log_annual_growth >= max_log:
+        return math.inf
+    if log_annual_growth <= -max_log:
+        return -1.0
+    return math.expm1(log_annual_growth)
 
 
 def _risk_adjusted_ratios(returns: list[float], bars_per_year: float) -> tuple[float, float]:
@@ -179,6 +189,7 @@ def run_trend_backtest(
     config: TrendBacktestConfig | None = None,
     *,
     trade_start_time_ms: int | None = None,
+    entry_filter: EntryFilter | None = None,
 ) -> BacktestResult:
     """Run a strict long-only EMA crossover baseline.
 
@@ -186,6 +197,10 @@ def run_trend_backtest(
     provide causal pre-test history for indicator warm-up. Trading, equity metrics,
     exposure and the benchmark begin only at ``trade_start_time_ms`` (or the first valid
     post-warm-up bar when omitted).
+
+    ``entry_filter`` is an optional causal gate evaluated at the *next bar open timestamp*
+    after an EMA cross-up. It can reject that crossover entry but cannot alter exits or
+    backfill a delayed entry. With ``None`` the historical baseline behavior is unchanged.
     """
     cfg = config or TrendBacktestConfig()
     bars = list(candles)
@@ -233,7 +248,8 @@ def run_trend_backtest(
         evaluation_active = next_bar.open_time_ms >= evaluation_start_ms
 
         if evaluation_active:
-            if crossed_up and quantity == 0.0:
+            entry_allowed = entry_filter is None or entry_filter(next_bar.open_time_ms)
+            if crossed_up and quantity == 0.0 and entry_allowed:
                 execution_price = next_bar.open * (1.0 + cfg.slippage_bps / 10_000.0)
                 fee = cash * cfg.fee_bps / 10_000.0
                 slippage_cost = cash * cfg.slippage_bps / 10_000.0
