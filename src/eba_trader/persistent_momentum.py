@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +21,7 @@ STRATEGY_NAME = "FAST_MOMENTUM"
 def _iso_from_ms(value: int | None) -> str | None:
     if value is None:
         return None
-    return datetime.fromtimestamp(value / 1000.0, tz=timezone.utc).isoformat()
+    return datetime.fromtimestamp(value / 1000.0, tz=UTC).isoformat()
 
 
 def _ms_from_iso(value: str | None) -> int | None:
@@ -32,7 +32,7 @@ def _ms_from_iso(value: str | None) -> int | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
     return int(parsed.timestamp() * 1000)
 
 
