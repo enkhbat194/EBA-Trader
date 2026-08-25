@@ -1,6 +1,6 @@
 # M5 Historical Order-Flow Dataset
 
-This batch converts Binance aggregate-trade records into deterministic, provenance-friendly research datasets and closed footprint windows.
+This M5 data plane converts Binance aggregate-trade records into deterministic, provenance-friendly research datasets and closed footprint windows. PR #30 extends the original cache with venue-aware acquisition, missing-ID repair, request provenance and causal candle alignment.
 
 ## Binance aggregate-trade semantics
 
@@ -19,6 +19,32 @@ Aggressor classification is therefore:
 
 This is executed-trade flow, not resting order-book depth and not proof of a hidden institutional order.
 
+## Venue boundary
+
+Order-flow data is venue-specific. The acquisition layer supports:
+
+- Binance Spot aggregate trades;
+- Binance USD-M Futures aggregate trades.
+
+USD-M Futures is the default for the current BTCUSDT perpetual research target. Spot is an explicit alternate dataset and must not be silently mixed with futures flow in one experiment.
+
+## Deterministic acquisition
+
+`orderflow_acquisition.py` starts each requested `[start_ms, end_ms)` range with a time-bounded bootstrap request, then continues by aggregate-trade ID (`fromId = last_id + 1`). The normalized stored dataset is still content-addressed by its executed-event contents.
+
+Acquisition provenance is persisted separately and records:
+
+- exact endpoint / venue;
+- requested start/end range;
+- request mode (`time_bootstrap`, `from_id`, or `repair_from_id`);
+- request parameters;
+- response counts;
+- first/last returned aggregate-trade IDs and timestamps;
+- a deterministic SHA-256 over the request provenance;
+- the resulting content-addressed dataset ID.
+
+The CLI is `eba-download-orderflow`. It applies the existing first-cycle frozen-OOS holdout guard before acquisition. Downloading order-flow data is not an OOS-unlock mechanism.
+
 ## Normalization and integrity
 
 Records are ordered by aggregate trade ID. The normalizer rejects:
@@ -28,13 +54,15 @@ Records are ordered by aggregate trade ID. The normalizer rejects:
 - timestamps that move backward after trade-ID ordering;
 - malformed event fields.
 
-Missing IDs are counted as `sequence_gap_count`. A cache may be written with gaps so acquisition defects can be inspected, but `require_research_ready()` rejects any dataset with gaps. Research must repair/re-download the range instead of silently backtesting incomplete order flow.
+Missing IDs are counted as `sequence_gap_count`. `find_missing_id_ranges()` exposes the exact inclusive ID ranges and `repair_missing_id_ranges()` re-requests those ranges by `fromId`.
+
+A repair attempt is not assumed successful. If any gap remains, `require_research_ready()` continues to reject the dataset. Research must never silently backtest incomplete order flow.
 
 An empty dataset is also rejected for research.
 
 ## Content addressing and provenance
 
-The normalized records are canonical JSONL. Their SHA-256 hash participates in the deterministic dataset ID. The manifest records:
+The normalized records are canonical JSONL. Their SHA-256 hash participates in the deterministic dataset ID. The dataset manifest records:
 
 - symbol and source;
 - record count;
@@ -45,6 +73,8 @@ The normalized records are canonical JSONL. Their SHA-256 hash participates in t
 - immutable records path.
 
 `require_research_ready()` re-hashes the records file before research, so tampered or corrupted caches fail closed.
+
+The acquisition manifest complements rather than replaces this manifest: dataset identity describes *what data was stored*; acquisition provenance describes *how that range was requested and repaired*.
 
 ## Footprint windows
 
@@ -63,15 +93,22 @@ Rows currently expose:
 
 The requested time range must align exactly to the configured window width.
 
-## Anti-leakage rule
+## Causal candle alignment
 
-A completed footprint row can only be used at or after its `end_ms`. A strategy that wants an in-progress footprint must use a separate explicitly causal streaming feature contract; completed-window values must never be injected before close time.
+`align_closed_footprints_to_candles()` uses explicit availability time.
+
+For a candle opening at `t`, the eligible footprint is the already closed window `[t-step, t)`. Its `end_ms` equals the candle `open_time_ms`, so it is known at the decision boundary.
+
+The still-forming footprint `[t, t+step)` is never attached to that same candle. This prevents the candle-vs-order-flow ablation from gaining future-event leakage.
+
+By default, missing prior footprint rows fail closed rather than silently dropping or imputing the candle.
 
 ## Next batch
 
-1. Add an acquisition/client layer that pages historical Binance aggregate trades into this cache without sequence gaps.
-2. Join closed footprint windows to candle datasets by timestamp with explicit availability time.
-3. Add an allowlisted order-flow backtest adapter.
-4. Run controlled candle-only vs candle+order-flow ablation experiments through the M4 gates.
+1. Add an allowlisted M4 order-flow backtest adapter that consumes only approved, causally aligned footprint features.
+2. Define candle-only and candle+delta/CVD strategy variants with identical execution/cost assumptions.
+3. Run development ablations under the same fee, slippage and gate policy.
+4. Preserve evidence/ranking for comparison, but keep survivor ranking as triage rather than lifecycle authority.
+5. Keep frozen OOS closed until lifecycle ordering is explicitly reconciled.
 
-Frozen OOS and all exchange execution remain locked.
+All exchange order submission remains locked.
