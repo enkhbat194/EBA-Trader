@@ -24,7 +24,9 @@ selection bias. M4 creates the control plane that the later AI factory must use.
    recognized.
 5. Add a restart-safe experiment queue with transactional worker claims, leases, retries and
    expired-worker recovery.
-6. Next: generic backtest adapters, evidence/provenance records and automated screening gates.
+6. Add an allowlisted generic backtest adapter, queued worker executor and immutable
+   evidence/provenance records.
+7. Next: persisted screening verdicts, robustness fan-out and lifecycle gate orchestration.
 
 ## Lifecycle
 
@@ -63,12 +65,13 @@ The research database is intentionally separate from runtime `TradeLedger` posit
 This prevents mass experiments and metadata writes from becoming coupled to active paper or
 future live positions.
 
-Initial tables:
+Current research persistence includes:
 
 - `strategies`
 - `strategy_versions`
 - `experiment_runs`
 - `lifecycle_history`
+- `evidence_records`
 
 Strategy versions are immutable. Changing a strategy specification requires a new version.
 Experiment IDs are deterministic from strategy/version/stage/parameters/dataset.
@@ -93,6 +96,22 @@ failed when the configured attempt limit is exhausted.
 
 See `M4_EXPERIMENT_QUEUE.md` for the detailed contract.
 
+## Backtest worker and evidence
+
+The first generic adapter is `ema_trend_v1`, which wraps the existing strict EMA trend
+backtester. Unknown adapters, unknown specification fields and attempts to override immutable
+fixed fields fail closed.
+
+Before execution, the adapter validates exact candle-window coverage and blocks the frozen
+first-cycle BTCUSDT OOS window by default. The generic worker does not expose an OOS unlock.
+
+Successful runs write content-addressed `eba-research-evidence-v1` manifests containing the
+strategy-spec hash, experiment parameter hash, dataset hash/window, adapter version, Git
+source provenance, numerical source-file hashes and backtest metrics. Evidence files are
+immutable and indexed in `evidence_records`.
+
+See `M4_BACKTEST_WORKER_EVIDENCE.md` for the detailed contract.
+
 ## Safety constraints
 
 - No real order submission is introduced by M4.
@@ -100,6 +119,7 @@ See `M4_EXPERIMENT_QUEUE.md` for the detailed contract.
 - `TradeLedger` remains the source of runtime position/event persistence.
 - Research evidence cannot directly promote itself to live execution.
 - Queue completion cannot skip strategy lifecycle gates.
+- Generic worker execution cannot open the frozen OOS path.
 - OOS and robustness rules in the existing backtest protocol remain mandatory.
 
 ## Acceptance criteria completed
@@ -116,10 +136,16 @@ See `M4_EXPERIMENT_QUEUE.md` for the detailed contract.
 - Worker ownership is enforced on lease renewal and result publication.
 - Expired leases recover automatically.
 - Retry delay and max-attempt terminal failure are covered by tests.
+- Allowlisted strategy specs can run through the existing backtester.
+- Exact dataset coverage is validated before generic backtest execution.
+- Frozen OOS is blocked by the generic adapter/worker.
+- Successful backtests produce immutable dataset/spec/source-provenance evidence.
+- Unsupported adapters and immutable-field overrides fail closed.
 
 ## Next implementation slice
 
-1. Generic adapter from immutable strategy spec to existing backtest runner.
-2. Evidence table with source data, code and configuration provenance hashes.
-3. Queue worker executor using the adapter contract.
-4. Automated cheap-screen -> development -> robustness -> OOS gates.
+1. Persisted development screening gate definitions and verdicts.
+2. Automated evidence -> `BACKTESTED` lifecycle promotion only when all declared gates pass.
+3. Cost-scenario and parameter-neighborhood robustness fan-out.
+4. Walk-forward aggregation and robustness verdicts.
+5. Separately authorized frozen OOS orchestration only after development freeze.

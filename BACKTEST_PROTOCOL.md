@@ -103,6 +103,18 @@ Promotion transitions require recorded evidence and may not skip gates.
 
 The earlier shorthand `RESEARCH -> PAPER -> SHADOW -> MICRO_LIVE` remains a conceptual summary only; the lifecycle above is the machine-enforced contract for new M4+ work.
 
+## M4 generic worker boundary
+
+The generic M4 research worker is a development execution path, not an OOS or lifecycle-promotion authority.
+
+- It accepts only registered backtest adapters.
+- It validates exact dataset coverage before execution.
+- Its generic path blocks the frozen first-cycle BTCUSDT OOS window.
+- Successful runs persist dataset, strategy-spec and source-provenance hashes with metrics.
+- A queue result of `PASSED` means that experiment completed successfully; it does not mean the strategy passed a lifecycle gate.
+
+Frozen OOS access must be implemented through a separately authorized orchestration path only after strategy freeze and required development gates have passed.
+
 ## Promotion gates
 
 A strategy may move to `BACKTESTED` only after development evidence is persisted.
