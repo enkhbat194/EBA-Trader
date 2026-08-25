@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="./app.css">
   <link rel="stylesheet" href="./m18_2.css">
   <link rel="stylesheet" href="./trade_detail.css">
+  <link rel="stylesheet" href="./research_ui.css">
 </head>
 <body>
   <div class="app-shell">
@@ -97,6 +98,55 @@
         <div id="historyList"><article class="empty-state"><div class="empty-icon">↺</div><h3>No EBA paper trades yet</h3><p>A paper trade is recorded only after the existing fee-aware candidate gate opens and later closes a virtual paired position.</p></article></div>
       </section>
 
+      <section class="screen" data-screen="research">
+        <div class="screen-title"><div><span class="eyebrow">Research</span><h1>AI Lab</h1></div><button class="secondary research-refresh" id="researchRefresh">REFRESH</button></div>
+        <article class="research-hero">
+          <div class="research-hero-top"><div><span class="eyebrow" id="researchMilestone">M5</span><h2 id="researchStage">Loading research state…</h2></div><span class="pill demo">RESEARCH</span></div>
+          <p id="researchFocus">Reading repo continuity and research-store state.</p>
+          <small class="research-build" id="researchBuild">Build —</small>
+        </article>
+        <div class="research-grid">
+          <article class="research-stat"><span>M5 done</span><strong id="researchDoneCount">0</strong></article>
+          <article class="research-stat"><span>M5 remaining</span><strong id="researchTodoCount">0</strong></article>
+          <article class="research-stat"><span>Strategies</span><strong id="researchStrategyCount">0</strong></article>
+          <article class="research-stat"><span>Experiments</span><strong id="researchExperimentCount">0</strong></article>
+        </div>
+        <article class="section-card">
+          <div class="section-head"><div><span class="eyebrow">Historical data</span><h3>Order-flow data plane</h3></div><span class="pill positive-pill" id="researchDbState">CHECKING</span></div>
+          <div class="research-flow">
+            <div class="research-flow-row"><span>Venue</span><strong id="researchVenue">—</strong></div>
+            <div class="research-flow-row"><span>Symbol</span><strong id="researchSymbol">—</strong></div>
+            <div class="research-flow-row"><span>Footprint integrity</span><strong id="researchFootprint">—</strong></div>
+            <div class="research-flow-row"><span>Causal alignment</span><strong id="researchAlignment">—</strong></div>
+            <div class="research-flow-row"><span>Feature dataset</span><strong id="researchFeatureDataset">—</strong></div>
+          </div>
+        </article>
+        <article class="section-card">
+          <div class="section-head"><div><span class="eyebrow">A/B research</span><h3>Candle vs Footprint</h3></div><span class="pill neutral" id="researchAblationStatus">—</span></div>
+          <div class="research-flow">
+            <div class="research-flow-row"><span>A · candle-only</span><strong id="researchBaselineAdapter">—</strong></div>
+            <div class="research-flow-row"><span>B · + order flow</span><strong id="researchOrderflowAdapter">—</strong></div>
+            <div class="research-flow-row"><span>Footprint features</span><strong id="researchFeatures">—</strong></div>
+            <div class="research-flow-row"><span>Controlled assumptions</span><strong id="researchExecutionAssumptions">—</strong></div>
+          </div>
+        </article>
+        <article class="section-card">
+          <div class="section-head"><div><span class="eyebrow">M4 control plane</span><h3>Experiment state</h3></div></div>
+          <p class="research-muted" id="researchStoreDetail">Checking optional research database…</p>
+          <div class="research-status-list" id="researchExperimentStatuses"></div>
+          <div class="research-status-list" id="researchLifecycleStatuses"></div>
+        </article>
+        <article class="section-card">
+          <div class="section-head"><div><span class="eyebrow">Safety gates</span><h3>Promotion locks</h3></div></div>
+          <div class="research-locks">
+            <div class="research-lock"><span>Frozen OOS</span><strong id="researchOosLock">LOCKED</strong></div>
+            <div class="research-lock"><span>Real Binance execution</span><strong id="researchLiveLock">LOCKED</strong></div>
+            <div class="research-lock"><span>Survivor ranking</span><strong id="researchRankAuthority">NO AUTHORITY</strong></div>
+          </div>
+        </article>
+        <p class="research-muted" id="researchUpdated">Research status not loaded yet.</p>
+      </section>
+
       <section class="screen" data-screen="settings">
         <div class="screen-title"><div><span class="eyebrow">Configuration</span><h1>Connections</h1></div><button class="add-btn" id="addConnection">＋</button></div>
         <article class="section-card environment-card">
@@ -116,12 +166,13 @@
       </section>
     </main>
 
-    <nav class="bottom-nav six" aria-label="Primary navigation">
+    <nav class="bottom-nav seven" aria-label="Primary navigation">
       <button class="active" data-nav="home"><span>⌂</span><small>Home</small></button>
       <button data-nav="chart"><span>⌁</span><small>Chart</small></button>
       <button data-nav="opportunities"><span>↯</span><small>Scan</small></button>
       <button data-nav="positions"><span>▥</span><small>Positions</small></button>
       <button data-nav="history"><span>▤</span><small>History</small></button>
+      <button data-nav="research"><span>⌬</span><small>Research</small></button>
       <button data-nav="settings"><span>⚙</span><small>Settings</small></button>
     </nav>
   </div>
@@ -157,6 +208,7 @@
   <script src="./paper_ui.js" defer></script>
   <script src="./momentum_ui.js" defer></script>
   <script src="./trade_detail.js" defer></script>
+  <script src="./research_ui.js" defer></script>
   <script src="./update_ui.js" defer></script>
 </body>
 </html>

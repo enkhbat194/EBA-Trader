@@ -12,17 +12,18 @@ from . import web_server as base
 from .autonomous_runner import AutonomousDemoRunner
 from .persistent_momentum import PersistentMomentumPaperEngine, ledger_from_env
 from .providers import CredentialEnvelope
+from .research_dashboard import build_research_status
 
 MOMENTUM_ENGINE = PersistentMomentumPaperEngine(ledger=ledger_from_env())
-APP_VERSION = "0.11.0"
-APP_RELEASE = "LINODE-M2"
-PWA_CACHE_VERSION = "eba-trader-ui-v12"
-APP_RELEASED_AT = "2026-08-24"
+APP_VERSION = "0.12.0"
+APP_RELEASE = "LINODE-M5"
+PWA_CACHE_VERSION = "eba-trader-ui-v13"
+APP_RELEASED_AT = "2026-08-26"
 APP_CHANGES = [
+    "Research / AI Lab shows the current M5 frontier and experiment-store state",
+    "Order-flow ablation adapters compare candle-only and candle-plus-footprint arms",
     "Linode bootstraps a public HTTPS PWA automatically with an IP-backed hostname",
     "Fast Momentum paper runs from public Binance Demo market data even without account secrets",
-    "The five-minute deployment timer also retries HTTPS without risking runtime rollback",
-    "Settings reports the active public PWA URL, HTTPS readiness and server scanner state",
     "Fast Momentum OPEN, MARK and CLOSE state remains restart-safe in SQLite",
     "LONG and SHORT remain symmetric paper directions; real execution remains locked",
 ]
@@ -120,6 +121,14 @@ def _app_info() -> dict[str, Any]:
     }
 
 
+def _research_status() -> dict[str, Any]:
+    result = build_research_status()
+    result["buildSha"] = _build_sha()
+    result["runtime"] = "linode"
+    result["liveExecutionAllowed"] = False
+    return result
+
+
 def run_server_autoconnect() -> dict[str, Any]:
     credentials = _server_demo_credentials()
     if credentials is None:
@@ -215,11 +224,14 @@ def run_runner_close(payload: dict[str, Any]) -> dict[str, Any]:
 class EBAExtendedRequestHandler(base.EBARequestHandler):
     """Linode PWA server with autonomous paper scanners; real execution locked."""
 
-    server_version = "EBA-UI/0.11.0"
+    server_version = "EBA-UI/0.12.0"
 
     def do_GET(self) -> None:  # noqa: N802
         if self.path == "/api/app-info":
             self._json_response(HTTPStatus.OK, _app_info())
+            return
+        if self.path == "/api/research/status":
+            self._json_response(HTTPStatus.OK, _research_status())
             return
         if self.path == "/api/demo/credential-status":
             self._json_response(HTTPStatus.OK, _credential_status())

@@ -1,23 +1,24 @@
 # EBA Trader — Project State
 
 _Last reconciled: 2026-08-26 (Asia/Ulaanbaatar)_
-_Verified through GitHub `main` PR #30 merge: `fb3d3fc4cb084413ec28ff77e1e2e7e718a9c26b`._
+_Verified through GitHub `main` PR #31 merge: `5443f19e93a1d1cf7f305bb212d7e744c680bba4`; Research / AI Lab is implemented in PR #32 pending merge._
 
 This is the primary cross-chat continuation summary. Actual current implementation/config/tests and Git history override stale text.
 
 ## Current goal
 
-Operate EBA Trader as a restart-safe 24/7 Linode paper/research system, build a controlled AI Strategy Factory on top of the M4 evidence platform, test whether order-flow/footprint features add incremental edge over candle-only baselines, and keep real-money execution locked until a separate evidence chain proves it.
+Operate EBA Trader as a restart-safe 24/7 Linode paper/research system, build a controlled AI Strategy Factory on top of the M4 evidence platform, test whether order-flow/footprint features add incremental edge over candle-only baselines, expose research progress in the phone-first PWA, and keep real-money execution locked until a separate evidence chain proves it.
 
-The repository is also the shared memory bridge for ChatGPT branch chats and AI coding sessions. New connected sessions must read `AGENTS.md` and the continuity files before work, then write state/handoff back after meaningful work.
+The repository is the shared memory bridge for ChatGPT branch chats and AI coding sessions. New connected sessions must read `AGENTS.md` and the continuity files before work, then write state/handoff back after meaningful work.
 
 ## Current stage
 
 - Research platform: **M4 COMPLETE**.
 - AI Strategy Factory: **M5 IN PROGRESS**.
 - Continuity system: **INSTALLED / ENFORCED IN CI**.
-- Current M5 frontier: allowlisted order-flow M4 backtest adapter -> candle-vs-order-flow development ablation.
-- Historical order-flow acquisition, missing-ID repair and causal candle alignment: **IMPLEMENTED / MERGED in #30**.
+- Current M5 frontier: deterministic candle-only vs candle+delta/CVD development ablation orchestration on verified BTCUSDT USD-M historical data.
+- Historical order-flow acquisition, missing-ID repair, causal candle alignment, feature-dataset materialization and allowlisted ablation adapters: **IMPLEMENTED / MERGED through #31**.
+- Research / AI Lab PWA: **IMPLEMENTED in #32 pending merge**; read-only observability only.
 - Runtime: persistent paper system on the Linode architecture; external production-proof checks remain partially unverified from repository evidence alone.
 - Real-money execution: **LOCKED**.
 - Frozen OOS automation: **LOCKED pending lifecycle-order reconciliation**.
@@ -56,6 +57,8 @@ M4 provides immutable strategy versions, deterministic experiment IDs, restart-s
 - #27 strategy-family templates, near-duplicate guard, cheap screening and deterministic survivor ranking.
 - #28 historical Binance aggregate-trade normalization/cache, sequence/integrity gate and deterministic footprint windows.
 - #30 venue-aware historical aggregate-trade acquisition, request/range provenance, missing-ID repair and causal closed-footprint/candle alignment.
+- #31 causal feature-dataset materialization plus allowlisted candle-only/order-flow backtest adapters on the exact same aligned feature CSV.
+- #32 Research / AI Lab PWA dashboard implemented and under validation/merge in the current session.
 
 Enabled order-flow feature registry entries today:
 
@@ -97,6 +100,13 @@ The acquisition layer supports Binance Spot and USD-M Futures explicitly. USD-M 
 
 Fixed footprint windows use `[start,end)` event boundaries and emit buy/sell volume, delta, delta ratio, POC and cumulative delta. Candle alignment is causal: the closed footprint `[t-step,t)` becomes available to the candle opening at `t`; the same candle's still-forming `[t,t+step)` footprint is never injected into its decision.
 
+PR #31 adds an aligned feature CSV and two development adapters:
+
+- `ema_feature_baseline_v1` — candle-only control arm using the same feature dataset but consuming no order-flow feature;
+- `ema_orderflow_v1` — EMA crossover with causal `of_delta_ratio` and/or `of_cvd` entry gates.
+
+A permissive order-flow gate is tested to match the baseline, while negative delta/CVD can suppress an otherwise valid EMA entry. Frozen OOS remains guarded.
+
 Key modules:
 
 - `src/eba_trader/orderflow.py`
@@ -104,6 +114,20 @@ Key modules:
 - `src/eba_trader/footprint_dataset.py`
 - `src/eba_trader/orderflow_acquisition.py`
 - `src/eba_trader/orderflow_alignment.py`
+- `src/eba_trader/orderflow_feature_dataset.py`
+- `src/eba_trader/backtest_adapter.py`
+
+### Research / AI Lab PWA
+
+PR #32 adds a seventh mobile PWA tab and read-only `/api/research/status` endpoint. It reports:
+
+- current M5 focus from repository continuity;
+- M5 completed/remaining TODO counts;
+- order-flow data-plane and ablation-adapter readiness;
+- optional M4 research SQLite strategy/experiment/lifecycle counts when that DB exists on the web runtime;
+- explicit Frozen OOS, real-execution and ranking-authority locks.
+
+The dashboard is observational only. It cannot promote lifecycle state, modify research data, or enable trading.
 
 ### Runtime / paper state
 
@@ -136,12 +160,13 @@ These remain explicit manual/remote proof tasks.
 
 ## Immediate Next
 
-1. Add an allowlisted M4 backtest adapter for approved, causally aligned order-flow features.
-2. Define candle-only baseline and candle+delta/CVD variants using identical dataset range, fees, slippage and execution assumptions.
-3. Run controlled development ablations through M4 evidence/gates.
-4. Persist/rank survivors only for triage; do not open frozen OOS from ranking results.
-5. Reconcile lifecycle ordering before any automated frozen-OOS orchestration.
-6. In parallel, complete the Linode external HTTPS + restart/recovery production proof.
+1. Merge PR #32 after full regression/Ruff/deployment/runtime/continuity validation.
+2. Add a deterministic ablation orchestrator that emits paired candle-only vs candle+delta/CVD experiments with identical dataset/EMA/cost parameters.
+3. Add a CLI/workflow to materialize the real development feature dataset from candle CSV + verified order-flow/acquisition manifests.
+4. Run controlled BTCUSDT USD-M development ablations through M4 evidence/gates.
+5. Persist/rank survivors only for triage; do not open frozen OOS from ranking results.
+6. Reconcile lifecycle ordering before any automated frozen-OOS orchestration.
+7. In parallel, complete the Linode external HTTPS + restart/recovery production proof.
 
 See `TODO.md` for the full ordered backlog.
 
@@ -159,14 +184,14 @@ See `TODO.md` for the full ordered backlog.
 - Same-candle still-forming footprint data cannot be used in candle decisions.
 - A development win-rate increase is not promotion evidence.
 - Generic research workers cannot open frozen OOS or real execution.
+- Research / AI Lab is read-only observability and has no lifecycle/risk authority.
 
 ## Validation status
 
-- PR #26 CI: full regression/Ruff/deployment/runtime checks passed before merge.
-- PR #27 CI: full regression/Ruff/deployment/runtime checks passed after lint correction before merge.
-- PR #28 CI: full regression/Ruff/deployment/runtime checks passed before merge.
-- PR #29 continuity system: dedicated Continuity guard PASS; full regression/Ruff/shell/deployment contract PASS; Linode runtime checks PASS before merge.
-- PR #30: full regression PASS, Ruff PASS, shell syntax PASS, deployment contract PASS, Linode runtime checks PASS and Continuity guard PASS before merge.
+- PR #29 continuity system: Continuity guard/full regression/Ruff/shell/deployment/runtime checks passed before merge.
+- PR #30 acquisition/alignment: full regression/Ruff/shell/deployment/runtime/continuity checks passed before merge.
+- PR #31 ablation adapters: full regression/Ruff/shell/deployment/runtime/continuity checks passed before merge.
+- PR #32 Research / AI Lab: first implementation head passed full regression/Ruff/shell/deployment/runtime/continuity checks; continuity updates require the final head to be revalidated before merge.
 - External Linode/public-phone/restart proof: still not established by repo CI.
 
 ## Continuity system
