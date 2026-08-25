@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from eba_trader.lifecycle import StrategyLifecycle
-from eba_trader.research_gates import GateRule, GateSet
+from eba_trader.research_gates import GateOperator, GateRule, GateSet
 from eba_trader.research_queue import ExperimentQueue
 from eba_trader.research_store import ResearchStore
 from eba_trader.robustness_fanout import (
@@ -54,9 +54,9 @@ def _gate_set() -> GateSet:
         name="robustness-minimums",
         version=1,
         rules=(
-            GateRule("pf", "profit_factor", "gte", 1.1),
-            GateRule("dd", "max_drawdown", "gte", -0.25),
-            GateRule("trades", "trade_count", "gte", 5),
+            GateRule("pf", "profit_factor", GateOperator.GTE, 1.1),
+            GateRule("dd", "max_drawdown", GateOperator.GTE, -0.25),
+            GateRule("trades", "trade_count", GateOperator.GTE, 5),
         ),
     )
 
