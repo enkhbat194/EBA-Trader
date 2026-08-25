@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import sys
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from statistics import mean, median, pstdev
@@ -120,7 +121,15 @@ def _annualized_return(initial: float, final: float, bars: list[Candle]) -> floa
     if initial <= 0 or final <= 0 or elapsed_ms <= 0:
         return 0.0
     years = elapsed_ms / YEAR_MS
-    return (final / initial) ** (1.0 / years) - 1.0 if years > 0 else 0.0
+    if years <= 0:
+        return 0.0
+    log_annual_growth = math.log(final / initial) / years
+    max_log = math.log(sys.float_info.max)
+    if log_annual_growth >= max_log:
+        return math.inf
+    if log_annual_growth <= -max_log:
+        return -1.0
+    return math.expm1(log_annual_growth)
 
 
 def _risk_adjusted_ratios(returns: list[float], bars_per_year: float) -> tuple[float, float]:
