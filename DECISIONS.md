@@ -149,7 +149,7 @@ Accepted.
 ### Decision
 Historical order-flow acquisition records the exact Binance venue and request/range provenance. USD-M futures is the default acquisition venue for the current BTCUSDT perpetual research target; Spot remains an explicit alternative dataset rather than being silently mixed with futures flow.
 
-Closed footprint features are aligned causally: a footprint covering `[t-step, t)` may be used by the candle opening at `t`. The current candle's still-forming `[t, t+step)` footprint is not injected into that same candle.
+Closed footprint features are aligned causally: a footprint covering `[t-step, t)` may be used by the candle opening at `t`. The current candle's still-forming `[t,t+step)` footprint is not injected into that same candle.
 
 ### Reason
 Spot and perpetual futures have different executed order flow, so mixing them would contaminate the experiment. Explicit feature-availability time prevents future-event leakage in candle-vs-footprint ablations.
@@ -198,3 +198,22 @@ The user needs phone-first visibility into ongoing research without turning the 
 
 ### Status
 Accepted in PR #32.
+
+## 2026-08-26 — M5 ablation orchestration uses one deterministic control plus bounded treatments
+
+### Decision
+A development order-flow ablation emits one deduplicated candle-only baseline experiment and a bounded set of deterministic order-flow treatment experiments. Every treatment maps to the same control and shares the exact dataset identity, symbol/time window, EMA parameters, initial capital, fees, slippage and trade-start semantics. Only allowlisted delta-ratio/CVD gate parameters differ.
+
+Treatment fan-out is capped at 64, duplicate/empty/non-finite gates fail closed, and gate input order cannot change batch identity. The orchestration stage is fixed to `m5_orderflow_ablation_dev`; there is no frozen-OOS switch or lifecycle-promotion authority in this component.
+
+### Reason
+Re-running an identical baseline for every threshold wastes research capacity, while allowing uncontrolled configuration differences would invalidate causal comparison. A deterministic one-control-to-many-treatment mapping preserves comparability, deduplication and auditability.
+
+### Related implementation
+- `src/eba_trader/m5_ablation.py`
+- `tests/test_m5_ablation.py`
+- `src/eba_trader/research_queue.py`
+- `src/eba_trader/research_worker.py`
+
+### Status
+Accepted in PR #34 pending final merge.
