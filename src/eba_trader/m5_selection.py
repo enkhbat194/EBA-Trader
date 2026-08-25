@@ -35,17 +35,18 @@ def cheap_screen(
     hypothesis: StrategyHypothesis,
     parameters: ParameterFamily,
     *,
-    policy: CheapScreenPolicy = CheapScreenPolicy(),
+    policy: CheapScreenPolicy | None = None,
 ) -> CheapScreenVerdict:
+    resolved_policy = policy or CheapScreenPolicy()
     hypothesis.validate()
     reasons: list[str] = []
-    if len(hypothesis.features) > policy.max_features:
+    if len(hypothesis.features) > resolved_policy.max_features:
         reasons.append("too_many_features")
-    if len(hypothesis.entry_all) > policy.max_entry_conditions:
+    if len(hypothesis.entry_all) > resolved_policy.max_entry_conditions:
         reasons.append("too_many_entry_conditions")
-    if len(hypothesis.exit_all) > policy.max_exit_conditions:
+    if len(hypothesis.exit_all) > resolved_policy.max_exit_conditions:
         reasons.append("too_many_exit_conditions")
-    if parameters.variant_count > policy.max_parameter_variants:
+    if parameters.variant_count > resolved_policy.max_parameter_variants:
         reasons.append("too_many_parameter_variants")
 
     order_flow_features = tuple(
