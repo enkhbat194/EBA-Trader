@@ -1,56 +1,98 @@
 # EBA Trader
 
-EBA Trader is a research-first trading system with deterministic risk control and a persistent 24/7 Linux runtime.
+EBA Trader is a research-first autonomous trading system with deterministic risk control, persistent paper/runtime state, and an evidence-gated AI Strategy Factory.
 
-## Active architecture
+## Source of truth
 
-- Source of truth: GitHub `main`
-- Runtime server: Akamai/Linode Nanode 1 GB, Singapore 2
-- OS: Ubuntu 24.04 LTS
-- Market data: Binance via NautilusTrader
-- Persistent state: SQLite at `/var/lib/eba-trader/eba_trader.db`
-- Services:
-  - `eba-binance-data.service`
-  - `eba-runtime-api.service`
-  - `eba-web.service`
-- Local runtime API: `127.0.0.1:8765`
-- Local PWA/web service: `127.0.0.1:8000` until authenticated HTTPS is added
+- Code: GitHub `main`
+- Runtime target: Akamai/Linode Nanode 1 GB, Singapore 2, Ubuntu 24.04 LTS
+- Runtime state: SQLite at `/var/lib/eba-trader/eba_trader.db`
+- Research state/evidence: separate M4/M5 research control plane
+- Replit and Render: deprecated backend/runtime paths
 
-Replit and Render.com are not active backend/runtime targets. The active PWA/dashboard source now lives in `main` under `web/` and is served by the Linode web runtime.
+For cross-chat/AI continuity, every coding session must start with `AGENTS.md` and the repository continuity files. See `docs/CONTINUITY_PROTOCOL.md`.
 
-## What works now
+## Active runtime architecture
 
-- Binance public live market-data connection on Linode
-- restartable systemd market-data/runtime/web service definitions
-- persistent SQLite trade ledger implementation
-- local runtime API for health, positions and events
-- mobile PWA/dashboard source in `main`
-- Fast Momentum LONG/SHORT paper scanner
-- SQLite persistence and restart recovery for Fast Momentum paper positions/history
-- trade-detail chart UI with entry/current-or-exit/TP/SL and indicators
-- historical research/backtest/evidence tooling
-- deterministic risk and `NO_TRADE` foundations
+Canonical services:
 
-## What is not complete yet
+- `eba-binance-data.service` — Binance/NautilusTrader market data
+- `eba-runtime-api.service` — local API at `127.0.0.1:8765`
+- `eba-web.service` — PWA/web at `127.0.0.1:8000`
+- `eba-auto-update.timer` — checks/deploys GitHub `main`
 
-- authenticated HTTPS reverse proxy/public PWA endpoint on Linode
-- final phone smoke test against the Linode-served PWA
-- the older carry paper engine is still not fully restart-safe/persisted like Fast Momentum
-- GitHub `main` -> Linode automatic deployment with health-check/rollback is not complete
-- real Binance order execution is not enabled
+`scripts/update_linode_runtime.sh` deploys exact `origin/main`, refuses a dirty runtime checkout, checks service/API health and rolls back runtime failures. Public HTTPS bootstrap is implemented and retried independently from the runtime rollback boundary.
 
-## Current runtime direction
+## Research platform status
 
-Fast Momentum / Micro Profit paper trading targets BTCUSDT perpetual futures simulation using 1m/5m inputs, both LONG and SHORT setups, visible TP/SL/indicators, and risk-selected leverage tiers tested only in paper mode first.
+### M4 — complete
 
-Historical Spot Trend research remains preserved under `docs/` as evidence. It is not an active deployment path.
+M4 provides:
+
+- immutable strategy versions;
+- deterministic experiment IDs;
+- restart-safe experiment queue/worker leases;
+- immutable evidence/provenance;
+- declarative development gates;
+- bounded robustness fan-out and aggregate verdicts;
+- evidence-required lifecycle transitions.
+
+### M5 — in progress
+
+Current M5 foundation includes:
+
+- constrained strategy-hypothesis DSL;
+- approved feature registry;
+- bounded deterministic parameter families;
+- duplicate/near-duplicate filtering;
+- cheap screening and survivor ranking;
+- M5 candidate emission into the M4 research platform;
+- executed-trade order-flow/footprint features;
+- historical Binance aggregate-trade normalization/cache and integrity checks;
+- deterministic causal footprint windows.
+
+Enabled footprint features currently include buy/sell volume, delta, delta ratio, CVD and POC. Stacked imbalance, absorption, exhaustion and LOB depth imbalance remain future/disabled features.
+
+## Current direction
+
+The immediate M5 task is to build historical Binance aggregate-trade acquisition/range repair, align footprint and candles causally, connect approved order-flow features to an allowlisted M4 backtest adapter, then run controlled candle-only vs candle+order-flow ablations under identical fees/slippage and gates.
+
+Footprint is treated as an experimental feature family, not an assumed edge.
+
+## What still needs proof
+
+Repository code/CI does **not** by itself prove:
+
+- latest `main` is currently deployed on Linode;
+- public HTTPS works from an external phone/browser at this moment;
+- a real service/server restart preserved an active Fast Momentum paper position through recovery and later MARK/CLOSE;
+- the older carry paper engine is restart-safe or explicitly retired.
+
+These remain external production-proof tasks.
 
 ## Safety rules
 
 - API secrets never go into Git.
 - Withdrawal permission is never required.
-- Real orders remain locked until the execution path is separately validated.
+- Real Binance orders remain locked.
 - Deterministic risk controls can veto every trade.
-- Runtime state belongs on Linode/SQLite, not in browser RAM.
+- Runtime state belongs on Linode/SQLite, not browser RAM.
+- Strategy versions/evidence are immutable.
+- Generic research workers cannot silently open frozen OOS or execution.
+- Gapped/incomplete order-flow datasets are not backtest-ready.
+- Development ranking/win rate is not promotion authority.
 
-See `PROJECT_STATE.md` for the authoritative continuation state and `docs/LINODE_RUNTIME.md` for deployment details.
+## Start here
+
+For implementation continuity:
+
+1. `AGENTS.md`
+2. `PROJECT_STATE.md`
+3. `ARCHITECTURE.md`
+4. `DECISIONS.md`
+5. `TODO.md`
+6. `SESSION_HANDOFF.md`
+
+For deployment: `docs/LINODE_RUNTIME.md` and `docs/DEPLOYMENT_CHECKLIST.md`.
+
+For research policy: `BACKTEST_PROTOCOL.md`, `STRATEGY_SPEC.md`, and current M4/M5 documents under `docs/`.
