@@ -1,7 +1,7 @@
 # EBA Trader — Project State
 
 _Last reconciled: 2026-08-26 (Asia/Ulaanbaatar)_
-_Verified against GitHub `main` baseline: `2f823ca918bc8d8b2866a5e77fa8372063121a25` plus the continuity-system branch changes._
+_Verified through GitHub `main` continuity merge: `368679fd232a1b9ef943147361346f57c36ff01c`._
 
 This is the primary cross-chat continuation summary. Actual current implementation/config/tests and Git history override stale text.
 
@@ -9,12 +9,13 @@ This is the primary cross-chat continuation summary. Actual current implementati
 
 Operate EBA Trader as a restart-safe 24/7 Linode paper/research system, build a controlled AI Strategy Factory on top of the M4 evidence platform, test whether order-flow/footprint features add incremental edge over candle-only baselines, and keep real-money execution locked until a separate evidence chain proves it.
 
-The repository is also the shared memory bridge for ChatGPT branch chats and AI coding sessions. New sessions must read `AGENTS.md` and the continuity files before work, then write state/handoff back after meaningful work.
+The repository is also the shared memory bridge for ChatGPT branch chats and AI coding sessions. New connected sessions must read `AGENTS.md` and the continuity files before work, then write state/handoff back after meaningful work.
 
 ## Current stage
 
 - Research platform: **M4 COMPLETE**.
 - AI Strategy Factory: **M5 IN PROGRESS**.
+- Continuity system: **INSTALLED / ENFORCED IN CI**.
 - Current M5 frontier: historical order-flow acquisition/alignment -> allowlisted order-flow backtest adapter -> candle-vs-order-flow ablation.
 - Runtime: persistent paper system on the Linode architecture; external production-proof checks remain partially unverified from repository evidence alone.
 - Real-money execution: **LOCKED**.
@@ -157,7 +158,7 @@ See `TODO.md` for the full ordered backlog.
 - PR #26 CI: full regression/Ruff/deployment/runtime checks passed before merge.
 - PR #27 CI: full regression/Ruff/deployment/runtime checks passed after lint correction before merge.
 - PR #28 CI: full regression/Ruff/deployment/runtime checks passed before merge.
-- Continuity branch: `scripts/check_continuity.py` + dedicated CI workflow added; final PR CI must pass before merge.
+- PR #29 continuity system: dedicated Continuity guard PASS; full regression/Ruff/shell/deployment contract PASS; Linode runtime checks PASS before merge.
 - External Linode/public-phone/restart proof: still not established by repo CI.
 
 ## Continuity system
@@ -173,4 +174,4 @@ Canonical continuity files:
 - `SESSION_HANDOFF.md`
 - `docs/CONTINUITY_PROTOCOL.md`
 
-Every meaningful AI/coding session must update these when state changes. `python scripts/check_continuity.py` verifies that the continuity contract has not regressed to empty/template state.
+Every meaningful AI/coding session must update these when state changes. `python scripts/check_continuity.py` verifies that the continuity contract has not regressed to empty/template state, and `.github/workflows/continuity.yml` enforces it on PRs and `main` pushes.
