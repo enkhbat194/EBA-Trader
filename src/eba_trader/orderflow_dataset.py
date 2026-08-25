@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -101,6 +102,42 @@ def parse_binance_agg_trade(payload: dict[str, Any]) -> AggregateTradeRecord:
     )
 
 
+def aggregate_trade_record_from_mapping(payload: dict[str, Any]) -> AggregateTradeRecord:
+    required = {"aggregate_trade_id", "timestamp_ms", "price", "quantity", "aggressor"}
+    if set(payload) != required:
+        missing = sorted(required - set(payload))
+        unknown = sorted(set(payload) - required)
+        details = []
+        if missing:
+            details.append(f"missing={','.join(missing)}")
+        if unknown:
+            details.append(f"unknown={','.join(unknown)}")
+        raise ValueError("invalid stored aggregate-trade fields: " + " ".join(details))
+
+    aggregate_trade_id = payload["aggregate_trade_id"]
+    timestamp_ms = payload["timestamp_ms"]
+    if isinstance(aggregate_trade_id, bool) or not isinstance(aggregate_trade_id, int):
+        raise ValueError("stored aggregate trade id must be an integer")
+    if isinstance(timestamp_ms, bool) or not isinstance(timestamp_ms, int):
+        raise ValueError("stored aggregate trade timestamp must be an integer")
+    try:
+        aggressor = AggressorSide(str(payload["aggressor"]))
+        price = float(payload["price"])
+        quantity = float(payload["quantity"])
+    except (TypeError, ValueError) as exc:
+        raise ValueError("invalid stored aggregate-trade value") from exc
+    event = TradeEvent(timestamp_ms, price, quantity, aggressor)
+    if aggregate_trade_id < 0:
+        raise ValueError("stored aggregate trade id must be >= 0")
+    return AggregateTradeRecord(
+        aggregate_trade_id=aggregate_trade_id,
+        timestamp_ms=event.timestamp_ms,
+        price=event.price,
+        quantity=event.quantity,
+        aggressor=event.aggressor,
+    )
+
+
 def normalize_aggregate_trades(
     payloads: list[dict[str, Any]] | tuple[dict[str, Any], ...],
 ) -> tuple[AggregateTradeRecord, ...]:
@@ -110,19 +147,30 @@ def normalize_aggregate_trades(
             key=lambda item: item.aggregate_trade_id,
         )
     )
+    return validate_aggregate_trade_records(records)
+
+
+def validate_aggregate_trade_records(
+    records: tuple[AggregateTradeRecord, ...] | list[AggregateTradeRecord],
+) -> tuple[AggregateTradeRecord, ...]:
+    ordered = tuple(records)
     seen: dict[int, AggregateTradeRecord] = {}
+    previous_id: int | None = None
     previous_timestamp: int | None = None
-    for record in records:
+    for record in ordered:
         existing = seen.get(record.aggregate_trade_id)
         if existing is not None:
             if existing != record:
                 raise ValueError("conflicting duplicate aggregate trade id")
             raise ValueError("duplicate aggregate trade id")
+        if previous_id is not None and record.aggregate_trade_id <= previous_id:
+            raise ValueError("aggregate trade IDs must be strictly increasing")
         seen[record.aggregate_trade_id] = record
         if previous_timestamp is not None and record.timestamp_ms < previous_timestamp:
             raise ValueError("aggregate trade timestamps move backward after id ordering")
+        previous_id = record.aggregate_trade_id
         previous_timestamp = record.timestamp_ms
-    return records
+    return ordered
 
 
 def sequence_gap_count(records: tuple[AggregateTradeRecord, ...]) -> int:
@@ -130,6 +178,69 @@ def sequence_gap_count(records: tuple[AggregateTradeRecord, ...]) -> int:
         max(current.aggregate_trade_id - previous.aggregate_trade_id - 1, 0)
         for previous, current in zip(records, records[1:], strict=False)
     )
+
+
+def orderflow_manifest_from_mapping(payload: dict[str, Any]) -> OrderFlowDatasetManifest:
+    required = {
+        "dataset_id",
+        "symbol",
+        "source",
+        "record_count",
+        "first_trade_id",
+        "last_trade_id",
+        "start_ms",
+        "end_ms",
+        "sequence_gap_count",
+        "records_sha256",
+        "records_path",
+    }
+    if set(payload) != required:
+        raise ValueError("invalid order-flow dataset manifest fields")
+
+    integer_fields = ("record_count", "sequence_gap_count")
+    for field in integer_fields:
+        value = payload[field]
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise ValueError(f"manifest {field} must be a non-negative integer")
+    optional_integer_fields = ("first_trade_id", "last_trade_id", "start_ms", "end_ms")
+    for field in optional_integer_fields:
+        value = payload[field]
+        if value is not None and (isinstance(value, bool) or not isinstance(value, int)):
+            raise ValueError(f"manifest {field} must be an integer or null")
+
+    return OrderFlowDatasetManifest(
+        dataset_id=str(payload["dataset_id"]),
+        symbol=str(payload["symbol"]),
+        source=str(payload["source"]),
+        record_count=int(payload["record_count"]),
+        first_trade_id=payload["first_trade_id"],
+        last_trade_id=payload["last_trade_id"],
+        start_ms=payload["start_ms"],
+        end_ms=payload["end_ms"],
+        sequence_gap_count=int(payload["sequence_gap_count"]),
+        records_sha256=str(payload["records_sha256"]),
+        records_path=str(payload["records_path"]),
+    )
+
+
+def load_orderflow_manifest(path: str | Path) -> OrderFlowDatasetManifest:
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("order-flow manifest must be an object")
+    return orderflow_manifest_from_mapping(payload)
+
+
+def load_orderflow_records(path: str | Path) -> tuple[AggregateTradeRecord, ...]:
+    records: list[AggregateTradeRecord] = []
+    with Path(path).open("r", encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            if not line.strip():
+                raise ValueError(f"blank order-flow record line: {line_number}")
+            payload = json.loads(line)
+            if not isinstance(payload, dict):
+                raise ValueError(f"order-flow record line {line_number} must be an object")
+            records.append(aggregate_trade_record_from_mapping(payload))
+    return validate_aggregate_trade_records(records)
 
 
 def require_research_ready(manifest: OrderFlowDatasetManifest) -> None:
@@ -145,6 +256,15 @@ def require_research_ready(manifest: OrderFlowDatasetManifest) -> None:
         raise ValueError("order-flow dataset records file is missing")
     if sha256_file(records_path) != manifest.records_sha256:
         raise ValueError("order-flow dataset records SHA-256 mismatch")
+    records = load_orderflow_records(records_path)
+    if len(records) != manifest.record_count:
+        raise ValueError("order-flow dataset record count does not match manifest")
+    if sequence_gap_count(records) != 0:
+        raise ValueError("order-flow records contain aggregate-trade sequence gaps")
+    if records[0].aggregate_trade_id != manifest.first_trade_id:
+        raise ValueError("order-flow first trade ID does not match manifest")
+    if records[-1].aggregate_trade_id != manifest.last_trade_id:
+        raise ValueError("order-flow last trade ID does not match manifest")
 
 
 class OrderFlowDatasetWriter:
