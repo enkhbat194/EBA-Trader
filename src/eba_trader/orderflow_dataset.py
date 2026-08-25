@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -105,7 +104,12 @@ def parse_binance_agg_trade(payload: dict[str, Any]) -> AggregateTradeRecord:
 def normalize_aggregate_trades(
     payloads: list[dict[str, Any]] | tuple[dict[str, Any], ...],
 ) -> tuple[AggregateTradeRecord, ...]:
-    records = tuple(sorted((parse_binance_agg_trade(item) for item in payloads), key=lambda x: x.aggregate_trade_id))
+    records = tuple(
+        sorted(
+            (parse_binance_agg_trade(item) for item in payloads),
+            key=lambda item: item.aggregate_trade_id,
+        )
+    )
     seen: dict[int, AggregateTradeRecord] = {}
     previous_timestamp: int | None = None
     for record in records:
@@ -128,6 +132,21 @@ def sequence_gap_count(records: tuple[AggregateTradeRecord, ...]) -> int:
     )
 
 
+def require_research_ready(manifest: OrderFlowDatasetManifest) -> None:
+    if manifest.record_count < 1:
+        raise ValueError("order-flow dataset is empty")
+    if manifest.sequence_gap_count != 0:
+        raise ValueError(
+            "order-flow dataset has aggregate-trade sequence gaps; "
+            "repair/re-download before research"
+        )
+    records_path = Path(manifest.records_path)
+    if not records_path.is_file():
+        raise ValueError("order-flow dataset records file is missing")
+    if sha256_file(records_path) != manifest.records_sha256:
+        raise ValueError("order-flow dataset records SHA-256 mismatch")
+
+
 class OrderFlowDatasetWriter:
     def __init__(self, root: str | Path) -> None:
         self.root = Path(root)
@@ -148,7 +167,9 @@ class OrderFlowDatasetWriter:
             raise ValueError("source is required")
 
         records = normalize_aggregate_trades(payloads)
-        records_text = "".join(canonical_json(record.as_dict()) + "\n" for record in records)
+        records_text = "".join(
+            canonical_json(record.as_dict()) + "\n" for record in records
+        )
         records_sha256 = sha256_text(records_text)
         identity = canonical_json(
             {
@@ -181,7 +202,10 @@ class OrderFlowDatasetWriter:
             records_path=str(records_path),
         )
         manifest_text = canonical_json(manifest.as_dict())
-        if manifest_path.exists() and manifest_path.read_text(encoding="utf-8") != manifest_text:
+        if (
+            manifest_path.exists()
+            and manifest_path.read_text(encoding="utf-8") != manifest_text
+        ):
             raise RuntimeError("immutable order-flow manifest collision")
         manifest_path.write_text(manifest_text, encoding="utf-8")
         return manifest
