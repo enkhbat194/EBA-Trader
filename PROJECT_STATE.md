@@ -8,7 +8,7 @@ This is the authoritative cross-chat continuation record. If older chat text, ol
 
 Run EBA Trader as a restart-safe 24/7 Linode system, validate strategies with paper trading first, persist every trade, expose clear runtime state to the PWA, and keep real-money execution locked until separately proven.
 
-M4 research control plane is complete. M5 AI Strategy Factory is now in progress. M5 includes an Order Flow / Footprint research feature layer so generated strategies can be tested with executed-trade microstructure data instead of relying only on candle-derived indicators.
+M4 research control plane is complete. M5 AI Strategy Factory is in progress. M5 now includes a constrained strategy DSL, bounded family generation, duplicate control, cheap screening and a reproducible Order Flow / Footprint historical-data foundation.
 
 ## Source of truth and infrastructure
 
@@ -45,42 +45,54 @@ M4 provides immutable strategy versions, deterministic experiment IDs, a restart
 
 ## M5 AI Strategy Factory — IN PROGRESS
 
-### Order Flow / Footprint foundation — merged PR #25
+Merged M5 milestones:
 
-Order flow is a research feature family, not a trusted signal. PR #25 adds:
+- PR #25 — Order Flow / Footprint numerical feature foundation
+- PR #26 — constrained strategy DSL and deterministic candidate emission
+- PR #27 — bounded family templates, near-duplicate guard, cheap screening and survivor ranking
+- PR #28 — historical aggregate-trade dataset integrity/provenance and closed footprint windows
+
+### Strategy-generation control plane
+
+M5 now has:
+
+1. An approved feature registry separating enabled candle/order-flow features from reserved disabled features.
+2. A constrained LONG/SHORT strategy-hypothesis DSL with numeric comparisons only; arbitrary Python/expression execution is prohibited.
+3. Structural hypothesis fingerprints that ignore free-text rationale so cosmetic AI explanations do not create new strategies.
+4. Exact and near-duplicate suppression.
+5. Bounded deterministic parameter-family expansion with a hard 500-variant cap.
+6. Deterministic candidate IDs and an M5 emitter into the existing M4 `ResearchStore`/`ExperimentQueue`.
+7. Initial bounded candle-only `ema_momentum` and candle+order-flow `ema_orderflow_momentum` templates.
+8. Static cheap-screen rejection for excessive complexity/fan-out.
+9. Deterministic survivor ranking for PASSED development experiments; ranking is triage only and has no lifecycle authority.
+
+### Order Flow / Footprint research data
+
+Order flow remains a candidate feature family, not a trusted signal. The current implementation provides:
 
 1. Typed executed `TradeEvent` and aggressor-side contracts.
-2. Deterministic closed-window price-level footprint aggregation.
-3. Buy volume, sell volume, delta, delta ratio, total volume and trade count.
-4. Price-level bid/ask-style executed-flow buckets and POC (maximum traded-volume bucket).
-5. Cumulative volume delta helper.
-6. Fail-closed event/window validation and deterministic tests.
-7. Canonical `docs/M5_ORDER_FLOW_FOUNDATION.md` with anti-leakage rules and controlled ablation plan.
+2. Binance aggregate-trade parsing using `m` semantics: buyer-is-maker means seller was aggressive; otherwise buyer was aggressive.
+3. Deterministic aggregate-trade normalization with duplicate/conflict/backward-timestamp rejection.
+4. Sequence-gap accounting. Gapped datasets may be cached for diagnosis but `require_research_ready()` rejects them for research until repaired/re-downloaded.
+5. Canonical JSONL content-addressed records and manifest provenance with SHA-256 verification.
+6. Deterministic fixed-width `[start,end)` footprint windows.
+7. Buy volume, sell volume, delta, delta ratio, total volume, trade count, price-bucket POC and cumulative delta.
+8. Empty windows retained as neutral rows and exact range/window alignment required.
+9. Explicit anti-leakage rule: completed footprint values are unavailable before `end_ms`.
 
-Planned feature expansion:
-
-- stacked/diagonal imbalance candidates;
-- absorption/exhaustion candidates;
-- price/delta divergence;
-- historical trade-flow ingestion/cache with source hashes and integrity checks;
-- separately reconstructed limit-order-book depth/imbalance features after sequence integrity is proven.
-
-Footprint features are derived from raw market events, never chart pixels. Executed trade flow and resting order-book liquidity remain separate datasets. No claim is made that footprint identifies all hidden/institutional orders.
-
-Required ablation comparisons include candle baseline versus baseline+delta/CVD, footprint imbalance, absorption/exhaustion, LOB imbalance and approved combined features. A higher development win rate is not sufficient; incremental value must survive fees/slippage, robustness, frozen OOS and forward paper evidence.
+Footprint features are derived from raw market events, never chart pixels. Executed flow and resting order-book liquidity remain separate datasets. No claim is made that footprint identifies all hidden/institutional orders.
 
 ### Next M5 implementation order
 
-1. Define constrained strategy-hypothesis schema/DSL; AI outputs schema data, not arbitrary production code.
-2. Define an approved feature registry including candle and order-flow feature names.
-3. Add strategy-family templates and parameter-family generation.
-4. Add hypothesis validation and duplicate/near-duplicate detection.
-5. Generate deterministic experiment families into the M4 queue.
-6. Add historical trade-flow ingestion/cache and provenance, then connect approved footprint features to experiments.
-7. Add cheap-screen -> development-screen orchestration and survivor ranking without opening frozen OOS.
-8. Run controlled candle-vs-order-flow ablation experiments.
-9. Reconcile lifecycle validation order before separately authorized frozen-OOS orchestration.
-10. Later expand validated survivors into Verified Strategy KB, forward-paper factory, Binance Demo execution lab, Market Brain/Selector, portfolio selection and outcome/drift engine.
+1. Add a paginated historical Binance aggregate-trade acquisition layer that fills/retries ranges until sequence integrity passes.
+2. Join research-ready footprint windows to candle datasets by timestamp with explicit feature availability time.
+3. Add an allowlisted order-flow backtest adapter that consumes only approved causal features.
+4. Run controlled candle-only vs candle+order-flow ablation families through M4 development/robustness gates.
+5. Add stacked/diagonal imbalance, absorption/exhaustion and price/delta divergence only after explicit numerical definitions/tests.
+6. Add separately reconstructed limit-order-book depth/imbalance only after event-sequence integrity is proven.
+7. Add cheap-screen -> development-screen orchestration and survivor promotion workflow without opening frozen OOS.
+8. Reconcile lifecycle validation order before separately authorized frozen-OOS orchestration.
+9. Later expand validated survivors into Verified Strategy KB, forward-paper factory, Binance Demo execution lab, Market Brain/Selector, portfolio selection and outcome/drift engine.
 
 ## Validation-order issue
 
@@ -122,7 +134,9 @@ External production proof and research development may proceed independently, bu
 - Generic workers cannot open frozen first-cycle OOS.
 - Robustness verdicts do not silently promote OOS/live lifecycle state.
 - Order-flow features cannot bypass lifecycle/risk gates.
+- Incomplete/gapped order-flow datasets cannot be used for research.
+- AI hypotheses cannot execute arbitrary code or directly reach exchange execution.
 
 ## Canonical docs
 
-See `docs/LINODE_RUNTIME.md`, `docs/DEPLOYMENT_CHECKLIST.md`, `ARCHITECTURE.md`, `BACKTEST_PROTOCOL.md`, `STRATEGY_SPEC.md`, M4 documents under `docs/`, and `docs/M5_ORDER_FLOW_FOUNDATION.md`. Historical M1/M2/M3 documents remain evidence records only.
+See `docs/LINODE_RUNTIME.md`, `docs/DEPLOYMENT_CHECKLIST.md`, `ARCHITECTURE.md`, `BACKTEST_PROTOCOL.md`, `STRATEGY_SPEC.md`, M4 documents under `docs/`, `docs/M5_ORDER_FLOW_FOUNDATION.md`, `docs/M5_STRATEGY_DSL.md`, `docs/M5_FAMILY_SCREENING.md`, and `docs/M5_ORDER_FLOW_DATASET.md`. Historical M1/M2/M3 documents remain evidence records only.
