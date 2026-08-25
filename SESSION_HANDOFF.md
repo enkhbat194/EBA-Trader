@@ -2,81 +2,83 @@
 
 _Last handoff prepared: 2026-08-26 (Asia/Ulaanbaatar)_
 
-## Session objective
-
-Install a repository-backed continuity system for ChatGPT branch chats / AI sessions and reconcile the continuity documents with the actual EBA Trader repository after M5 PRs #25-#28.
-
 ## What was completed
 
-- Read the full uploaded `EBA_Chat_Branch_Repo_Continuity_Package`.
-- Inspected GitHub `main`, root structure, recent commits, architecture, lifecycle, M5 feature registry, deployment update script and current M5 state.
-- Added mandatory repo-level agent continuity rules in `AGENTS.md`.
-- Added authoritative architectural/research decisions in `DECISIONS.md`.
-- Added prioritized `TODO.md` based on current implementation and known proof gates.
-- Added this `SESSION_HANDOFF.md` and `CHANGELOG.md`.
-- Added a continuity protocol document and automated guard/CI check.
-- Reconciled `PROJECT_STATE.md`, `ARCHITECTURE.md`, and stale `README.md` statements with current code/deployment behavior.
+- Fully read the uploaded `EBA_Chat_Branch_Repo_Continuity_Package`.
+- Audited GitHub `main`, root tree, recent commits, current architecture, lifecycle code, M5 feature registry, order-flow modules and Linode update/rollback script.
+- Installed the continuity system as PR #29 and merged it to `main` at `368679fd232a1b9ef943147361346f57c36ff01c`.
+- Added `AGENTS.md` with mandatory start/end-of-session rules for connected AI/coding sessions.
+- Added real EBA-specific `DECISIONS.md`, `TODO.md`, `CHANGELOG.md`, and `SESSION_HANDOFF.md` instead of generic templates.
+- Added `docs/CONTINUITY_PROTOCOL.md` with the new-branch bootstrap/recovery protocol.
+- Added `scripts/check_continuity.py` and `.github/workflows/continuity.yml` so the continuity surface is CI-enforced.
+- Added a PR checklist requiring state/TODO/decision/handoff verification.
+- Reconciled `PROJECT_STATE.md`, `ARCHITECTURE.md`, and stale `README.md` statements with actual code and deployment scripts.
+- Follow-up state reconciliation commit: `4d9b9df0600d6236ddf73fb157582fcc9b138195`.
 
-## Current code baseline verified before this continuity branch
+## Tests/checks run
 
-GitHub `main` baseline: `2f823ca918bc8d8b2866a5e77fa8372063121a25`.
+PR #29 passed before merge:
 
-Immediately preceding merged M5 milestones:
+- dedicated **Continuity guard**;
+- Python full regression suite;
+- Ruff;
+- shell syntax;
+- deployment contract;
+- Linode runtime checks.
 
-- #25 order-flow/footprint research foundation;
-- #26 constrained strategy DSL + approved feature registry + M4 emission;
-- #27 family templates + similarity guard + cheap screening + survivor ranking;
-- #28 historical aggregate-trade dataset integrity + deterministic footprint windows.
+These prove repository consistency, not current external Linode/public-network state.
 
-## Current system state
+## Current project state
 
-- Runtime source of truth: GitHub `main`.
-- Runtime host target: Akamai/Linode, Ubuntu 24.04 LTS.
-- Canonical runtime services: `eba-binance-data.service`, `eba-runtime-api.service`, `eba-web.service`.
-- Persistent runtime DB: `/var/lib/eba-trader/eba_trader.db`.
-- Auto-update timer deploys exact `origin/main`, requires local service/API health, and rolls back on runtime failure.
-- Public HTTPS bootstrap exists and is retried independently from runtime rollback.
-- M4 research control plane is complete.
+- GitHub `main` is the code and continuity source of truth.
+- Linode remains the sole active EBA Trader backend/runtime target.
+- M4 research platform is complete.
 - M5 AI Strategy Factory is in progress.
-- Order-flow features enabled today: executed buy/sell volume, delta, delta ratio, CVD, POC.
-- Stacked imbalance, absorption, exhaustion and LOB depth imbalance remain disabled/unimplemented feature-registry entries.
-- Historical order-flow cache now has strict duplicate/timestamp/hash/sequence-gap integrity rules and fixed closed footprint windows.
+- M5 foundations through PR #28 are merged: constrained DSL, feature registry, deterministic candidate emission, family templates, similarity guard, cheap screening/ranking, historical aggregate-trade integrity/cache and deterministic footprint windows.
+- Enabled order-flow research features: executed buy/sell volume, delta, delta ratio, CVD, POC.
+- Stacked imbalance, absorption, exhaustion and LOB depth imbalance remain disabled/unimplemented.
 - Real Binance order submission remains locked.
+- Frozen OOS automation remains locked pending lifecycle-order reconciliation.
 
-## Important unresolved issue
+## Problems / blockers
 
-`src/eba_trader/lifecycle.py` currently defines promotion as:
+### Lifecycle order
+
+`src/eba_trader/lifecycle.py` currently enforces:
 
 `GENERATED -> BACKTESTED -> OOS_VERIFIED -> ROBUSTNESS_VERIFIED -> ...`
 
-The desired research process conceptually wants robustness before opening frozen OOS. Do not bypass the implemented lifecycle. Resolve this deliberately before automated frozen-OOS orchestration.
+Desired methodology conceptually wants robustness before frozen OOS. Do not bypass the code. Resolve with an explicit lifecycle migration and tests before automated OOS orchestration.
+
+### External production proof
+
+Still not proven by repository CI:
+
+- latest `main` actually consumed by Linode;
+- external-phone HTTPS availability;
+- real service/server restart recovery of an active Fast Momentum paper position through later MARK/CLOSE;
+- final disposition of the older carry paper engine.
+
+## Important decisions made
+
+- Repository state is the cross-chat shared memory bridge.
+- Actual code/config/tests + Git history override stale chat memory.
+- Every meaningful connected AI/coding session must read continuity files first and write state/handoff back after work.
+- M5 uses constrained strategy DSL/schema rather than arbitrary generated Python.
+- Footprint/order flow remains an experimentally validated feature family, not assumed edge.
+- Gapped historical order-flow data fails closed.
+- Cheap screening/ranking has no OOS/execution promotion authority.
 
 ## Next exact task
 
-1. Implement a deterministic historical Binance `aggTrades` downloader with paged/range provenance.
-2. Implement missing-ID-range detection/repair and only mark a dataset research-ready once gaps are resolved.
-3. Add causal footprint-to-candle alignment.
-4. Add an allowlisted M4 backtest adapter for approved order-flow features.
-5. Run controlled candle-only vs candle+delta/CVD development ablations under identical cost assumptions and gates.
-6. Keep frozen OOS closed while development/robustness design is being reconciled.
+1. Implement deterministic historical Binance `aggTrades` downloader/pagination with request/range provenance.
+2. Implement missing aggregate-trade ID range detection and repair; only gap-free verified datasets become research-ready.
+3. Add causal footprint-to-candle alignment and boundary tests.
+4. Add an allowlisted order-flow backtest adapter through the M4 worker/control plane.
+5. Run candle-only vs candle+delta/CVD development ablations with identical fees, slippage and gates.
+6. Keep frozen OOS closed during this development work.
+7. In parallel, perform the external Linode HTTPS + restart/recovery proof.
 
-## Parallel production-proof task
+## Notes for the next AI session
 
-Confirm current `main` deployment on Linode, public HTTPS from an external phone, and one real restart/recovery persistence test. Repository CI is not proof of these external conditions.
-
-## Files that define continuity
-
-- `AGENTS.md`
-- `PROJECT_STATE.md`
-- `ARCHITECTURE.md`
-- `DECISIONS.md`
-- `TODO.md`
-- `CHANGELOG.md`
-- `SESSION_HANDOFF.md`
-- `docs/CONTINUITY_PROTOCOL.md`
-- `scripts/check_continuity.py`
-- `.github/workflows/continuity.yml`
-
-## Instruction for the next AI session
-
-Do not rely on this handoff alone. Start by reading `AGENTS.md` and all continuity files, then verify the relevant implementation and recent Git history. If this handoff is stale, update it from repository reality before continuing.
+Start with `AGENTS.md`, then `PROJECT_STATE.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TODO.md`, and this file. Inspect recent Git history and the actual modules relevant to the next task before coding. If any text here is stale, repair it from repository reality first.
