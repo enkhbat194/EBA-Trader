@@ -83,6 +83,11 @@
   }
 
   byId('researchRefresh')?.addEventListener('click', refresh);
+  document.querySelector('[data-nav="research"]')?.addEventListener('click', refresh);
+  byId('refreshApp')?.addEventListener('click', () => {
+    const screen = document.querySelector('[data-screen="research"]');
+    if (screen?.classList.contains('active')) refresh();
+  });
   window.EBAResearch = { refresh };
 
   window.setInterval(() => {
