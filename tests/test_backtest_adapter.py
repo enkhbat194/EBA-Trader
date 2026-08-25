@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from eba_trader.backtest_adapter import BacktestAdapterRegistry, EmaTrendV1Adapter
-from eba_trader.history import Candle, INTERVAL_MS, save_csv
+from eba_trader.history import INTERVAL_MS, Candle, save_csv
 from eba_trader.holdout_guard import FIRST_CYCLE_OOS_START_MS
 
 
