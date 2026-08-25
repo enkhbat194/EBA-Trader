@@ -7,12 +7,12 @@ This list is ordered by current project priority and must be reconciled with act
 - [x] Add historical Binance `aggTrades` downloader with deterministic paging/range capture.
 - [x] Add missing-range detection and repair so sequence gaps are resolved before research-ready promotion.
 - [x] Align footprint windows causally with candle windows and prove boundary semantics with tests.
-- [ ] Add an allowlisted order-flow backtest adapter that consumes approved footprint features through the M4 worker path.
-- [ ] Define and run controlled ablation families:
-  - candle-only baseline;
-  - baseline + delta/CVD;
-  - later approved footprint imbalance/absorption/exhaustion variants.
-- [ ] Compare survivors under the same fees/slippage/development gates; do not promote from win rate alone.
+- [x] Add allowlisted candle-only and order-flow backtest adapters that consume the exact same causally aligned feature dataset through the M4 worker path.
+- [x] Prove with tests that a permissive order-flow gate matches the candle-only arm and that delta/CVD gates actually suppress candidate entries.
+- [ ] Add a deterministic ablation orchestrator that emits paired candle-only vs candle+delta/CVD experiments with identical EMA/cost parameters and dataset identity.
+- [ ] Add a CLI/workflow to materialize a real historical development feature dataset from candle CSV + verified order-flow/acquisition manifests.
+- [ ] Run controlled development ablations on real historical BTCUSDT USD-M data under identical fees/slippage/gates.
+- [ ] Compare survivors under the same development/robustness policy; do not promote from win rate alone.
 
 ## NOW — Production proof (parallel track)
 
@@ -64,4 +64,5 @@ This list is ordered by current project priority and must be reconciled with act
 - [x] Strategy-family templates, near-duplicate guard, cheap screening and survivor ranking merged (#27).
 - [x] Historical Binance aggregate-trade normalization/cache, integrity gate and deterministic footprint windows merged (#28).
 - [x] Repository continuity system installed with mandatory agent protocol and CI guard (#29).
-- [x] Deterministic Binance aggregate-trade acquisition, missing-ID repair and causal candle alignment implemented in PR #30.
+- [x] Deterministic Binance aggregate-trade acquisition, missing-ID repair and causal candle alignment merged (#30).
+- [x] Causal feature-dataset materialization plus allowlisted candle-only/order-flow ablation adapters implemented in PR #31.
