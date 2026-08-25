@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from eba_trader.experiment_queue import ExperimentStatus
-from eba_trader.history import Candle, INTERVAL_MS, save_csv
+from eba_trader.history import INTERVAL_MS, Candle, save_csv
 from eba_trader.research_evidence import ResearchEvidenceStore
 from eba_trader.research_queue import ExperimentQueue
 from eba_trader.research_store import ResearchStore
