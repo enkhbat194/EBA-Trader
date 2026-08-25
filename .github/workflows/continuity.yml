@@ -1,0 +1,19 @@
+name: Continuity guard
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  continuity:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify continuity state
+        run: python scripts/check_continuity.py
