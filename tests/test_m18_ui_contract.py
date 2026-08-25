@@ -31,12 +31,14 @@ def test_ui_keeps_live_and_secret_storage_locked() -> None:
     assert "order_send" not in javascript
 
 
-def test_binance_demo_form_uses_one_unified_credential_pair() -> None:
+def test_binance_demo_form_supports_public_paper_and_one_authenticated_pair() -> None:
     html = (WEB_ROOT / "index.html").read_text(encoding="utf-8")
     javascript = (WEB_ROOT / "app.js").read_text(encoding="utf-8")
+    assert "Fast Momentum paper does" in html
+    assert "not</strong> require an API key" in html
     assert "Binance Demo API Key" in html
     assert "Binance Demo API Secret" in html
-    assert "One Demo key covers Spot + USD-M" in html
+    assert "Optional Demo API key" in html
     assert "futuresApiKey" not in html
     assert "futuresApiSecret" not in html
     assert "futuresApiKey" not in javascript
@@ -74,7 +76,8 @@ def test_mt5_uses_local_pairing_bridge_without_broker_password_in_cloud_ui() -> 
     assert "MetaTrader 5" in html
     assert "MetaTrader 4" not in html
     assert 'id="createMt5Pair"' in html
-    assert "Broker password never goes to Render" in html
+    assert "Broker password stays on the PC" in html
+    assert "Render" not in html
     assert "'/api/mt5/pair'" in javascript
     assert "'/api/mt5/state'" in javascript
     assert "'/api/mt5/disconnect'" in javascript
