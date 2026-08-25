@@ -50,7 +50,7 @@
 - PR #30: venue-aware aggregate-trade acquisition, gap repair and causal candle alignment.
 - PR #31: same-dataset candle-only/order-flow feature backtest adapters and ablation invariants.
 - PR #32: phone-first Research / AI Lab status dashboard.
-- PR #33: carry-label clarification and Fast Momentum server heartbeat observability (pending merge in current session).
+- PR #33: carry-label clarification and Fast Momentum server heartbeat observability; squash merge `2b62f056f438c38865694d2f0aa130480926e7b2`.
 
 ### Validation
 - Relevant PR CI passed full regression, Ruff, deployment/shell checks, continuity guard and Linode runtime checks before merge where applicable.
