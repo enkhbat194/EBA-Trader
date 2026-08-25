@@ -8,6 +8,7 @@ from eba_trader.orderflow_dataset import (
     OrderFlowDatasetWriter,
     normalize_aggregate_trades,
     parse_binance_agg_trade,
+    require_research_ready,
     sequence_gap_count,
 )
 from eba_trader.research_evidence import sha256_file
@@ -76,6 +77,29 @@ def test_dataset_writer_is_content_addressed_and_idempotent(tmp_path: Path) -> N
     assert first.first_trade_id == 1
     assert first.last_trade_id == 2
     assert sha256_file(Path(first.records_path)) == first.records_sha256
+    require_research_ready(first)
+
+
+def test_research_ready_gate_rejects_gaps_empty_and_tampering(tmp_path: Path) -> None:
+    writer = OrderFlowDatasetWriter(tmp_path)
+    gap_manifest = writer.write(
+        symbol="BTCUSDT",
+        payloads=(_trade(1, 100), _trade(3, 200)),
+    )
+    with pytest.raises(ValueError, match="sequence gaps"):
+        require_research_ready(gap_manifest)
+
+    empty_manifest = writer.write(symbol="ETHUSDT", payloads=())
+    with pytest.raises(ValueError, match="empty"):
+        require_research_ready(empty_manifest)
+
+    good_manifest = writer.write(
+        symbol="BNBUSDT",
+        payloads=(_trade(10, 100), _trade(11, 200)),
+    )
+    Path(good_manifest.records_path).write_text("tampered\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="SHA-256 mismatch"):
+        require_research_ready(good_manifest)
 
 
 def test_footprint_windows_are_end_exclusive_and_keep_empty_windows() -> None:
