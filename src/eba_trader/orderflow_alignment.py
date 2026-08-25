@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .footprint_dataset import FootprintWindowRow
-from .history import Candle, INTERVAL_MS, validate_candles
+from .history import INTERVAL_MS, Candle, validate_candles
 
 
 @dataclass(frozen=True, slots=True)
