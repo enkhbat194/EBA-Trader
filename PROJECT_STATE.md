@@ -1,24 +1,22 @@
 # EBA Trader — Project State
 
-_Last updated: 2026-08-25 (Asia/Ulaanbaatar)_
+_Last updated: 2026-08-26 (Asia/Ulaanbaatar)_
 
 This is the authoritative cross-chat continuation record. If older chat text, old deployment notes, screenshots, old PRs, or old branches conflict with this file, this file wins.
 
 ## Current goal
 
-Run EBA Trader as a restart-safe 24/7 system on one Linode server, validate short-horizon strategies with paper trading first, persist every trade, expose clear position/history/chart data to the PWA, and keep real-money execution locked until the execution path is separately proven.
+Run EBA Trader as a restart-safe 24/7 Linode system, validate strategies with paper trading first, persist every trade, expose clear runtime state to the PWA, and keep real-money execution locked until separately proven.
 
-In parallel, build the M4 research control plane required before any mass AI strategy generator: immutable strategy versions, deterministic experiments, machine-enforced lifecycle gates, durable evidence and restart-safe experiment workers.
+The M4 research control plane is now complete. The next research milestone is M5: AI Strategy Factory built on the controlled M4 interfaces rather than direct AI-to-live code.
 
 ## Source of truth and infrastructure
 
 - Repository: `enkhbat194/EBA-Trader`
 - Source of truth: GitHub `main`
-- Sole active runtime target: Akamai/Linode Nanode 1 GB
-- Region: Singapore 2
-- OS: Ubuntu 24.04 LTS
+- Sole active runtime target: Akamai/Linode Nanode 1 GB, Singapore 2, Ubuntu 24.04 LTS
 - Server repo path: `/opt/Eba-Trader`
-- Persistent state: `/var/lib/eba-trader/eba_trader.db`
+- Persistent runtime state: `/var/lib/eba-trader/eba_trader.db`
 - Market-data service: `eba-binance-data.service`
 - Runtime API service: `eba-runtime-api.service`
 - PWA/web/scanner service: `eba-web.service`
@@ -31,119 +29,102 @@ In parallel, build the M4 research control plane required before any mass AI str
 - Replit is not part of the active EBA Trader architecture.
 - Render.com is not an active backend/runtime target.
 - Do not add new EBA Trader work to Replit or Render.
-- Old Render-era branch/PR material is historical only and must not be treated as deployment authority.
-- PR #14 is closed and superseded.
 - BestCode integration remains separate from EBA Trader.
 
-## What is already working in main
+## M4 research platform — COMPLETE
 
-### Research/evidence core
+Merged milestones:
 
-- Deterministic risk engine and `NO_TRADE` behavior exist.
+- PR #20 — strategy-platform foundation
+- PR #21 — restart-safe experiment queue and worker leases
+- PR #22 — generic backtest worker and immutable evidence
+- PR #23 — development screening gates and immutable verdicts
+- PR #24 — bounded robustness fan-out and aggregate verdicts
+
+M4 now provides:
+
+1. Generic strategy decisions: `LONG`, `SHORT`, `EXIT`, `NO_TRADE`; historical `Decision.BUY` remains only a temporary LONG compatibility alias.
+2. Symmetric deterministic LONG/SHORT risk sizing.
+3. Machine-enforced `StrategyLifecycle` with evidence-required promotion transitions.
+4. Separate `ResearchStore` SQLite control plane; runtime `TradeLedger` positions remain isolated.
+5. Immutable strategy versions; changed specs require a new version.
+6. Deterministic experiment IDs from strategy/version/stage/parameters/dataset.
+7. Restart-safe `ExperimentQueue` with transactional claims, worker leases, retries, max-attempt handling, expired-lease recovery and duplicate-work prevention.
+8. Fail-closed `BacktestAdapterRegistry` with initial allowlisted `ema_trend_v1` adapter wrapping the existing backtester.
+9. Exact dataset interval/window validation and default frozen first-cycle OOS block in the generic worker path.
+10. Immutable content-addressed research evidence with dataset/spec/source hashes and SQLite evidence index.
+11. `ResearchBacktestWorker` and `eba-research-worker` CLI for queue -> backtest -> evidence -> result execution.
+12. Versioned declarative `GateSet` development screening and immutable screening verdicts.
+13. Promotion from `GENERATED -> BACKTESTED` only when declared development gates pass and evidence integrity matches.
+14. Bounded `RobustnessPlan`/`RobustnessBatch` fan-out for parameter-neighborhood and fee/slippage cost-stress scenarios.
+15. Hard 250-job robustness plan cap and fixed-strategy-field override protection.
+16. Immutable aggregate robustness verdict requiring every scenario experiment to be completed and pass its declared gates.
+
+M4 deliberately does **not** unlock frozen OOS, Binance Demo order execution, shadow/live execution, or later lifecycle stages.
+
+## Validation-order issue to resolve before automated OOS promotion
+
+The current lifecycle machine is:
+
+```text
+GENERATED -> BACKTESTED -> OOS_VERIFIED -> ROBUSTNESS_VERIFIED -> ...
+```
+
+The desired research workflow conceptually performs robustness checks before opening frozen OOS. M4 therefore records robustness evidence without force-promoting lifecycle state. M5/M6 must explicitly reconcile the canonical validation order before adding automated frozen-OOS orchestration. Do not bypass this by manually skipping lifecycle states.
+
+## Existing research/evidence core
+
 - Binance public historical downloader and integrity gates exist.
-- Backtest, cost, walk-forward, regime and OOS guard tooling exists.
-- Historical research files remain evidence, not deployment instructions.
-- M4 foundation PR #20 is merged as `d3a31ec0ee2556ec1e577fd9b16662a3bbe6614f`.
-- Generic strategy decisions are now `LONG`, `SHORT`, `EXIT`, and `NO_TRADE`; historical `Decision.BUY` is only a temporary compatibility alias to `LONG`.
-- Generic deterministic risk sizing now handles LONG and SHORT stop distance symmetrically.
-- `StrategyLifecycle` enforces ordered promotion gates and requires an evidence reference for promotions.
-- `ResearchStore` provides a separate SQLite control plane for immutable strategy versions, experiment metadata, and lifecycle history without coupling research state to runtime `TradeLedger` positions.
-- Experiment IDs are deterministic from strategy/version/stage/parameters/dataset, establishing the base for duplicate detection and resumable experiment queues.
-- Production CI now starts correctly and runs the full Python regression suite plus Ruff, shell syntax, and deployment-contract checks.
+- Backtest, cost, walk-forward, regime and OOS-guard tooling exists.
+- Historical Trend V2 rejection remains valid evidence that the framework can reject weak strategies.
+- Existing historical research files are evidence, not deployment instructions.
 
-### Linode/runtime core
+## Linode/runtime core
 
 - Binance public market data has been observed running on Linode through NautilusTrader.
-- `eba-binance-data.service`, `eba-runtime-api.service`, and `eba-web.service` are the canonical runtime services.
+- `eba-binance-data.service`, `eba-runtime-api.service`, and `eba-web.service` are canonical runtime services.
 - SQLite-backed `TradeLedger` exists outside the Git checkout.
 - Runtime API exposes health, positions and events.
 - `scripts/install_linode_runtime.sh` is the canonical first-install script.
-- `scripts/update_linode_runtime.sh` supports automatic exact-main deployment with service/health verification and rollback.
-- `eba-auto-update.timer` is already activated on the Linode and checks GitHub `main` every five minutes.
-- Deployment state is recorded under `/var/lib/eba-trader/deploy-state` and does not overwrite the trade database.
-- `scripts/bootstrap_linode_public_https.sh` automatically derives an IP-backed hostname and attempts Nginx + Certbot HTTPS setup, with sslip.io and nip.io fallback.
-- HTTPS failure is non-fatal to the trading runtime and is retried by the existing auto-update timer.
-- PR #18 added the production deployment bundle.
-- PR #19 added hands-free public HTTPS bootstrap and credential-independent Fast paper operation.
+- `scripts/update_linode_runtime.sh` supports exact-main automatic deployment, health verification and rollback.
+- `eba-auto-update.timer` has been observed active and checks GitHub `main` every five minutes.
+- `scripts/bootstrap_linode_public_https.sh` attempts Nginx + Certbot HTTPS with sslip.io/nip.io fallback.
+- HTTPS failure is non-fatal to trading runtime and can be retried by deployment automation.
 
-### PWA and Fast Momentum
+## PWA and Fast Momentum
 
-- PWA/dashboard source is in GitHub `main` under `web/`.
-- Settings reports app/server version, build, PWA cache, Linode runtime state, public-PWA HTTPS state and server scanner freshness.
-- Live chart code supports touch pinch zoom, drag/pan, mouse-wheel zoom, EMA20 and EMA50 overlays, and paper markers.
-- Fast trades have dedicated trade-detail UI with entry/current-or-exit, TP, SL, leverage, P&L, fees, indicators, EMA overlays, zoom/pan and history access.
-- Fast Momentum supports LONG and SHORT paper decisions for BTCUSDT perpetual simulation.
+- PWA/dashboard source is in `web/` on `main`.
+- Fast Momentum supports LONG and SHORT BTCUSDT perpetual paper decisions.
 - Fast Momentum stores OPEN / MARK / CLOSE state in SQLite through `PersistentMomentumPaperEngine`.
-- Fast Momentum open position/history can be restored from SQLite after process restart.
-- Fast Momentum server scanning no longer requires a Binance account secret: it can use public Binance Demo market data and a conservative fallback taker fee. A Demo API key is optional for authenticated balances/account commission/account-dependent features.
-- Fast Momentum runs server-side and is not dependent on keeping the phone PWA open.
-- `render.yaml` is not present in `main`.
+- Open positions/history can be restored from SQLite after process restart in repository tests.
+- Server-side scanning can use public Binance Demo market data without requiring account secrets.
 - Real Binance order execution remains locked.
 
-## Production state now
+## Production proof still pending
 
-1. The Linode exists, is RUNNING, and the canonical services have been installed.
-2. The one-time production activation has already been performed.
-3. The GitHub-main auto-update timer has been observed active on Linode.
-4. PR #19 and M4 foundation PR #20 are merged to `main`; Linode should consume main automatically through the existing timer.
-5. The merged runtime attempts public HTTPS bootstrap automatically and records the resulting URL for Settings to display.
-6. Final external phone/browser verification of that HTTPS URL is still required before declaring public-PWA deployment proven.
-7. Fast Momentum persistence/recovery is repository-tested but still requires one real Linode service/reboot smoke test against the production SQLite database.
+These are **not** complete and must not be inferred from repository CI:
 
-## Important current limitations
+1. Confirm Linode has consumed the latest `main`.
+2. Confirm public HTTPS from an external phone/browser.
+3. Smoke-test Home / Chart / Scan / Positions / History / Settings / trade detail on the Linode-served PWA.
+4. Perform one real Linode restart/service-restart and verify Fast Momentum `OPEN -> recovery -> MARK/CLOSE` plus History persistence against the production SQLite database.
+5. Continue forward-paper evidence collection; profitability is not proven from a handful of trades.
+6. Persist/recover the older carry paper engine or retire it if Fast Momentum is the only supported paper strategy.
 
-1. Public HTTPS still needs a live external smoke test after Linode has consumed the latest `main`.
-2. Fast Momentum persistence/restart recovery still needs one real Linode service/reboot smoke test against the production SQLite database.
-3. The older carry paper engine is not persisted/recovered to the same standard as Fast Momentum.
-4. Forward-paper evidence is not yet large enough to claim the strategy is profitable.
-5. Binance real order submission is not enabled or validated.
-6. The current public Demo PWA is not the place to enable real-money execution; authentication/gating must be added before any future live-order layer.
-7. M4 does not yet have durable experiment queue/lease/retry behavior, a generic strategy-to-backtest adapter, a separate evidence/provenance table, or automatic screening/promotion gates.
-8. AI Strategy Factory, Verified Strategy Knowledge Base, Market Brain selector, portfolio selector, and outcome/drift engine remain later milestones.
+External production proof and research development may proceed independently when external Linode/phone access is unavailable, but this does not waive the proof gate.
 
-## Active trading direction
+## Next research milestone — M5 AI Strategy Factory
 
-Fast Momentum / Micro Profit paper mode is the current short-horizon runtime strategy direction:
+Strict implementation order:
 
-- BTCUSDT perpetual simulation
-- 1m + 5m inputs
-- both LONG and SHORT eligibility
-- paper margin starts from $10
-- risk-selected leverage caps 5x / 10x / 20x
-- explicit entry, TP, SL, fees and net P&L
-- dedicated trade detail/chart record
-- indicator values visible in the trade detail UI
-- server-side scanning continues while the PWA is closed
-- public Demo market data is sufficient for Fast paper scanning
-- live execution remains locked
-
-## Next tasks — strict order
-
-### Production proof
-
-1. Confirm Linode has automatically consumed the latest `main` and Settings shows the expected release/server build.
-2. Confirm automatic public HTTPS succeeded and open the Linode HTTPS PWA from the phone/browser.
-3. Smoke-test Home / Chart / Scan / Positions / History / Settings / trade detail from the Linode-served PWA.
-4. Perform a real Linode restart/service-restart smoke test and verify Fast Momentum OPEN -> recovery -> MARK/CLOSE plus History persistence.
-5. Run forward paper evidence and compare leverage tiers after fees/slippage; do not judge profitability from a handful of trades.
-6. Persist/recover the older carry paper engine or remove it if Fast Momentum becomes the only supported paper strategy.
-
-### M4 research-platform development
-
-7. Add explicit experiment queue states plus durable worker claim/lease/retry fields.
-8. Add restart recovery and duplicate-work prevention for experiment workers.
-9. Add a generic adapter from immutable strategy specs to the existing backtest engine.
-10. Add evidence/provenance records with source-data and result hashes.
-11. Add automatic cheap-screen -> development -> robustness -> frozen-OOS gates without allowing post-OOS retuning.
-12. Only after those controls are proven, add AI-generated strategy hypotheses/parameter families through the controlled experiment interface.
-
-### Future execution work
-
-13. Before any future real-order work, add authenticated control-plane access and a separate execution gate.
-14. Build Binance Demo execution validation separately from forward paper; paper simulation alone is not Demo execution proof.
-15. Only after the paper/demo/shadow path is restart-safe and statistically acceptable, design and validate a separately gated micro-live layer.
-
-External production-proof tasks and M4 research-platform coding may proceed independently when the external Linode/phone proof cannot be performed from the current development environment. This does not waive the production proof gate and does not authorize live execution.
+1. Define a constrained strategy-hypothesis schema/DSL; AI must output schema data, not arbitrary production code.
+2. Add strategy-family templates and parameter-family generation.
+3. Add hypothesis validation and duplicate/near-duplicate detection.
+4. Generate deterministic experiment families into the existing M4 queue.
+5. Add cheap-screen -> development-screen orchestration using existing immutable evidence/gates.
+6. Add survivor ranking without opening frozen OOS.
+7. Reconcile lifecycle validation order and then implement separately authorized frozen-OOS orchestration.
+8. Only after validated survivors exist, expand to Verified Strategy KB, forward-paper factory, Binance Demo execution lab, Market Brain/Selector, portfolio selection and outcome/drift engine.
 
 ## Safety invariants
 
@@ -154,11 +135,13 @@ External production-proof tasks and M4 research-platform coding may proceed inde
 - Server/PWA restart must not erase trade history or active Fast Momentum paper state.
 - UI state is not the source of truth; Linode/SQLite is.
 - Ports 8000 and 8765 remain loopback-only; public access goes through HTTPS reverse proxy.
-- Fast paper may use public market data; account secrets are not a prerequisite for paper scanning.
+- Fast paper may use public market data; account secrets are not required for paper scanning.
 - Public Demo controls must not be reused as a real-money execution surface.
 - Strategy lifecycle eligibility cannot bypass deterministic risk authority.
-- Strategy versions are immutable; changed specs require a new version and new evidence.
+- Strategy versions are immutable; changed specs require new versions and new evidence.
+- Generic M4 workers cannot open the frozen first-cycle OOS path.
+- Robustness verdicts do not silently promote OOS/live lifecycle state.
 
 ## Canonical docs
 
-See `docs/LINODE_RUNTIME.md`, `docs/DEPLOYMENT_CHECKLIST.md`, `ARCHITECTURE.md`, `BACKTEST_PROTOCOL.md`, `STRATEGY_SPEC.md`, and `docs/M4_STRATEGY_PLATFORM_FOUNDATION.md`. Historical M1/M2/M3 documents remain evidence records only.
+See `docs/LINODE_RUNTIME.md`, `docs/DEPLOYMENT_CHECKLIST.md`, `ARCHITECTURE.md`, `BACKTEST_PROTOCOL.md`, `STRATEGY_SPEC.md`, `docs/M4_STRATEGY_PLATFORM_FOUNDATION.md`, `docs/M4_EXPERIMENT_QUEUE.md`, `docs/M4_BACKTEST_WORKER_EVIDENCE.md`, `docs/M4_DEVELOPMENT_SCREENING.md`, and `docs/M4_ROBUSTNESS_FANOUT.md`. Historical M1/M2/M3 documents remain evidence records only.
