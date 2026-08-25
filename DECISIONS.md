@@ -179,3 +179,22 @@ Using different time ranges, candle files, execution logic or cost assumptions w
 
 ### Status
 Accepted in PR #31.
+
+## 2026-08-26 — Research / AI Lab is read-only observability
+
+### Decision
+The PWA Research / AI Lab may display repository-continuity state and read-only M4 research-store summaries, but it has no mutation, lifecycle-promotion, risk, OOS-unlock or execution authority.
+
+The web runtime may operate without a local M4 research database. In that case the UI must explicitly report that the local research DB is absent while still showing the repo-backed M5 frontier and safety locks.
+
+### Reason
+The user needs phone-first visibility into ongoing research without turning the dashboard into an unsafe control plane or coupling the Linode paper runtime to research-worker persistence.
+
+### Related implementation
+- `src/eba_trader/research_dashboard.py`
+- `src/eba_trader/web_server_v2.py`
+- `web/research_ui.js`
+- `web/research_ui.css`
+
+### Status
+Accepted in PR #32.
