@@ -11,7 +11,7 @@ This list is ordered by current project priority and must be reconciled with act
 - [x] Prove with tests that a permissive order-flow gate matches the candle-only arm and that delta/CVD gates actually suppress candidate entries.
 - [x] Add a read-only Research / AI Lab PWA dashboard backed by repo continuity plus optional M4 research-store counts.
 - [x] Clarify Home carry metrics and add a read-only Fast Momentum server heartbeat with last/next scan visibility.
-- [ ] Add a deterministic ablation orchestrator that emits paired candle-only vs candle+delta/CVD experiments with identical EMA/cost parameters and dataset identity.
+- [x] Add a deterministic ablation orchestrator that emits one deduplicated candle baseline plus paired bounded candle+delta/CVD experiments with identical EMA/cost/dataset assumptions.
 - [ ] Add a CLI/workflow to materialize a real historical development feature dataset from candle CSV + verified order-flow/acquisition manifests.
 - [ ] Run controlled development ablations on real historical BTCUSDT USD-M data under identical fees/slippage/gates.
 - [ ] Compare survivors under the same development/robustness policy; do not promote from win rate alone.
@@ -69,3 +69,4 @@ This list is ordered by current project priority and must be reconciled with act
 - [x] Deterministic Binance aggregate-trade acquisition, missing-ID repair and causal candle alignment merged (#30).
 - [x] Causal feature-dataset materialization plus allowlisted candle-only/order-flow ablation adapters merged (#31).
 - [x] Research / AI Lab PWA dashboard merged (#32) with read-only research status and safety-lock visibility.
+- [x] Carry label clarification and Fast Momentum heartbeat merged (#33).
