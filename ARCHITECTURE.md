@@ -2,9 +2,13 @@
 
 ## 1. System goal
 
-EBA Trader is a research-first trading system with a persistent 24/7 runtime. The runtime must keep market data, paper positions, trade history and risk state independent of whether the browser/PWA is open.
+EBA Trader is a research-first autonomous trading system with deterministic risk control and a persistent 24/7 Linux runtime. The browser/PWA is a client; market-data state, paper positions, trade history, research evidence and safety authority live server-side.
 
-M4 adds a separate research control plane for immutable strategy versions, experiments and lifecycle evidence. Research metadata is not runtime position state and cannot bypass execution/risk gates.
+The system has three deliberately separated planes:
+
+1. **Runtime plane** — market data, paper decisions, risk, positions and trade history.
+2. **Research control plane** — immutable strategy versions, experiments, evidence, gates and M5 strategy-factory candidates.
+3. **Continuity/control-document plane** — repository state that lets new ChatGPT branches/AI sessions recover and continue the project without relying on chat memory.
 
 ## 2. Active deployment boundary
 
@@ -21,14 +25,17 @@ Akamai/Linode — Ubuntu 24.04 LTS
    |       `--> TradeLedger (SQLite)
    |
    +--> eba-runtime-api.service
-   |       `--> local API 127.0.0.1:8765
+   |       `--> 127.0.0.1:8765
    |
-   `--> HTTPS reverse proxy / public PWA
-            `--> automatic bootstrap implemented;
-                 final external smoke-test proof remains required
+   +--> eba-web.service
+   |       `--> 127.0.0.1:8000
+   |
+   `--> public HTTPS bootstrap / reverse proxy
 ```
 
-GitHub `main` is the code source of truth. Linode is the sole active backend/runtime target. Replit and Render.com are deprecated for EBA Trader backend work.
+GitHub `main` is the code source of truth. Linode is the sole active backend/runtime target. Replit and Render are deprecated backend paths.
+
+`scripts/update_linode_runtime.sh` refuses dirty runtime checkouts, resets to exact `origin/main`, installs the package, updates systemd units, restarts services, checks local API health and rolls back on runtime deployment failure. HTTPS bootstrap retries independently so a transient DNS/CA problem does not roll back an otherwise healthy runtime.
 
 ## 3. Runtime data flow
 
@@ -38,25 +45,27 @@ Binance market data
    v
 Data Engine
    |
-   +--> Feature / indicator state
-   +--> Regime / setup classification
+   +--> freshness / normalized market state
+   +--> indicators / feature state
+   +--> regime / setup classification
    |
    v
 Strategy proposal
    |
    +--> LONG
    +--> SHORT
+   +--> EXIT
    `--> NO_TRADE
    |
    v
-Deterministic Risk Engine
+Deterministic Risk Engine (veto authority)
    |
    v
 Paper Execution
    |
    +--> OPEN
-   +--> UPDATE mark / P&L / risk state
-   `--> CLOSE TP / SL / manual / rule exit
+   +--> MARK / state update
+   `--> CLOSE
    |
    v
 SQLite TradeLedger
@@ -65,9 +74,11 @@ SQLite TradeLedger
 Runtime API -> PWA positions / history / trade detail
 ```
 
-The browser is never the authoritative store for an active trade.
+Browser RAM is never the authoritative position store.
 
 ## 4. Research control plane
+
+### M4 foundation
 
 ```text
 Strategy specification
@@ -76,115 +87,215 @@ Strategy specification
 Immutable Strategy Version
    |
    v
-Experiment metadata / evidence
+Experiment Queue / Worker Lease
    |
    v
-Lifecycle gates
+Immutable Evidence / Provenance
    |
-   +--> REJECT / QUARANTINE / RETEST
-   `--> eligible next validation stage
+   v
+Development / Robustness Gates
+   |
+   +--> reject / quarantine / retest
+   `--> eligible next lifecycle state
 ```
 
-The M4 research store is separate from `TradeLedger`. Later AI strategy generation and experiment workers must write through this control plane rather than generating untracked backtest artifacts.
+The M4 research SQLite store is separate from `TradeLedger`. Generic research workers cannot mutate runtime position state and cannot silently unlock frozen OOS or execution.
 
-## 5. Core modules
+### M5 AI Strategy Factory
 
-### Data Engine
+```text
+AI / template hypothesis
+   |
+   v
+Constrained Strategy DSL
+   |
+   +--> approved feature registry
+   +--> bounded parameter family
+   +--> duplicate / near-duplicate guard
+   +--> cheap static screen
+   |
+   v
+Deterministic candidate IDs
+   |
+   v
+M4 immutable strategy version + experiment queue
+   |
+   v
+Development backtest evidence
+   |
+   v
+Survivor ranking (triage only)
+```
 
-Responsibilities:
-- normalize market data,
-- maintain freshness timestamps,
-- reject stale or malformed data,
-- expose venue-independent models.
+M5 does not accept arbitrary generated production Python as the normal strategy-generation contract.
 
-### Strategy layer
+Core modules:
 
-A strategy must return a structured proposal or `NO_TRADE`. Strategy code cannot bypass risk controls.
+- `m5_hypothesis.py`
+- `m5_features.py`
+- `m5_factory.py`
+- `m5_emitter.py`
+- `m5_family.py`
+- `m5_similarity.py`
+- `m5_selection.py`
 
-The generic strategy decision contract is `LONG`, `SHORT`, `EXIT`, `NO_TRADE`. Historical `BUY` callers are temporarily mapped to `LONG` during migration.
+## 5. Order-flow / footprint data plane
 
-The historical Spot Trend research remains a preserved research track. The current runtime strategy target is Fast Momentum / Micro Profit paper trading for BTCUSDT perpetual-futures simulation using 1m/5m inputs and both LONG/SHORT eligibility.
+Executed order flow is a separate research feature domain layered on top of raw market events:
 
-### Strategy lifecycle
+```text
+Binance aggregate trades
+   |
+   v
+Strict normalization
+   |
+   +--> aggregate trade ID
+   +--> timestamp
+   +--> price / quantity
+   `--> aggressor BUY/SELL from buyer-maker semantics
+   |
+   v
+Integrity gate
+   |
+   +--> duplicate/conflict reject
+   +--> backward-time reject
+   +--> sequence-gap accounting
+   `--> SHA-256/content-addressed cache
+   |
+   v
+Fixed causal footprint windows [start,end)
+   |
+   +--> buy volume
+   +--> sell volume
+   +--> delta / delta ratio
+   +--> CVD
+   `--> POC
+```
 
-New M4+ strategy versions follow the machine-enforced path documented in `BACKTEST_PROTOCOL.md` and `docs/M4_STRATEGY_PLATFORM_FOUNDATION.md`. Promotion requires an evidence reference and gates cannot be skipped.
+Unresolved sequence gaps are not backtest-ready. Resting order-book/LOB liquidity is not inferred from footprint; it requires a separate future snapshot/diff reconstruction pipeline with its own sequence-integrity contract.
 
-### Risk Engine
+Current enabled feature registry entries are `of_buy_volume`, `of_sell_volume`, `of_delta`, `of_delta_ratio`, `of_cvd`, and `of_poc_price`. Stacked imbalance, absorption, exhaustion and LOB depth imbalance remain disabled until implemented and validated.
 
-The Risk Engine is deterministic and has veto authority over every simulated or future live trade.
-
-### Paper Execution
-
-Paper execution must model:
-- margin,
-- leverage,
-- notional exposure,
-- entry and exit price,
-- fees,
-- slippage,
-- TP and SL,
-- liquidation distance for leveraged simulation,
-- realized and unrealized net P&L,
-- exit reason.
-
-Every OPEN / UPDATE / CLOSE must be persisted.
+## 6. Persistence boundaries
 
 ### Runtime persistence
 
-SQLite is the current single-node durable runtime store:
+Current durable single-node runtime store:
 
 `/var/lib/eba-trader/eba_trader.db`
 
-Git pulls, application upgrades, browser refreshes and service restarts must not delete trade state.
+It owns paper/runtime trade state and must survive browser refreshes, process restarts, Git pulls and server restarts.
 
 ### Research persistence
 
-M4 introduces a separate research metadata SQLite store. Development defaults to `artifacts/research/eba_research.db`; deployment of a long-running research worker may later move it to durable server state after that worker architecture is explicitly approved.
+M4/M5 research metadata uses a separate SQLite research store, defaulting in development to `artifacts/research/eba_research.db`. Long-running research deployment may later move to durable server state, but it must remain logically separate from runtime positions.
 
-### Runtime API
+### Evidence
 
-Current local API service: `eba-runtime-api.service` on `127.0.0.1:8765`.
+Strategy specs/evidence are immutable by version/content hash. Changed specifications require a new version/evidence chain.
 
-### PWA/dashboard
+## 7. Strategy lifecycle and open architecture issue
 
-The PWA is a client, not a trading engine. It displays server truth: current position, history, entry/exit, TP/SL, leverage, indicators, fees, P&L and trade-specific chart data.
+Current machine promotion path in `src/eba_trader/lifecycle.py` is:
 
-The active PWA source lives under `web/` in GitHub `main` and is served from the Linode runtime. Public HTTPS bootstrap is implemented; external phone/browser verification remains a production-proof gate.
+```text
+GENERATED
+ -> BACKTESTED
+ -> OOS_VERIFIED
+ -> ROBUSTNESS_VERIFIED
+ -> PAPER_CANDIDATE
+ -> PAPER_VERIFIED
+ -> DEMO_CANDIDATE
+ -> DEMO_VERIFIED
+ -> SHADOW_VERIFIED
+ -> MICRO_LIVE_ELIGIBLE
+ -> LIVE_ELIGIBLE
+ -> LIVE_ACTIVE
+```
 
-## 6. Deployment rules
+The desired research methodology conceptually wants robustness before opening frozen OOS. This is an acknowledged mismatch. Current code remains authoritative until a deliberate migration changes lifecycle policy and tests. Manual bypass is prohibited.
 
-- Canonical first install: `scripts/install_linode_runtime.sh`
-- Canonical update: `scripts/update_linode_runtime.sh`
-- Canonical systemd units live in `deploy/systemd/`
-- Do not create parallel Replit/Render runtime paths.
-- Do not use browser RAM as persistent trade state.
+## 8. PWA / API boundary
+
+The PWA is presentation/control UI, not the trading engine. It reads server truth for position, history, TP/SL, leverage, indicators, fees, P&L and trade-specific chart data.
+
+Canonical services:
+
+- `eba-runtime-api.service` -> local runtime API on `127.0.0.1:8765`;
+- `eba-web.service` -> web/PWA service on `127.0.0.1:8000`;
+- public HTTPS bootstrap exposes the web service externally when DNS/certificate conditions are satisfied.
+
+External phone/browser verification remains a production-proof requirement distinct from repository CI.
+
+## 9. Continuity architecture
+
+```text
+ChatGPT branch / AI agent
+   |
+   v
+AGENTS.md
+   |
+   v
+PROJECT_STATE + ARCHITECTURE + DECISIONS + TODO + HANDOFF
+   |
+   v
+actual code / tests / Git history
+   |
+   v
+work
+   |
+   v
+update code + continuity state
+   |
+   v
+Git commit / PR
+   |
+   v
+next chat / agent
+```
+
+`AGENTS.md` defines the mandatory session protocol. `scripts/check_continuity.py` and `.github/workflows/continuity.yml` ensure the required continuity surface is not removed or replaced with untouched templates.
+
+## 10. Deployment rules
+
+- Canonical install: `scripts/install_linode_runtime.sh`.
+- Canonical update: `scripts/update_linode_runtime.sh`.
+- Canonical systemd units: `deploy/systemd/`.
+- Do not create new Replit/Render runtime paths.
+- Do not use browser memory as durable trade state.
 - Do not couple research experiment metadata to runtime position persistence.
+- Do not make DNS/CA availability a reason to roll back a locally healthy runtime deployment.
 
-## 7. Safety invariants
+## 11. Safety invariants
 
 1. API keys/secrets are never committed to Git.
 2. Withdrawal permission is never required.
-3. Stale market data blocks new entries.
-4. Position/account mismatch must fail closed before future live execution.
-5. Deterministic risk controls have veto authority.
-6. Every simulated/executed trade must have an auditable record.
-7. Real order submission remains disabled until separately implemented, tested and explicitly promoted.
-8. Higher leverage is paper/aggressive-demo scope until evidence supports it.
-9. Strategy lifecycle eligibility never bypasses deterministic risk authority.
-10. Strategy version evidence is immutable; changed specs require new versions.
+3. Stale/malformed market data blocks unsafe new decisions.
+4. Deterministic risk controls have veto authority.
+5. Every simulated/future executed trade must be auditable and persistent.
+6. Real order submission remains disabled until separately implemented, tested and promoted.
+7. Strategy lifecycle evidence cannot bypass deterministic risk authority.
+8. Strategy specs/evidence are immutable; changed specs require a new version.
+9. Generic workers cannot silently open frozen OOS.
+10. AI-generated hypotheses must pass the constrained M5 validation surface.
+11. Order-flow data with unresolved integrity gaps fails closed.
+12. Development ranking is not promotion authority.
 
-## 8. Validation path
+## 12. Validation direction
+
+Current intended methodology is:
 
 ```text
 Hypothesis
-  -> Backtest / causal checks
-  -> Frozen OOS
-  -> Robustness / walk-forward / cost stress
-  -> Forward paper
-  -> Restart/recovery test
-  -> Exchange Demo execution validation
-  -> Shadow execution
-  -> Explicit micro-live eligibility gate
+ -> cheap/static screen
+ -> development backtest + costs
+ -> robustness / walk-forward / perturbation
+ -> frozen OOS (after lifecycle order is reconciled)
+ -> forward paper
+ -> restart/recovery proof
+ -> exchange Demo
+ -> shadow
+ -> explicit micro-live eligibility
 ```
 
-A profitable-looking backtest alone is not a production promotion criterion.
+A profitable-looking backtest or higher development win rate alone is not a production promotion criterion.
