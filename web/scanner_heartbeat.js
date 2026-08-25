@@ -20,7 +20,17 @@
     return `in ${seconds}s`;
   }
 
+  function renameMetric(valueId, label) {
+    const value = byId(valueId);
+    const card = value?.closest('.metric-card');
+    const heading = card?.querySelector('span');
+    if (heading) heading.textContent = label;
+  }
+
   function install() {
+    renameMetric('opportunityCount', 'Carry opportunity');
+    renameMetric('expectedNetValue', 'Carry expected net');
+
     const grid = document.querySelector('[data-screen="home"] .metric-grid');
     if (!grid || byId('scannerHeartbeatCard')) return;
     const card = document.createElement('article');
