@@ -95,7 +95,11 @@ class DevelopmentScreeningOrchestrator:
             )
 
         experiment = self._load_experiment(experiment_id)
-        if experiment["strategy_id"] != strategy_id or int(experiment["strategy_version"]) != strategy_version:
+        experiment_owner_matches = (
+            experiment["strategy_id"] == strategy_id
+            and int(experiment["strategy_version"]) == strategy_version
+        )
+        if not experiment_owner_matches:
             raise ValueError("experiment does not belong to the requested strategy version")
         if experiment["stage"] != "development_backtest":
             raise ValueError("development screening requires stage='development_backtest'")
