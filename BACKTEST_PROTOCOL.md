@@ -21,7 +21,7 @@ Use an explicit research window to develop the hypothesis. Parameter tuning must
 
 ### Stage 3 — Out-of-sample test
 
-Reserve unseen data. No parameter changes are allowed after seeing the out-of-sample result without restarting the validation cycle.
+Reserve unseen data. No parameter changes are allowed after seeing the out-of-sample result without restarting the validation cycle as a new strategy version.
 
 ### Stage 4 — Walk-forward
 
@@ -79,27 +79,55 @@ Explicitly check for:
 - ignored fees,
 - selection bias from trying many strategies and reporting only winners.
 
+## Canonical strategy lifecycle
+
+The durable strategy lifecycle is:
+
+```text
+GENERATED
+  -> BACKTESTED
+  -> OOS_VERIFIED
+  -> ROBUSTNESS_VERIFIED
+  -> PAPER_CANDIDATE
+  -> PAPER_VERIFIED
+  -> DEMO_CANDIDATE
+  -> DEMO_VERIFIED
+  -> SHADOW_VERIFIED
+  -> MICRO_LIVE_ELIGIBLE
+  -> LIVE_ELIGIBLE
+  -> LIVE_ACTIVE
+```
+
+Failure/revalidation states are `REJECTED`, `QUARANTINED`, `RETEST_REQUIRED` and `RETIRED`.
+Promotion transitions require recorded evidence and may not skip gates.
+
+The earlier shorthand `RESEARCH -> PAPER -> SHADOW -> MICRO_LIVE` remains a conceptual summary only; the lifecycle above is the machine-enforced contract for new M4+ work.
+
 ## Promotion gates
 
-A strategy may move:
+A strategy may move to `BACKTESTED` only after development evidence is persisted.
 
-`RESEARCH -> PAPER`
-only after passing out-of-sample, walk-forward and cost stress tests.
+A strategy may move to `OOS_VERIFIED` only after its frozen OOS test passes without post-open retuning.
 
-`PAPER -> SHADOW`
-only after behavior matches expected execution and risk characteristics.
+A strategy may move to `ROBUSTNESS_VERIFIED` only after walk-forward, parameter-neighborhood and cost-stress requirements pass.
 
-`SHADOW -> MICRO_LIVE`
-only after a recorded human approval and all safety checks are operational.
+A strategy may move to `PAPER_CANDIDATE` / `PAPER_VERIFIED` only after research gates pass and forward-paper behavior is recorded.
 
-`MICRO_LIVE -> larger capital`
-requires a new review. Capital is never increased automatically because of a short winning streak.
+A strategy may move to `DEMO_CANDIDATE` / `DEMO_VERIFIED` only after a separate exchange-demo execution path is tested. Paper simulation alone is not Demo verification.
+
+A strategy may move to `SHADOW_VERIFIED` only after live-market shadow behavior is reconciled without sending real orders.
+
+`MICRO_LIVE_ELIGIBLE` and later states require a recorded human approval plus all deterministic safety checks. Eligibility is not an order-submission instruction.
+
+Capital is never increased automatically because of a short winning streak.
 
 ## Failure policy
 
-A strategy is retired or returned to research when:
+A strategy is rejected, quarantined, returned to retest or retired when:
 - drawdown violates its validated envelope,
 - live/paper behavior materially diverges from backtest assumptions,
 - expected edge disappears after costs,
 - performance drift persists,
 - market structure changes invalidate the hypothesis.
+
+A changed strategy specification is a new immutable version and must restart the appropriate validation path rather than silently rewriting prior evidence.

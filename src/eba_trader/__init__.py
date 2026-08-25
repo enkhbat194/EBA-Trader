@@ -1,13 +1,17 @@
 """EBA Trader domain package.
 
-V1 is research-only by default. Real-money execution is intentionally not exposed here.
+Research and paper validation are exposed here. Real-money execution remains intentionally
+locked behind separately validated execution and lifecycle gates.
 """
 
 from .domain import Decision, ExecutionMode, MarketRegime, TradeProposal
+from .lifecycle import LifecycleTransition, StrategyLifecycle
 
 __all__ = [
     "Decision",
     "ExecutionMode",
+    "LifecycleTransition",
     "MarketRegime",
+    "StrategyLifecycle",
     "TradeProposal",
 ]

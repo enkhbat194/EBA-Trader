@@ -61,7 +61,7 @@ class RiskAssessment:
 
 
 class RiskEngine:
-    """Deterministic V1 risk gate.
+    """Deterministic baseline risk gate.
 
     This engine has veto authority over strategy and AI output. Real-money modes are
     locked unless `allow_live_execution` is deliberately changed in validated future code.
@@ -94,7 +94,7 @@ class RiskEngine:
         assert proposal.entry_price is not None
         assert proposal.stop_price is not None
 
-        unit_risk = proposal.entry_price - proposal.stop_price
+        unit_risk = abs(proposal.entry_price - proposal.stop_price)
         if unit_risk <= 0:
             return RiskAssessment(RiskStatus.DENY, ("INVALID_UNIT_RISK",))
 
@@ -102,8 +102,8 @@ class RiskEngine:
         risk_sized_quantity = risk_budget / unit_risk
 
         max_notional = context.equity * self.config.max_position_notional_pct
-        cash_capped_quantity = max_notional / proposal.entry_price
-        approved_quantity = min(risk_sized_quantity, cash_capped_quantity)
+        notional_capped_quantity = max_notional / proposal.entry_price
+        approved_quantity = min(risk_sized_quantity, notional_capped_quantity)
 
         if approved_quantity <= 0:
             return RiskAssessment(RiskStatus.DENY, ("NON_POSITIVE_QUANTITY",))

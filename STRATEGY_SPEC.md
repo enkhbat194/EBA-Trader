@@ -18,6 +18,15 @@ Every runtime strategy must return a structured proposal with:
 
 A strategy may not submit exchange orders directly.
 
+### Generic domain migration rule
+
+The generic Python domain contract now treats `LONG` and `SHORT` as first-class decisions. Historical V1 code referring to `Decision.BUY` is temporarily mapped to `LONG` for compatibility. New code must not introduce new `BUY`-only strategy paths. The compatibility alias can be removed only after historical callers and persisted legacy values have been migrated.
+
+Directional proposals must carry a valid stop/invalidation price:
+
+- LONG: `stop_price < entry_price`
+- SHORT: `stop_price > entry_price`
+
 ## Historical research library
 
 Trend Following, Mean Reversion, Breakout, Momentum and `NO_TRADE` remain valid research categories. Existing M1/M2/M3 evidence files are preserved and should be treated as historical research records.

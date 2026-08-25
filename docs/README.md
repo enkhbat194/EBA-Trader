@@ -9,6 +9,7 @@ Use this file to distinguish active runtime instructions from historical researc
 - `../RISK_POLICY.md` — current risk authority, including paper leverage rules.
 - `../STRATEGY_SPEC.md` — current LONG / SHORT / NO_TRADE strategy contract.
 - `LINODE_RUNTIME.md` — canonical server install/update/migration instructions.
+- `M4_STRATEGY_PLATFORM_FOUNDATION.md` — active strategy research-platform foundation and lifecycle/database milestone.
 
 ## Historical research/evidence docs
 

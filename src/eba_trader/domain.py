@@ -15,9 +15,19 @@ class MarketRegime(StrEnum):
 
 
 class Decision(StrEnum):
-    BUY = "buy"
+    LONG = "long"
+    SHORT = "short"
     EXIT = "exit"
     NO_TRADE = "no_trade"
+
+    # Transitional compatibility for historical V1 code. New code must use LONG.
+    BUY = "long"
+
+    @classmethod
+    def _missing_(cls, value: object) -> Decision | None:
+        if value == "buy":
+            return cls.LONG
+        return None
 
 
 class ExecutionMode(StrEnum):
@@ -44,13 +54,16 @@ class TradeProposal:
         if not 0.0 <= self.confidence <= 1.0:
             raise ValueError("confidence must be between 0 and 1")
 
-        if self.decision is Decision.BUY:
+        if self.decision in (Decision.LONG, Decision.SHORT):
             if self.entry_price is None or self.entry_price <= 0:
-                raise ValueError("BUY proposals require a positive entry_price")
+                raise ValueError("Directional proposals require a positive entry_price")
             if self.stop_price is None or self.stop_price <= 0:
-                raise ValueError("BUY proposals require a positive stop_price")
-            if self.stop_price >= self.entry_price:
-                raise ValueError("V1 long-only BUY requires stop_price < entry_price")
+                raise ValueError("Directional proposals require a positive stop_price")
+
+            if self.decision is Decision.LONG and self.stop_price >= self.entry_price:
+                raise ValueError("LONG proposals require stop_price < entry_price")
+            if self.decision is Decision.SHORT and self.stop_price <= self.entry_price:
+                raise ValueError("SHORT proposals require stop_price > entry_price")
 
         for name, value in (
             ("entry_price", self.entry_price),
