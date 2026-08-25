@@ -50,7 +50,8 @@ def _result_metrics(result: BacktestResult) -> dict[str, Any]:
         "initial_cash": result.initial_cash,
         "final_equity": result.final_equity,
         "total_return": result.total_return,
-        "annualized_return": result.annualized_return,
+        "annualized_return": _json_number(result.annualized_return),
+        "annualized_return_infinite": math.isinf(result.annualized_return),
         "benchmark_return": result.benchmark_return,
         "benchmark_max_drawdown": result.benchmark_max_drawdown,
         "benchmark_relative_return": result.benchmark_relative_return,
@@ -346,9 +347,7 @@ class EmaOrderFlowV1Adapter:
                 raise RuntimeError("order-flow feature is not available at candidate entry")
             if delta_threshold is not None and row.of_delta_ratio < delta_threshold:
                 return False
-            if cvd_threshold is not None and row.of_cvd < cvd_threshold:
-                return False
-            return True
+            return cvd_threshold is None or row.of_cvd >= cvd_threshold
 
         result = run_trend_backtest(
             candles,
