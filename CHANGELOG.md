@@ -12,6 +12,7 @@
 - Provenance-linked candle + prior-closed-footprint feature dataset materialization.
 - Allowlisted `ema_feature_baseline_v1` and `ema_orderflow_v1` M4 backtest adapters for controlled same-dataset ablations.
 - Read-only Research / AI Lab PWA tab and `/api/research/status` endpoint showing the active M5 frontier, optional M4 research-store counts, ablation readiness and safety locks.
+- Read-only Fast Momentum server heartbeat on Home using `/api/runner/status`, with LIVE/STALE/OFF state, last scan, next expected scan and interval.
 
 ### Changed
 - Repository documentation is reconciled so GitHub `main` + Linode is the single canonical runtime path.
@@ -19,7 +20,13 @@
 - USD-M futures is the default order-flow acquisition venue for the current BTCUSDT perpetual research target; Spot is an explicit alternate dataset.
 - EMA baseline backtesting now supports an optional causal entry filter while preserving historical behavior when no filter is supplied.
 - Annualized return calculation is overflow-safe for very short/high-return synthetic windows; non-finite annualized/profit-factor values are serialized as `null` plus explicit flags in evidence metrics.
-- PWA cache advances to `eba-trader-ui-v13` for the Research / AI Lab assets.
+- Ambiguous Home labels are clarified: `Current opportunity` is carry-only and becomes `Carry opportunity`; expected net is likewise carry-specific.
+- PWA cache advances to `eba-trader-ui-v14`; app patch release advances to `0.12.1 / LINODE-M6` for scanner heartbeat observability.
+
+### Operations
+- Manual production evidence on 2026-08-26 confirmed Linode consumed GitHub `main` through `050cd9be203a09aca95a152d7102fa280c397ee7`.
+- nginx + Let's Encrypt HTTPS was successfully bootstrapped at `https://eba-trader-172-236-150-62.sslip.io/` and the PWA was opened from an external iPhone.
+- Home, Scan and Settings were observed against server truth; full remaining-screen and active-position restart/recovery proof is still pending.
 
 ### Safety / research controls
 - Arbitrary AI-generated production code is not an approved M5 strategy-generation path.
@@ -28,7 +35,7 @@
 - Same-candle still-forming footprint data is not injected into candle decisions.
 - Order-flow ablation arms use the same aligned dataset and identical EMA exit/cost assumptions.
 - An order-flow adapter without an actual delta/CVD gate fails closed.
-- Research / AI Lab is observational only and has no lifecycle/risk/execution authority.
+- Research / AI Lab and scanner heartbeat are observational only and have no lifecycle/risk/execution authority.
 - Real-money Binance order submission remains locked.
 
 ---
@@ -43,6 +50,7 @@
 - PR #30: venue-aware aggregate-trade acquisition, gap repair and causal candle alignment.
 - PR #31: same-dataset candle-only/order-flow feature backtest adapters and ablation invariants.
 - PR #32: phone-first Research / AI Lab status dashboard.
+- PR #33: carry-label clarification and Fast Momentum server heartbeat observability (pending merge in current session).
 
 ### Validation
 - Relevant PR CI passed full regression, Ruff, deployment/shell checks, continuity guard and Linode runtime checks before merge where applicable.

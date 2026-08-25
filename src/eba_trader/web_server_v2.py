@@ -15,11 +15,13 @@ from .providers import CredentialEnvelope
 from .research_dashboard import build_research_status
 
 MOMENTUM_ENGINE = PersistentMomentumPaperEngine(ledger=ledger_from_env())
-APP_VERSION = "0.12.0"
-APP_RELEASE = "LINODE-M5"
-PWA_CACHE_VERSION = "eba-trader-ui-v13"
+APP_VERSION = "0.12.1"
+APP_RELEASE = "LINODE-M6"
+PWA_CACHE_VERSION = "eba-trader-ui-v14"
 APP_RELEASED_AT = "2026-08-26"
 APP_CHANGES = [
+    "Home separates carry opportunity from Fast Momentum scanner heartbeat state",
+    "Fast Momentum shows last server scan, next expected scan and stale/live heartbeat",
     "Research / AI Lab shows the current M5 frontier and experiment-store state",
     "Order-flow ablation adapters compare candle-only and candle-plus-footprint arms",
     "Linode bootstraps a public HTTPS PWA automatically with an IP-backed hostname",
@@ -224,7 +226,7 @@ def run_runner_close(payload: dict[str, Any]) -> dict[str, Any]:
 class EBAExtendedRequestHandler(base.EBARequestHandler):
     """Linode PWA server with autonomous paper scanners; real execution locked."""
 
-    server_version = "EBA-UI/0.12.0"
+    server_version = "EBA-UI/0.12.1"
 
     def do_GET(self) -> None:  # noqa: N802
         if self.path == "/api/app-info":
