@@ -4,39 +4,28 @@ _Last handoff prepared: 2026-08-26 (Asia/Ulaanbaatar)_
 
 ## What was completed
 
-- Fully read the uploaded `EBA_Chat_Branch_Repo_Continuity_Package`.
-- Audited GitHub `main`, root tree, recent commits, current architecture, lifecycle code, M5 feature registry, order-flow modules and Linode update/rollback script.
-- Installed the continuity system as PR #29 and merged it to `main` at `368679fd232a1b9ef943147361346f57c36ff01c`.
-- Added `AGENTS.md` with mandatory start/end-of-session rules for connected AI/coding sessions.
-- Added real EBA-specific `DECISIONS.md`, `TODO.md`, `CHANGELOG.md`, and `SESSION_HANDOFF.md` instead of generic templates.
-- Added `docs/CONTINUITY_PROTOCOL.md` with the new-branch bootstrap/recovery protocol.
-- Added `scripts/check_continuity.py` and `.github/workflows/continuity.yml` so the continuity surface is CI-enforced.
-- Added a PR checklist requiring state/TODO/decision/handoff verification.
-- Reconciled `PROJECT_STATE.md`, `ARCHITECTURE.md`, and stale `README.md` statements with actual code and deployment scripts.
-- Follow-up state reconciliation commit: `4d9b9df0600d6236ddf73fb157582fcc9b138195`.
-
-## Tests/checks run
-
-PR #29 passed before merge:
-
-- dedicated **Continuity guard**;
-- Python full regression suite;
-- Ruff;
-- shell syntax;
-- deployment contract;
-- Linode runtime checks.
-
-These prove repository consistency, not current external Linode/public-network state.
+- Restored project state from the repository continuity system before coding.
+- Completed PR #31 and merged it to `main` at `5443f19e93a1d1cf7f305bb212d7e744c680bba4`.
+- PR #31 added causal feature-dataset materialization plus `ema_feature_baseline_v1` and `ema_orderflow_v1` allowlisted M4 backtest adapters.
+- The two ablation arms consume the exact same aligned feature dataset and share EMA exits, next-bar execution, fees and slippage.
+- Tests prove a permissive order-flow gate reproduces the candle-only metrics and negative delta/CVD gates suppress otherwise valid entries.
+- Fixed pre-existing annualized-return overflow on very short/high-return synthetic windows and made non-finite evidence metrics JSON-safe.
+- Started PR #32 for phone-first Research / AI Lab visibility.
+- Added read-only `/api/research/status`, backed by repository continuity plus optional read-only M4 research SQLite counts.
+- Added a seventh PWA `Research` tab showing M5 focus/progress, data-plane readiness, ablation adapters/features, experiment/lifecycle counts and explicit safety locks.
+- Bumped PWA cache to `eba-trader-ui-v13` and added backend/UI contract tests.
+- PR #32 first implementation head passed full regression, Ruff, shell/deployment, Linode runtime and Continuity guard checks; continuity updates require final-head revalidation before merge.
 
 ## Current project state
 
-- GitHub `main` is the code and continuity source of truth.
-- Linode remains the sole active EBA Trader backend/runtime target.
+- GitHub `main` remains the code and continuity source of truth.
+- Linode remains the sole active backend/runtime target.
 - M4 research platform is complete.
 - M5 AI Strategy Factory is in progress.
-- M5 foundations through PR #28 are merged: constrained DSL, feature registry, deterministic candidate emission, family templates, similarity guard, cheap screening/ranking, historical aggregate-trade integrity/cache and deterministic footprint windows.
-- Enabled order-flow research features: executed buy/sell volume, delta, delta ratio, CVD, POC.
-- Stacked imbalance, absorption, exhaustion and LOB depth imbalance remain disabled/unimplemented.
+- Historical Binance USD-M aggregate-trade acquisition, gap repair, footprint windows, causal candle alignment and aligned feature-dataset materialization are implemented.
+- Candle-only and candle+delta/CVD ablation adapters are merged and tested.
+- Research / AI Lab is implemented in PR #32 but must not be called merged until final CI succeeds and the PR is merged.
+- Research / AI Lab is read-only observability; it has no lifecycle, risk, OOS-unlock or execution authority.
 - Real Binance order submission remains locked.
 - Frozen OOS automation remains locked pending lifecycle-order reconciliation.
 
@@ -63,21 +52,22 @@ Still not proven by repository CI:
 
 - Repository state is the cross-chat shared memory bridge.
 - Actual code/config/tests + Git history override stale chat memory.
-- Every meaningful connected AI/coding session must read continuity files first and write state/handoff back after work.
 - M5 uses constrained strategy DSL/schema rather than arbitrary generated Python.
 - Footprint/order flow remains an experimentally validated feature family, not assumed edge.
 - Gapped historical order-flow data fails closed.
+- Candle-only and order-flow ablation arms must share dataset/execution/cost assumptions.
 - Cheap screening/ranking has no OOS/execution promotion authority.
+- Research / AI Lab is read-only observability and may show an absent local research DB without fabricating experiment counts.
 
 ## Next exact task
 
-1. Implement deterministic historical Binance `aggTrades` downloader/pagination with request/range provenance.
-2. Implement missing aggregate-trade ID range detection and repair; only gap-free verified datasets become research-ready.
-3. Add causal footprint-to-candle alignment and boundary tests.
-4. Add an allowlisted order-flow backtest adapter through the M4 worker/control plane.
-5. Run candle-only vs candle+delta/CVD development ablations with identical fees, slippage and gates.
-6. Keep frozen OOS closed during this development work.
-7. In parallel, perform the external Linode HTTPS + restart/recovery proof.
+1. Re-run PR #32 CI after continuity updates and squash-merge it only if all checks are green.
+2. Implement a deterministic ablation orchestrator that emits paired candle-only vs candle+delta/CVD experiments with identical dataset identity, EMA parameters, fees and slippage.
+3. Add a CLI/workflow to materialize a real historical BTCUSDT USD-M development feature dataset from candle CSV + verified order-flow/acquisition manifests.
+4. Run controlled development ablations through the M4 worker/evidence/gate path.
+5. Surface real experiment counts/results automatically in Research / AI Lab when a research DB is present on the runtime used for research.
+6. Keep frozen OOS and real execution locked.
+7. In parallel, complete the external Linode HTTPS + restart/recovery proof.
 
 ## Notes for the next AI session
 
