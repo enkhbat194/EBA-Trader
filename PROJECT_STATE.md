@@ -1,7 +1,7 @@
 # EBA Trader — Project State
 
 _Last reconciled: 2026-08-26 (Asia/Ulaanbaatar)_
-_Verified through GitHub `main` PR #32 merge `931b8a7dff68c659f2fa21d4fea33c87053c5022`; scanner-heartbeat UI is in PR #33 pending merge._
+_Verified through GitHub `main` PR #33 merge `2b62f056f438c38865694d2f0aa130480926e7b2`._
 
 This is the primary cross-chat continuation summary. Actual current implementation/config/tests and Git history override stale text.
 
@@ -17,7 +17,7 @@ Operate EBA Trader as a restart-safe 24/7 Linode paper/research system, build a 
 - Current M5 frontier: deterministic candle-only vs candle+delta/CVD development ablation orchestration on verified BTCUSDT USD-M historical data.
 - Historical order-flow acquisition, missing-ID repair, causal candle alignment, feature-dataset materialization and allowlisted ablation adapters: **IMPLEMENTED / MERGED through #31**.
 - Research / AI Lab PWA: **MERGED in #32**; read-only observability only.
-- Scanner heartbeat UI: **IMPLEMENTED in PR #33 pending merge**; separates carry opportunity from Fast Momentum and exposes last/next server scan.
+- Scanner heartbeat UI: **MERGED in #33**; separates carry opportunity from Fast Momentum and exposes LIVE/STALE/OFF plus last/next server scan.
 - Real-money execution: **LOCKED**.
 - Frozen OOS automation: **LOCKED pending lifecycle-order reconciliation**.
 
@@ -50,6 +50,7 @@ Merged PRs #20-#24 provide immutable strategy versions, deterministic experiment
 - #30 venue-aware historical aggregate-trade acquisition, request/range provenance, missing-ID repair and causal closed-footprint/candle alignment.
 - #31 causal feature-dataset materialization plus allowlisted candle-only/order-flow backtest adapters on the exact same aligned feature CSV.
 - #32 phone-first Research / AI Lab PWA dashboard with read-only research status and explicit safety-lock visibility.
+- #33 carry-label clarification and read-only Fast Momentum server heartbeat observability.
 
 Enabled order-flow features: executed buy/sell volume, delta, delta ratio, CVD and POC price. Stacked imbalance, absorption, exhaustion and LOB depth imbalance remain disabled/unimplemented.
 
@@ -75,7 +76,7 @@ PR #31 provides:
 - `TradeLedger` runtime persistence is separate from M4/M5 research state.
 - Fast Momentum supports BTCUSDT perpetual paper LONG/SHORT decisions and persistent OPEN/MARK/CLOSE state/history.
 - The PWA consumes server truth rather than browser memory.
-- PR #33 adds a read-only `/api/runner/status` heartbeat presentation: LIVE/STALE/OFF, decision, last scan, next expected scan and interval. It also relabels the old ambiguous Home card as **Carry opportunity**.
+- PR #33 uses existing `/api/runner/status` data to show Fast Momentum heartbeat state, current decision, last server scan, next expected scan and interval; Home carry metrics are explicitly labelled as carry-only.
 
 ## Production proof — manual evidence on 2026-08-26
 
@@ -102,12 +103,11 @@ Desired methodology conceptually wants robustness before opening frozen OOS. Do 
 
 ## Immediate Next
 
-1. Merge PR #33 after final CI/continuity validation.
-2. Add a deterministic ablation orchestrator that emits paired candle-only vs candle+delta/CVD experiments with identical dataset/EMA/cost parameters.
-3. Add a CLI/workflow to materialize the real development feature dataset from candle CSV + verified order-flow/acquisition manifests.
-4. Run controlled BTCUSDT USD-M development ablations through M4 evidence/gates.
-5. Persist/rank survivors only for triage; do not open frozen OOS from ranking results.
-6. In parallel, finish the remaining production smoke/restart-recovery proof.
+1. Add a deterministic ablation orchestrator that emits paired candle-only vs candle+delta/CVD experiments with identical dataset/EMA/cost parameters.
+2. Add a CLI/workflow to materialize the real development feature dataset from candle CSV + verified order-flow/acquisition manifests.
+3. Run controlled BTCUSDT USD-M development ablations through M4 evidence/gates.
+4. Persist/rank survivors only for triage; do not open frozen OOS from ranking results.
+5. In parallel, finish the remaining production smoke/restart-recovery proof.
 
 ## Important constraints
 
@@ -127,8 +127,8 @@ Desired methodology conceptually wants robustness before opening frozen OOS. Do 
 ## Validation status
 
 - PRs #29-#32 passed their full regression/Ruff/deployment/runtime/continuity gates before merge.
-- PR #33 first implementation head passed Continuity guard, Linode runtime checks and Linode production bundle; final continuity head must be revalidated before merge.
-- External HTTPS/latest-main proof is now manually established as described above; restart-recovery proof remains open.
+- PR #33 final head passed Continuity guard, Linode runtime checks and Linode production bundle before squash merge at `2b62f056f438c38865694d2f0aa130480926e7b2`.
+- External HTTPS/latest-main proof is manually established as described above; restart-recovery proof remains open.
 
 ## Continuity system
 
