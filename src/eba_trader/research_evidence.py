@@ -122,23 +122,10 @@ class ResearchEvidenceStore:
         manifest_json = canonical_json(manifest)
         artifact_sha256 = sha256_text(manifest_json)
         evidence_id = f"ev_{artifact_sha256[:24]}"
-        experiment_dir = self.evidence_dir / experiment_id
-        experiment_dir.mkdir(parents=True, exist_ok=True)
-        output = experiment_dir / f"{evidence_id}.json"
-        if output.exists():
-            existing = output.read_text(encoding="utf-8")
-            if existing != manifest_json:
-                raise RuntimeError("immutable evidence artifact collision")
-        else:
-            temporary = experiment_dir / f".{evidence_id}.{os.getpid()}.tmp"
-            temporary.write_text(manifest_json, encoding="utf-8")
-            temporary.replace(output)
-
         record = {
             "evidence_id": evidence_id,
             "experiment_id": experiment_id,
             "evidence_type": "backtest",
-            "artifact_path": str(output),
             "artifact_sha256": artifact_sha256,
             "dataset_ref": str(dataset.get("ref", "")) or None,
             "dataset_sha256": str(dataset.get("sha256", "")) or None,
@@ -158,14 +145,41 @@ class ResearchEvidenceStore:
                 raise ValueError(f"manifest {required} is required")
 
         with self.store._connection() as connection:
-            existing = connection.execute(
+            experiment = connection.execute(
+                "SELECT 1 FROM experiment_runs WHERE experiment_id = ?",
+                (experiment_id,),
+            ).fetchone()
+            if experiment is None:
+                raise KeyError(f"unknown experiment for evidence: {experiment_id}")
+            existing_record = connection.execute(
                 "SELECT * FROM evidence_records WHERE evidence_id = ?",
                 (evidence_id,),
             ).fetchone()
-            if existing is not None:
-                if existing["artifact_sha256"] != artifact_sha256:
-                    raise RuntimeError("immutable evidence DB collision")
-            else:
+            if (
+                existing_record is not None
+                and existing_record["artifact_sha256"] != artifact_sha256
+            ):
+                raise RuntimeError("immutable evidence DB collision")
+
+        experiment_dir = self.evidence_dir / experiment_id
+        experiment_dir.mkdir(parents=True, exist_ok=True)
+        output = experiment_dir / f"{evidence_id}.json"
+        if output.exists():
+            existing_artifact = output.read_text(encoding="utf-8")
+            if existing_artifact != manifest_json:
+                raise RuntimeError("immutable evidence artifact collision")
+        else:
+            temporary = experiment_dir / f".{evidence_id}.{os.getpid()}.tmp"
+            temporary.write_text(manifest_json, encoding="utf-8")
+            temporary.replace(output)
+
+        record["artifact_path"] = str(output)
+        with self.store._connection() as connection:
+            existing_record = connection.execute(
+                "SELECT * FROM evidence_records WHERE evidence_id = ?",
+                (evidence_id,),
+            ).fetchone()
+            if existing_record is None:
                 connection.execute(
                     """
                     INSERT INTO evidence_records(
