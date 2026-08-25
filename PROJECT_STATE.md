@@ -1,7 +1,7 @@
 # EBA Trader — Project State
 
 _Last reconciled: 2026-08-26 (Asia/Ulaanbaatar)_
-_Verified through GitHub `main` PR #33 merge `2b62f056f438c38865694d2f0aa130480926e7b2`._
+_Verified through GitHub `main` PR #33 merge `2b62f056f438c38865694d2f0aa130480926e7b2`; deterministic ablation orchestrator is implemented in PR #34 pending merge._
 
 This is the primary cross-chat continuation summary. Actual current implementation/config/tests and Git history override stale text.
 
@@ -14,10 +14,11 @@ Operate EBA Trader as a restart-safe 24/7 Linode paper/research system, build a 
 - Research platform: **M4 COMPLETE**.
 - AI Strategy Factory: **M5 IN PROGRESS**.
 - Continuity system: **INSTALLED / ENFORCED IN CI**.
-- Current M5 frontier: deterministic candle-only vs candle+delta/CVD development ablation orchestration on verified BTCUSDT USD-M historical data.
+- Current M5 frontier: materialize a real BTCUSDT USD-M development feature dataset, then execute the deterministic candle-only vs delta/CVD ablation batch through M4.
 - Historical order-flow acquisition, missing-ID repair, causal candle alignment, feature-dataset materialization and allowlisted ablation adapters: **IMPLEMENTED / MERGED through #31**.
+- Deterministic ablation orchestration: **IMPLEMENTED in PR #34 pending merge**.
 - Research / AI Lab PWA: **MERGED in #32**; read-only observability only.
-- Scanner heartbeat UI: **MERGED in #33**; separates carry opportunity from Fast Momentum and exposes LIVE/STALE/OFF plus last/next server scan.
+- Scanner heartbeat UI: **MERGED in #33**.
 - Real-money execution: **LOCKED**.
 - Frozen OOS automation: **LOCKED pending lifecycle-order reconciliation**.
 
@@ -49,48 +50,56 @@ Merged PRs #20-#24 provide immutable strategy versions, deterministic experiment
 - #28 historical Binance aggregate-trade normalization/cache, sequence/integrity gate and deterministic footprint windows.
 - #30 venue-aware historical aggregate-trade acquisition, request/range provenance, missing-ID repair and causal closed-footprint/candle alignment.
 - #31 causal feature-dataset materialization plus allowlisted candle-only/order-flow backtest adapters on the exact same aligned feature CSV.
-- #32 phone-first Research / AI Lab PWA dashboard with read-only research status and explicit safety-lock visibility.
-- #33 carry-label clarification and read-only Fast Momentum server heartbeat observability.
+- #32 phone-first Research / AI Lab PWA dashboard.
+- #33 carry-label clarification and Fast Momentum heartbeat observability.
+- #34 deterministic one-control-to-many-treatment order-flow ablation orchestration is under final validation/merge.
 
 Enabled order-flow features: executed buy/sell volume, delta, delta ratio, CVD and POC price. Stacked imbalance, absorption, exhaustion and LOB depth imbalance remain disabled/unimplemented.
 
 ## Current implementation reality
 
-### M5 Strategy Factory
+### M5 Strategy Factory and ablation
 
-AI hypotheses are constrained structured data. Unknown/disabled features fail closed. Parameter fan-out is bounded and candidates are deterministically identified/emitted into the M4 research store/queue. Cheap screening and ranking are triage only and carry no lifecycle promotion authority.
+AI hypotheses are constrained structured data. Unknown/disabled features fail closed. Parameter fan-out is bounded and candidates are deterministically identified/emitted into the M4 research store/queue.
+
+PR #34 adds `M5OrderFlowAblationOrchestrator`:
+
+- one deduplicated `ema_feature_baseline_v1` control experiment;
+- bounded deterministic `ema_orderflow_v1` treatment variants;
+- exact shared dataset identity, symbol/time window, EMA parameters, initial capital, fees, slippage and trade-start semantics;
+- only delta-ratio/CVD gate parameters may differ;
+- treatment fan-out capped at 64;
+- duplicate, empty or non-finite gates fail closed;
+- gate input ordering does not alter deterministic batch identity;
+- fixed stage `m5_orderflow_ablation_dev`; no OOS or lifecycle-promotion authority.
 
 ### Order flow / footprint
 
-Footprint is derived from raw executed market events, not chart pixels. Binance aggregate-trade buyer-maker semantics are normalized into aggressor BUY/SELL. Historical datasets are content-addressed and validated for duplicate/conflicting IDs, timestamp ordering, file hash and sequence gaps. Unresolved gaps are not backtest-ready.
+Footprint is derived from raw executed market events, not chart pixels. Historical datasets are content-addressed and validated for duplicate/conflicting IDs, timestamp ordering, file hash and sequence gaps. Unresolved gaps are not backtest-ready.
 
-USD-M Futures is the default venue for the current BTCUSDT perpetual research target. Closed footprint `[t-step,t)` is available to the candle opening at `t`; still-forming same-candle flow is never injected into that decision.
-
-PR #31 provides:
-- `ema_feature_baseline_v1` — candle-only control on the same aligned feature dataset;
-- `ema_orderflow_v1` — EMA crossover with causal `of_delta_ratio` and/or `of_cvd` entry gates.
+USD-M Futures is the default venue for BTCUSDT perpetual research. Closed footprint `[t-step,t)` is available to the candle opening at `t`; still-forming same-candle flow is never injected into that decision.
 
 ### Runtime / PWA
 
 - Fast Momentum runs server-side every ~15 seconds and remains paper-only.
 - `TradeLedger` runtime persistence is separate from M4/M5 research state.
-- Fast Momentum supports BTCUSDT perpetual paper LONG/SHORT decisions and persistent OPEN/MARK/CLOSE state/history.
+- Fast Momentum supports persistent OPEN/MARK/CLOSE state/history.
 - The PWA consumes server truth rather than browser memory.
-- PR #33 uses existing `/api/runner/status` data to show Fast Momentum heartbeat state, current decision, last server scan, next expected scan and interval; Home carry metrics are explicitly labelled as carry-only.
+- Research / AI Lab and scanner heartbeat are read-only observability.
 
 ## Production proof — manual evidence on 2026-08-26
 
-Confirmed from the user's iPhone/Linode console:
+Confirmed:
 
 - Linode checkout consumed GitHub `main` through state commit `050cd9be203a09aca95a152d7102fa280c397ee7`.
-- nginx + Certbot successfully configured `eba-trader-172-236-150-62.sslip.io`.
+- nginx + Certbot configured `eba-trader-172-236-150-62.sslip.io`.
 - External iPhone access to the HTTPS PWA succeeded.
 - Home, Scan and Settings displayed live server state; Binance Demo connection and Fast Paper scanner were observed operating.
 
 Still unproven:
 
 - complete smoke test of Chart / Positions / History / Research / trade detail;
-- a real service/server restart while a Fast Momentum paper position is open, followed by recovery and later MARK/CLOSE;
+- active Fast Momentum paper position surviving a service/server restart and later MARK/CLOSE;
 - final disposition of the older carry paper engine.
 
 ## Known architecture issue
@@ -103,11 +112,11 @@ Desired methodology conceptually wants robustness before opening frozen OOS. Do 
 
 ## Immediate Next
 
-1. Add a deterministic ablation orchestrator that emits paired candle-only vs candle+delta/CVD experiments with identical dataset/EMA/cost parameters.
+1. Merge PR #34 after final continuity-head CI.
 2. Add a CLI/workflow to materialize the real development feature dataset from candle CSV + verified order-flow/acquisition manifests.
-3. Run controlled BTCUSDT USD-M development ablations through M4 evidence/gates.
+3. Run controlled BTCUSDT USD-M development ablations through M4 queue/worker/evidence/gates.
 4. Persist/rank survivors only for triage; do not open frozen OOS from ranking results.
-5. In parallel, finish the remaining production smoke/restart-recovery proof.
+5. In parallel, finish remaining production smoke/restart-recovery proof.
 
 ## Important constraints
 
@@ -121,14 +130,13 @@ Desired methodology conceptually wants robustness before opening frozen OOS. Do 
 - Spot and USD-M futures order flow are separate experiment datasets.
 - Same-candle still-forming footprint data cannot be used in candle decisions.
 - A development win-rate increase is not promotion evidence.
-- Generic research workers cannot open frozen OOS or real execution.
-- Research / AI Lab and scanner heartbeat are read-only observability and have no lifecycle/risk authority.
+- Generic research workers and ablation orchestration cannot open frozen OOS or real execution.
 
 ## Validation status
 
-- PRs #29-#32 passed their full regression/Ruff/deployment/runtime/continuity gates before merge.
-- PR #33 final head passed Continuity guard, Linode runtime checks and Linode production bundle before squash merge at `2b62f056f438c38865694d2f0aa130480926e7b2`.
-- External HTTPS/latest-main proof is manually established as described above; restart-recovery proof remains open.
+- PRs #29-#33 passed their full regression/Ruff/deployment/runtime/continuity gates before merge.
+- PR #34 core implementation head passed Continuity guard, Linode runtime checks and Linode production bundle; continuity-updated final head must pass again before merge.
+- External HTTPS/latest-main proof is manually established; restart-recovery proof remains open.
 
 ## Continuity system
 
