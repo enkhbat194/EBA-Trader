@@ -8,7 +8,7 @@ This is the authoritative cross-chat continuation record. If older chat text, ol
 
 Run EBA Trader as a restart-safe 24/7 Linode system, validate strategies with paper trading first, persist every trade, expose clear runtime state to the PWA, and keep real-money execution locked until separately proven.
 
-The M4 research control plane is now complete. The next research milestone is M5: AI Strategy Factory built on the controlled M4 interfaces rather than direct AI-to-live code.
+M4 research control plane is complete. M5 AI Strategy Factory is now in progress. M5 includes an Order Flow / Footprint research feature layer so generated strategies can be tested with executed-trade microstructure data instead of relying only on candle-derived indicators.
 
 ## Source of truth and infrastructure
 
@@ -41,107 +41,88 @@ Merged milestones:
 - PR #23 — development screening gates and immutable verdicts
 - PR #24 — bounded robustness fan-out and aggregate verdicts
 
-M4 now provides:
+M4 provides immutable strategy versions, deterministic experiment IDs, a restart-safe experiment queue, allowlisted generic backtest workers, content-addressed evidence/provenance, declarative screening gates, bounded robustness fan-out, aggregate robustness verdicts and evidence-required lifecycle transitions. Generic M4 workers do not unlock frozen OOS or execution.
 
-1. Generic strategy decisions: `LONG`, `SHORT`, `EXIT`, `NO_TRADE`; historical `Decision.BUY` remains only a temporary LONG compatibility alias.
-2. Symmetric deterministic LONG/SHORT risk sizing.
-3. Machine-enforced `StrategyLifecycle` with evidence-required promotion transitions.
-4. Separate `ResearchStore` SQLite control plane; runtime `TradeLedger` positions remain isolated.
-5. Immutable strategy versions; changed specs require a new version.
-6. Deterministic experiment IDs from strategy/version/stage/parameters/dataset.
-7. Restart-safe `ExperimentQueue` with transactional claims, worker leases, retries, max-attempt handling, expired-lease recovery and duplicate-work prevention.
-8. Fail-closed `BacktestAdapterRegistry` with initial allowlisted `ema_trend_v1` adapter wrapping the existing backtester.
-9. Exact dataset interval/window validation and default frozen first-cycle OOS block in the generic worker path.
-10. Immutable content-addressed research evidence with dataset/spec/source hashes and SQLite evidence index.
-11. `ResearchBacktestWorker` and `eba-research-worker` CLI for queue -> backtest -> evidence -> result execution.
-12. Versioned declarative `GateSet` development screening and immutable screening verdicts.
-13. Promotion from `GENERATED -> BACKTESTED` only when declared development gates pass and evidence integrity matches.
-14. Bounded `RobustnessPlan`/`RobustnessBatch` fan-out for parameter-neighborhood and fee/slippage cost-stress scenarios.
-15. Hard 250-job robustness plan cap and fixed-strategy-field override protection.
-16. Immutable aggregate robustness verdict requiring every scenario experiment to be completed and pass its declared gates.
+## M5 AI Strategy Factory — IN PROGRESS
 
-M4 deliberately does **not** unlock frozen OOS, Binance Demo order execution, shadow/live execution, or later lifecycle stages.
+### Order Flow / Footprint foundation — merged PR #25
 
-## Validation-order issue to resolve before automated OOS promotion
+Order flow is a research feature family, not a trusted signal. PR #25 adds:
 
-The current lifecycle machine is:
+1. Typed executed `TradeEvent` and aggressor-side contracts.
+2. Deterministic closed-window price-level footprint aggregation.
+3. Buy volume, sell volume, delta, delta ratio, total volume and trade count.
+4. Price-level bid/ask-style executed-flow buckets and POC (maximum traded-volume bucket).
+5. Cumulative volume delta helper.
+6. Fail-closed event/window validation and deterministic tests.
+7. Canonical `docs/M5_ORDER_FLOW_FOUNDATION.md` with anti-leakage rules and controlled ablation plan.
 
-```text
-GENERATED -> BACKTESTED -> OOS_VERIFIED -> ROBUSTNESS_VERIFIED -> ...
-```
+Planned feature expansion:
 
-The desired research workflow conceptually performs robustness checks before opening frozen OOS. M4 therefore records robustness evidence without force-promoting lifecycle state. M5/M6 must explicitly reconcile the canonical validation order before adding automated frozen-OOS orchestration. Do not bypass this by manually skipping lifecycle states.
+- stacked/diagonal imbalance candidates;
+- absorption/exhaustion candidates;
+- price/delta divergence;
+- historical trade-flow ingestion/cache with source hashes and integrity checks;
+- separately reconstructed limit-order-book depth/imbalance features after sequence integrity is proven.
 
-## Existing research/evidence core
+Footprint features are derived from raw market events, never chart pixels. Executed trade flow and resting order-book liquidity remain separate datasets. No claim is made that footprint identifies all hidden/institutional orders.
 
-- Binance public historical downloader and integrity gates exist.
-- Backtest, cost, walk-forward, regime and OOS-guard tooling exists.
-- Historical Trend V2 rejection remains valid evidence that the framework can reject weak strategies.
-- Existing historical research files are evidence, not deployment instructions.
+Required ablation comparisons include candle baseline versus baseline+delta/CVD, footprint imbalance, absorption/exhaustion, LOB imbalance and approved combined features. A higher development win rate is not sufficient; incremental value must survive fees/slippage, robustness, frozen OOS and forward paper evidence.
 
-## Linode/runtime core
+### Next M5 implementation order
+
+1. Define constrained strategy-hypothesis schema/DSL; AI outputs schema data, not arbitrary production code.
+2. Define an approved feature registry including candle and order-flow feature names.
+3. Add strategy-family templates and parameter-family generation.
+4. Add hypothesis validation and duplicate/near-duplicate detection.
+5. Generate deterministic experiment families into the M4 queue.
+6. Add historical trade-flow ingestion/cache and provenance, then connect approved footprint features to experiments.
+7. Add cheap-screen -> development-screen orchestration and survivor ranking without opening frozen OOS.
+8. Run controlled candle-vs-order-flow ablation experiments.
+9. Reconcile lifecycle validation order before separately authorized frozen-OOS orchestration.
+10. Later expand validated survivors into Verified Strategy KB, forward-paper factory, Binance Demo execution lab, Market Brain/Selector, portfolio selection and outcome/drift engine.
+
+## Validation-order issue
+
+Current lifecycle is `GENERATED -> BACKTESTED -> OOS_VERIFIED -> ROBUSTNESS_VERIFIED -> ...`, while desired research workflow conceptually performs robustness before opening frozen OOS. Do not bypass lifecycle states manually. M5/M6 must reconcile this before automated frozen-OOS promotion.
+
+## Existing runtime
 
 - Binance public market data has been observed running on Linode through NautilusTrader.
-- `eba-binance-data.service`, `eba-runtime-api.service`, and `eba-web.service` are canonical runtime services.
-- SQLite-backed `TradeLedger` exists outside the Git checkout.
-- Runtime API exposes health, positions and events.
-- `scripts/install_linode_runtime.sh` is the canonical first-install script.
-- `scripts/update_linode_runtime.sh` supports exact-main automatic deployment, health verification and rollback.
-- `eba-auto-update.timer` has been observed active and checks GitHub `main` every five minutes.
-- `scripts/bootstrap_linode_public_https.sh` attempts Nginx + Certbot HTTPS with sslip.io/nip.io fallback.
-- HTTPS failure is non-fatal to trading runtime and can be retried by deployment automation.
-
-## PWA and Fast Momentum
-
-- PWA/dashboard source is in `web/` on `main`.
-- Fast Momentum supports LONG and SHORT BTCUSDT perpetual paper decisions.
-- Fast Momentum stores OPEN / MARK / CLOSE state in SQLite through `PersistentMomentumPaperEngine`.
-- Open positions/history can be restored from SQLite after process restart in repository tests.
-- Server-side scanning can use public Binance Demo market data without requiring account secrets.
+- Canonical services are `eba-binance-data.service`, `eba-runtime-api.service`, and `eba-web.service`.
+- SQLite runtime `TradeLedger` remains separate from research state.
+- `eba-auto-update.timer` checks GitHub `main` every five minutes and exact-main deployment has health/rollback support.
+- PWA source is in `web/`.
+- Fast Momentum supports LONG/SHORT BTCUSDT perpetual paper decisions and persistent OPEN/MARK/CLOSE state.
 - Real Binance order execution remains locked.
 
 ## Production proof still pending
 
-These are **not** complete and must not be inferred from repository CI:
+Repository CI does not prove these external items:
 
-1. Confirm Linode has consumed the latest `main`.
+1. Confirm Linode consumed latest `main`.
 2. Confirm public HTTPS from an external phone/browser.
-3. Smoke-test Home / Chart / Scan / Positions / History / Settings / trade detail on the Linode-served PWA.
-4. Perform one real Linode restart/service-restart and verify Fast Momentum `OPEN -> recovery -> MARK/CLOSE` plus History persistence against the production SQLite database.
+3. Smoke-test Home / Chart / Scan / Positions / History / Settings / trade detail.
+4. Perform one real Linode restart/service-restart and verify Fast Momentum `OPEN -> recovery -> MARK/CLOSE` plus History persistence against production SQLite.
 5. Continue forward-paper evidence collection; profitability is not proven from a handful of trades.
-6. Persist/recover the older carry paper engine or retire it if Fast Momentum is the only supported paper strategy.
+6. Persist/recover the older carry paper engine or retire it.
 
-External production proof and research development may proceed independently when external Linode/phone access is unavailable, but this does not waive the proof gate.
-
-## Next research milestone — M5 AI Strategy Factory
-
-Strict implementation order:
-
-1. Define a constrained strategy-hypothesis schema/DSL; AI must output schema data, not arbitrary production code.
-2. Add strategy-family templates and parameter-family generation.
-3. Add hypothesis validation and duplicate/near-duplicate detection.
-4. Generate deterministic experiment families into the existing M4 queue.
-5. Add cheap-screen -> development-screen orchestration using existing immutable evidence/gates.
-6. Add survivor ranking without opening frozen OOS.
-7. Reconcile lifecycle validation order and then implement separately authorized frozen-OOS orchestration.
-8. Only after validated survivors exist, expand to Verified Strategy KB, forward-paper factory, Binance Demo execution lab, Market Brain/Selector, portfolio selection and outcome/drift engine.
+External production proof and research development may proceed independently, but this does not waive the proof gate.
 
 ## Safety invariants
 
 - No API secret is committed to GitHub.
 - Withdrawal permission is never required.
 - Real orders remain disabled until explicitly implemented and validated.
-- The deterministic risk layer has veto authority.
-- Server/PWA restart must not erase trade history or active Fast Momentum paper state.
-- UI state is not the source of truth; Linode/SQLite is.
-- Ports 8000 and 8765 remain loopback-only; public access goes through HTTPS reverse proxy.
-- Fast paper may use public market data; account secrets are not required for paper scanning.
-- Public Demo controls must not be reused as a real-money execution surface.
-- Strategy lifecycle eligibility cannot bypass deterministic risk authority.
-- Strategy versions are immutable; changed specs require new versions and new evidence.
-- Generic M4 workers cannot open the frozen first-cycle OOS path.
+- Deterministic risk has veto authority.
+- Runtime restart must not erase trade history or active Fast Momentum paper state.
+- UI is not the source of truth; Linode/SQLite is.
+- Public Demo controls are not a real-money execution surface.
+- Strategy versions are immutable; changed specs require new versions/evidence.
+- Generic workers cannot open frozen first-cycle OOS.
 - Robustness verdicts do not silently promote OOS/live lifecycle state.
+- Order-flow features cannot bypass lifecycle/risk gates.
 
 ## Canonical docs
 
-See `docs/LINODE_RUNTIME.md`, `docs/DEPLOYMENT_CHECKLIST.md`, `ARCHITECTURE.md`, `BACKTEST_PROTOCOL.md`, `STRATEGY_SPEC.md`, `docs/M4_STRATEGY_PLATFORM_FOUNDATION.md`, `docs/M4_EXPERIMENT_QUEUE.md`, `docs/M4_BACKTEST_WORKER_EVIDENCE.md`, `docs/M4_DEVELOPMENT_SCREENING.md`, and `docs/M4_ROBUSTNESS_FANOUT.md`. Historical M1/M2/M3 documents remain evidence records only.
+See `docs/LINODE_RUNTIME.md`, `docs/DEPLOYMENT_CHECKLIST.md`, `ARCHITECTURE.md`, `BACKTEST_PROTOCOL.md`, `STRATEGY_SPEC.md`, M4 documents under `docs/`, and `docs/M5_ORDER_FLOW_FOUNDATION.md`. Historical M1/M2/M3 documents remain evidence records only.
