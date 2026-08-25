@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from decimal import Decimal, ROUND_FLOOR
+from decimal import ROUND_FLOOR, Decimal
 from enum import StrEnum
 
 
@@ -75,7 +75,14 @@ class TradeFlowAggregator:
         if start_ms < 0 or end_ms <= start_ms:
             raise ValueError("invalid aggregation window")
         selected = [event for event in events if start_ms <= event.timestamp_ms < end_ms]
-        selected.sort(key=lambda event: (event.timestamp_ms, event.price, event.quantity, event.aggressor.value))
+        selected.sort(
+            key=lambda event: (
+                event.timestamp_ms,
+                event.price,
+                event.quantity,
+                event.aggressor.value,
+            )
+        )
 
         level_map: dict[Decimal, list[float]] = {}
         buy_volume = 0.0
@@ -120,7 +127,9 @@ class TradeFlowAggregator:
         return steps * self._bucket
 
 
-def cumulative_delta(windows: list[FootprintFeatures] | tuple[FootprintFeatures, ...]) -> tuple[float, ...]:
+def cumulative_delta(
+    windows: list[FootprintFeatures] | tuple[FootprintFeatures, ...],
+) -> tuple[float, ...]:
     running = 0.0
     output: list[float] = []
     previous_end: int | None = None
