@@ -90,6 +90,11 @@
   });
   window.EBAResearch = { refresh };
 
+  const heartbeatScript = document.createElement('script');
+  heartbeatScript.src = './scanner_heartbeat.js';
+  heartbeatScript.async = true;
+  document.head.appendChild(heartbeatScript);
+
   window.setInterval(() => {
     const screen = document.querySelector('[data-screen="research"]');
     if (screen?.classList.contains('active')) refresh();
