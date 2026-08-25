@@ -4,9 +4,9 @@ This list is ordered by current project priority and must be reconciled with act
 
 ## NOW — M5 AI Strategy Factory / Order-Flow Ablation
 
-- [ ] Add historical Binance `aggTrades` downloader with deterministic paging/range capture.
-- [ ] Add missing-range detection and repair so sequence gaps are resolved before research-ready promotion.
-- [ ] Align footprint windows causally with candle windows and prove boundary semantics with tests.
+- [x] Add historical Binance `aggTrades` downloader with deterministic paging/range capture.
+- [x] Add missing-range detection and repair so sequence gaps are resolved before research-ready promotion.
+- [x] Align footprint windows causally with candle windows and prove boundary semantics with tests.
 - [ ] Add an allowlisted order-flow backtest adapter that consumes approved footprint features through the M4 worker path.
 - [ ] Define and run controlled ablation families:
   - candle-only baseline;
@@ -63,4 +63,5 @@ This list is ordered by current project priority and must be reconciled with act
 - [x] Constrained M5 Strategy DSL, approved feature registry, deterministic candidate emission merged (#26).
 - [x] Strategy-family templates, near-duplicate guard, cheap screening and survivor ranking merged (#27).
 - [x] Historical Binance aggregate-trade normalization/cache, integrity gate and deterministic footprint windows merged (#28).
-- [x] Repository continuity system installed with mandatory agent protocol and CI guard (current continuity milestone).
+- [x] Repository continuity system installed with mandatory agent protocol and CI guard (#29).
+- [x] Deterministic Binance aggregate-trade acquisition, missing-ID repair and causal candle alignment implemented in PR #30.
