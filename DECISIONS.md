@@ -216,4 +216,22 @@ Re-running an identical baseline for every threshold wastes research capacity, w
 - `src/eba_trader/research_worker.py`
 
 ### Status
-Accepted in PR #34 pending final merge.
+Accepted and merged in PR #34.
+
+## 2026-08-26 — Real M5 BTCUSDT ablations require venue-matched USD-M candles and order flow
+
+### Decision
+The real BTCUSDT perpetual development workflow must use Binance USD-M futures candles together with Binance USD-M futures aggregate trades. A Spot candle dataset must not be paired with futures order flow. Candle acquisition must record endpoint/request provenance, exact interval coverage, immutable CSV hash and venue; the resulting feature workflow must emit an immutable content-linked manifest and an M4-safe dataset reference.
+
+### Reason
+Spot and perpetual futures prices/order flow can diverge. Mixing venues creates an uncontrolled confounder that could make the order-flow arm appear better or worse for reasons unrelated to the tested feature. A venue-matched, content-addressed pipeline keeps the ablation auditable and reproducible.
+
+### Related implementation
+- `src/eba_trader/candle_acquisition.py`
+- `src/eba_trader/m5_dataset_workflow.py`
+- `src/eba_trader/orderflow_acquisition.py`
+- `src/eba_trader/orderflow_feature_dataset.py`
+- `tests/test_m5_dataset_workflow.py`
+
+### Status
+Accepted in PR #35 pending final merge.
