@@ -1,7 +1,7 @@
 # EBA Trader — Project State
 
 _Last reconciled: 2026-08-26 (Asia/Ulaanbaatar)_
-_Verified through GitHub `main` PR #34 merge `ee5fd3f16ed5ad88ca928ced0efdb5790cbf568d`; PR #35 real USD-M feature-dataset workflow is implemented and under final validation._
+_Verified through GitHub `main` PR #35 merge `178611f535e95d61747a726b73cf7346f94358e4`; PR #36 encrypted Binance Demo credential persistence is implemented and under final validation._
 
 This is the primary cross-chat continuation summary. Actual current implementation/config/tests and Git history override stale text.
 
@@ -15,10 +15,9 @@ Operate EBA Trader as a restart-safe 24/7 Linode paper/research system, build a 
 - AI Strategy Factory: **M5 IN PROGRESS**.
 - Continuity system: **INSTALLED / ENFORCED IN CI**.
 - Deterministic order-flow ablation orchestration: **MERGED in #34**.
-- Real USD-M development feature-dataset workflow: **IMPLEMENTED in PR #35 pending final CI/merge**.
-- Next research frontier after #35: build a real BTCUSDT USD-M development dataset on Linode, then execute the deterministic candle-only vs delta/CVD ablation batch through M4.
-- Research / AI Lab PWA: **MERGED in #32**; read-only observability only.
-- Scanner heartbeat UI: **MERGED in #33**.
+- Venue-matched real USD-M development feature-dataset workflow: **MERGED in #35**.
+- Encrypted one-time Binance Demo credential persistence: **IMPLEMENTED in PR #36 pending final CI/merge**.
+- Next research frontier: build a real BTCUSDT USD-M development dataset on Linode outside frozen OOS, then execute the deterministic candle-only vs delta/CVD ablation batch through M4.
 - Real-money execution: **LOCKED**.
 - Frozen OOS automation: **LOCKED pending lifecycle-order reconciliation**.
 
@@ -53,7 +52,7 @@ Merged PRs #20-#24 provide immutable strategy versions, deterministic experiment
 - #32 phone-first Research / AI Lab PWA dashboard.
 - #33 carry-label clarification and Fast Momentum heartbeat observability.
 - #34 deterministic one-control-to-many-treatment order-flow ablation orchestration.
-- #35 adds venue-aware candle acquisition plus one-command verified USD-M candle+order-flow feature-dataset build; final merge is pending.
+- #35 venue-aware USD-M candle acquisition plus one-command verified candle+order-flow feature-dataset workflow, merge `178611f535e95d61747a726b73cf7346f94358e4`.
 
 Enabled order-flow features: executed buy/sell volume, delta, delta ratio, CVD and POC price. Stacked imbalance, absorption, exhaustion and LOB depth imbalance remain disabled/unimplemented.
 
@@ -61,48 +60,59 @@ Enabled order-flow features: executed buy/sell volume, delta, delta ratio, CVD a
 
 ### M5 Strategy Factory and ablation
 
-AI hypotheses are constrained structured data. Unknown/disabled features fail closed. Parameter fan-out is bounded and candidates are deterministically identified/emitted into the M4 research store/queue.
-
 `M5OrderFlowAblationOrchestrator` emits one deduplicated `ema_feature_baseline_v1` control and bounded deterministic `ema_orderflow_v1` treatments. All arms share dataset identity, symbol/time window, EMA parameters, initial capital, fees, slippage and trade-start semantics; only allowlisted delta/CVD thresholds differ. Fan-out is capped at 64 and the stage is fixed to development only.
 
 ### Real USD-M feature dataset workflow
 
-PR #35 prevents Spot/Futures contamination by making the real M5 pipeline venue-explicit end to end:
+PR #35 prevents Spot/Futures contamination end to end:
 
-- Binance USD-M futures candles are acquired from the futures kline endpoint with request provenance and exact interval coverage validation;
-- Binance USD-M `aggTrades` cover one prior footprint window plus the development candle range;
+- USD-M futures candles come from the futures kline endpoint with request provenance and exact interval coverage;
+- USD-M `aggTrades` cover one prior footprint window plus the development candle range;
 - aggregate-trade gaps are repaired and unresolved integrity errors fail closed;
-- candle and order-flow manifests are content-linked and hash verified;
-- closed footprint `[t-step,t)` is aligned to the candle opening at `t`;
-- `eba-build-orderflow-features` emits an immutable feature CSV/workflow manifest plus an M4-safe relative `dataset_ref`;
+- candle/order-flow manifests are content-linked and hash verified;
+- closed footprint `[t-step,t)` becomes available to the candle opening at `t`;
+- `eba-build-orderflow-features` writes immutable feature/workflow manifests plus an M4-safe relative `dataset_ref`;
 - the existing frozen-OOS guard remains authoritative.
 
-Core implementation tests, full regression, Ruff, deployment/runtime and continuity checks passed on the pre-doc-update PR #35 head. Final continuity head must be green before merge.
+### Encrypted Binance Demo credential persistence
 
-### Runtime / PWA
+PR #36 adds one-time credential storage without weakening the existing security model:
+
+- the PWA sends a Binance **Demo** API key/secret only when the user explicitly saves/replaces it;
+- the backend validates the Demo credential before writing anything;
+- successful credentials are encrypted at rest using Fernet authenticated encryption;
+- master key: `/etc/eba-trader/demo-credential.key` with mode `0600`;
+- encrypted credential blob: `/var/lib/eba-trader/credentials/binance-demo.fernet` with mode `0600`;
+- install and auto-update provision the master key once and never rotate it implicitly;
+- browser status receives only configured/masked metadata; the saved secret is never returned;
+- browser `localStorage`/`sessionStorage` are not used for credentials;
+- future app opens/server restarts may auto-connect using the encrypted server credential;
+- explicit Replace and Delete controls exist; deleting the key still leaves public-data Fast Paper available;
+- live/non-Binance credentials are rejected and real execution remains locked.
+
+Release target for PR #36 is `0.12.2 / LINODE-M7`, PWA cache `eba-trader-ui-v15`.
+
+## Runtime / PWA
 
 - Fast Momentum runs server-side every ~15 seconds and remains paper-only.
 - `TradeLedger` runtime persistence is separate from M4/M5 research state.
 - Fast Momentum supports persistent OPEN/MARK/CLOSE state/history.
-- The PWA consumes server truth rather than browser memory.
 - Research / AI Lab and scanner heartbeat are read-only observability.
-- Binance Demo API credentials are currently re-entered manually in the app; next production UX task is encrypted server-side one-time credential persistence with replace/delete controls. Secrets must never be returned to the browser or stored in browser localStorage.
+- The PWA consumes server truth rather than browser memory.
 
 ## Production proof — manual evidence on 2026-08-26
 
 Confirmed:
 
-- Linode checkout consumed GitHub `main` through state commit `050cd9be203a09aca95a152d7102fa280c397ee7`.
-- nginx + Certbot configured `eba-trader-172-236-150-62.sslip.io`.
-- External iPhone access to the HTTPS PWA succeeded.
-- Home, Scan and Settings displayed live server state.
-- History displayed persisted Fast Paper trades with entry/exit, fees and exit reasons.
-- Fast Paper trade detail displayed persisted execution facts, strategy evidence and trade chart.
-- Binance Demo connection modal is present and currently accepts optional API key/secret manually.
+- external iPhone access to the public HTTPS PWA succeeded;
+- Home, Scan and Settings displayed server-backed state;
+- History displayed persisted Fast Paper trades with entry/exit, fees and exit reasons;
+- Fast Paper trade detail displayed execution facts, strategy evidence and trade chart.
 
 Still unproven:
 
 - standalone Chart / Positions / Research screen smoke against server truth;
+- PR #36 real-Linode encrypted-save + subsequent no-paste auto-connect after deployment;
 - active Fast Momentum paper position surviving a service/server restart and later MARK/CLOSE;
 - final disposition of the older carry paper engine.
 
@@ -116,16 +126,17 @@ Desired methodology conceptually wants robustness before opening frozen OOS. Do 
 
 ## Immediate Next
 
-1. Final-CI and squash-merge PR #35.
-2. Add encrypted server-side one-time Binance Demo credential persistence; browser receives status/masked metadata only and supports explicit replace/delete.
-3. Build a real BTCUSDT USD-M development dataset on Linode outside frozen OOS using `eba-build-orderflow-features`.
-4. Run the #34 deterministic ablation batch through M4 queue/worker/evidence/gates.
+1. Final-CI and squash-merge PR #36.
+2. Add a deterministic CLI/workflow that consumes a PR #35 feature `dataset_ref`, emits a PR #34 ablation batch into the M4 research store/queue and reports machine-readable experiment IDs.
+3. Build a real BTCUSDT USD-M development dataset on Linode outside frozen OOS.
+4. Run the deterministic ablation batch through M4 queue/worker/evidence/gates.
 5. Persist/rank survivors only for triage; do not open frozen OOS from ranking results.
-6. Finish remaining production smoke/restart-recovery proof in parallel.
+6. Verify one-time encrypted Demo save/no-paste auto-connect and finish remaining production smoke/restart-recovery proof in parallel.
 
 ## Important constraints
 
 - No API secrets in Git or browser persistent storage; withdrawal permission is never required.
+- Only Binance Demo credentials may use the encrypted credential vault in this milestone.
 - Deterministic risk has veto authority.
 - Runtime state must survive Git pulls, browser refreshes and process/server restarts.
 - Strategy versions/evidence are immutable.
@@ -139,9 +150,10 @@ Desired methodology conceptually wants robustness before opening frozen OOS. Do 
 
 ## Validation status
 
-- PRs #29-#34 passed their full regression/Ruff/deployment/runtime/continuity gates before merge.
-- PR #35 pre-continuity-update head passed full regression, Ruff, Linode runtime checks, Linode production bundle and Continuity guard after two lint-only findings were fixed.
-- External HTTPS/latest-main proof is manually established; restart-recovery proof remains open.
+- PRs #29-#35 passed full regression/Ruff/deployment/runtime/continuity gates before merge.
+- PR #36 core head passed full regression, Ruff, Linode runtime checks, Linode production bundle and Continuity guard after stale contract-test and lint-only findings were corrected.
+- PR #36 continuity-updated final head must pass the same gates before merge.
+- External HTTPS/latest-main proof is manually established; active-position restart-recovery proof remains open.
 
 ## Continuity system
 

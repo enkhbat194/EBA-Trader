@@ -18,7 +18,8 @@ def test_research_screen_and_assets_are_wired_into_pwa() -> None:
     assert './research_ui.css' in service_worker
     assert './research_ui.js' in service_worker
     assert './scanner_heartbeat.js' in service_worker
-    assert "heartbeatScript.src = './scanner_heartbeat.js'" in research_js
+    assert "'./scanner_heartbeat.js'" in research_js
+    assert "'./credential_ui.js'" in research_js
     assert '/api/research/status' in research_js
     assert '/api/runner/status' in heartbeat_js
     assert "renameMetric('opportunityCount', 'Carry opportunity')" in heartbeat_js
@@ -31,8 +32,8 @@ def test_research_api_and_pwa_cache_versions_match() -> None:
     server = (ROOT / "src" / "eba_trader" / "web_server_v2.py").read_text(encoding="utf-8")
     service_worker = (ROOT / "web" / "sw.js").read_text(encoding="utf-8")
 
-    assert 'PWA_CACHE_VERSION = "eba-trader-ui-v14"' in server
-    assert "CACHE_NAME = 'eba-trader-ui-v14'" in service_worker
+    assert 'PWA_CACHE_VERSION = "eba-trader-ui-v15"' in server
+    assert "CACHE_NAME = 'eba-trader-ui-v15'" in service_worker
     assert 'self.path == "/api/research/status"' in server
     assert 'self.path == "/api/runner/status"' in server
     assert 'liveExecutionAllowed": False' in server

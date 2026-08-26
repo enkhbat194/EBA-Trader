@@ -14,25 +14,27 @@
 - Deterministic M5 order-flow ablation orchestrator: one deduplicated candle control plus bounded delta/CVD treatment variants with a deterministic pair/batch map.
 - Venue-aware Binance candle acquisition with explicit Spot/USD-M endpoints, request provenance, immutable CSV/manifest integrity and exact interval-window validation.
 - One-command `eba-build-orderflow-features` workflow for verified BTCUSDT USD-M development datasets, including prior-window aggregate trades, repair, causal alignment and an M4-safe relative `dataset_ref`.
+- Encrypted Binance Demo credential vault for one-time in-app key/secret entry, masked status, automatic reconnect, explicit replace/delete and restart persistence.
 - Read-only Research / AI Lab PWA tab and `/api/research/status` endpoint showing the active M5 frontier, optional M4 research-store counts, ablation readiness and safety locks.
 - Read-only Fast Momentum server heartbeat on Home using `/api/runner/status`, with LIVE/STALE/OFF state, last scan, next expected scan and interval.
 
 ### Changed
 - Repository documentation is reconciled so GitHub `main` + Linode is the single canonical runtime path.
 - M5 treats footprint/order-flow as an experimentally validated feature family rather than an assumed trading edge.
-- The real M5 BTCUSDT perpetual workflow now requires USD-M futures candles and USD-M futures executed order flow end to end; Spot candles are no longer acceptable for that comparison.
+- The real M5 BTCUSDT perpetual workflow requires USD-M futures candles and USD-M futures executed order flow end to end; Spot candles are not accepted for that comparison.
 - EMA baseline backtesting supports an optional causal entry filter while preserving historical behavior when no filter is supplied.
 - Annualized return calculation is overflow-safe for very short/high-return synthetic windows; non-finite annualized/profit-factor values are serialized as `null` plus explicit flags in evidence metrics.
 - M5 ablation treatment fan-out is capped at 64; duplicate/empty/non-finite gates fail closed and gate input order cannot change batch identity.
+- Binance Demo credential persistence validates credentials before disk write, stores only authenticated ciphertext at rest and never returns the saved secret to browser JavaScript.
+- Linode install and auto-update provision the Demo credential encryption key once and do not rotate it implicitly across deployments.
 - Ambiguous Home labels are clarified: `Current opportunity` is carry-only and becomes `Carry opportunity`; expected net is likewise carry-specific.
-- PWA cache advances to `eba-trader-ui-v14`; app patch release advances to `0.12.1 / LINODE-M6` for scanner heartbeat observability.
+- Credential-vault release advances to `0.12.2 / LINODE-M7` and PWA cache `eba-trader-ui-v15`.
 
 ### Operations
-- Manual production evidence on 2026-08-26 confirmed Linode consumed GitHub `main` through `050cd9be203a09aca95a152d7102fa280c397ee7`.
-- nginx + Let's Encrypt HTTPS was successfully bootstrapped at `https://eba-trader-172-236-150-62.sslip.io/` and the PWA was opened from an external iPhone.
+- Manual production evidence on 2026-08-26 confirmed public HTTPS PWA access from an external iPhone.
 - Home, Scan and Settings were observed against server truth.
 - Additional iPhone screenshots confirmed persisted Fast Paper History rows and trade-detail/chart rendering, including entry/exit, fees, exit reasons, strategy evidence and chart annotations.
-- Remaining production proof: standalone Chart / Positions / Research smoke plus an active-position restart/recovery sequence.
+- Remaining production proof: standalone Chart / Positions / Research smoke, one real encrypted-key no-paste reconnect after PR #36 deployment, plus an active-position restart/recovery sequence.
 
 ### Safety / research controls
 - Arbitrary AI-generated production code is not an approved M5 strategy-generation path.
@@ -42,10 +44,11 @@
 - Order-flow ablation arms use the same aligned dataset and identical EMA/capital/fee/slippage/trade-start assumptions.
 - M5 ablation orchestration is fixed to development stage and has no OOS/lifecycle-promotion authority.
 - The real M5 feature workflow is hard-gated to USD-M futures and still passes through the first-cycle frozen-OOS guard.
+- The credential vault accepts Binance Demo only; live/non-Binance credentials are rejected.
+- API secrets are not committed to Git and are not persisted in browser localStorage/sessionStorage.
 - An order-flow adapter without an actual delta/CVD gate fails closed.
 - Research / AI Lab and scanner heartbeat are observational only and have no lifecycle/risk/execution authority.
 - Real-money Binance order submission remains locked.
-- Planned Demo credential persistence must be encrypted server-side; API secrets must not be committed to Git or persisted in browser localStorage.
 
 ---
 
@@ -61,7 +64,9 @@
 - PR #32: phone-first Research / AI Lab status dashboard.
 - PR #33: carry-label clarification and Fast Momentum server heartbeat observability; squash merge `2b62f056f438c38865694d2f0aa130480926e7b2`.
 - PR #34: deterministic one-control-to-many-treatment order-flow ablation orchestration; squash merge `ee5fd3f16ed5ad88ca928ced0efdb5790cbf568d`.
-- PR #35: verified USD-M candle + order-flow feature-dataset workflow (pending final merge in current session).
+- PR #35: verified USD-M candle + order-flow feature-dataset workflow; squash merge `178611f535e95d61747a726b73cf7346f94358e4`.
+- PR #36: encrypted one-time Binance Demo credential persistence (pending final merge in current session).
 
 ### Validation
-- Relevant PR CI passed full regression, Ruff, deployment/shell checks, continuity guard and Linode runtime checks before merge where applicable.
+- PRs #29-#35 passed full regression, Ruff, deployment/shell checks, continuity guard and Linode runtime checks before merge.
+- PR #36 core implementation has passed the same gate set; continuity-updated final head must pass before merge.

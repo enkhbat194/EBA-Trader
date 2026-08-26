@@ -90,10 +90,12 @@
   });
   window.EBAResearch = { refresh };
 
-  const heartbeatScript = document.createElement('script');
-  heartbeatScript.src = './scanner_heartbeat.js';
-  heartbeatScript.async = true;
-  document.head.appendChild(heartbeatScript);
+  for (const src of ['./scanner_heartbeat.js', './credential_ui.js']) {
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = true;
+    document.head.appendChild(script);
+  }
 
   window.setInterval(() => {
     const screen = document.querySelector('[data-screen="research"]');

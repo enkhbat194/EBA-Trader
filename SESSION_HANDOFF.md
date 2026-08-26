@@ -5,23 +5,30 @@ _Last handoff prepared: 2026-08-26 (Asia/Ulaanbaatar)_
 ## What was completed
 
 - Restored project state from repository continuity before work.
-- PR #33 is merged at `2b62f056f438c38865694d2f0aa130480926e7b2`: Home carry metrics are explicit and Fast Momentum has read-only LIVE/STALE/OFF heartbeat, decision, last scan, next expected scan and interval.
-- PR #34 is merged at `ee5fd3f16ed5ad88ca928ced0efdb5790cbf568d`: deterministic one-control-to-many-treatment M5 order-flow ablation orchestration.
-- PR #35 implements venue-aware Binance candle acquisition plus the real USD-M M5 feature-dataset workflow.
-- The new pipeline acquires exact USD-M futures candles, acquires/repairs USD-M `aggTrades`, verifies immutable manifests/hashes, aligns prior-closed footprint features causally, writes the feature CSV and returns an M4-safe `dataset_ref`.
-- Added `eba-build-orderflow-features` as the one-command development dataset builder.
-- PR #35 prevents silent Spot-candle + futures-order-flow contamination.
-- Frozen first-cycle OOS remains blocked by the existing holdout guard; there is no execution or lifecycle-promotion authority in this workflow.
-- PR #35 full regression passed. Two Ruff-only findings (unused import and import order) were fixed; the subsequent head passed Ruff, Linode runtime checks, Linode production bundle and Continuity guard before the latest continuity updates.
-- User-provided production screenshots now additionally prove History and Fast Paper trade-detail/chart rendering from persisted server truth.
+- PR #33 merged at `2b62f056f438c38865694d2f0aa130480926e7b2`: carry labels + Fast Momentum heartbeat.
+- PR #34 merged at `ee5fd3f16ed5ad88ca928ced0efdb5790cbf568d`: deterministic one-control-to-many-treatment M5 order-flow ablation orchestration.
+- PR #35 merged at `178611f535e95d61747a726b73cf7346f94358e4`: venue-matched USD-M candle + order-flow feature-dataset workflow and `eba-build-orderflow-features` CLI.
+- Current production screenshots additionally prove persisted Fast Paper History and trade-detail/chart rendering from server truth.
+- PR #36 implements one-time Binance Demo API credential persistence:
+  - validates Demo key/secret before persistence;
+  - encrypts at rest with Fernet authenticated encryption;
+  - separates master key under `/etc/eba-trader` from ciphertext under `/var/lib/eba-trader/credentials`;
+  - uses private file permissions and atomic writes;
+  - provisions the master key on fresh install and existing Linode auto-update without implicit rotation;
+  - never returns the saved secret to the browser;
+  - never uses browser localStorage/sessionStorage for secrets;
+  - supports masked status, automatic saved-key reconnect, explicit Replace and Delete;
+  - rejects live/non-Binance credential storage;
+  - preserves public-data Fast Paper when no account key is stored.
+- PR #36 release target: `0.12.2 / LINODE-M7`, PWA cache `eba-trader-ui-v15`.
+- PR #36 full regression, Ruff, Linode runtime, production bundle and continuity checks passed on the core head. Final continuity head still requires the same final gate before merge.
 
 ## Current project state
 
 - GitHub `main` is the code/continuity source of truth; Linode is the sole active runtime target.
 - M4 research platform is complete; M5 AI Strategy Factory is in progress.
-- Order-flow acquisition, repair, causal alignment, feature adapters and deterministic ablation orchestration are implemented.
-- PR #35 is pending final continuity-head CI/merge.
-- Research / AI Lab and scanner heartbeat are read-only.
+- Historical USD-M acquisition/repair, causal feature materialization, allowlisted adapters, deterministic ablation orchestration and real feature-dataset workflow are implemented/merged through PR #35.
+- PR #36 encrypted Demo credential persistence is pending final CI/merge.
 - Real Binance order submission remains locked.
 - Automated frozen OOS remains locked pending lifecycle-order reconciliation.
 
@@ -37,30 +44,19 @@ Confirmed on 2026-08-26:
 Still pending:
 
 - standalone Chart / Positions / Research smoke;
+- after PR #36 deploys, one real encrypted credential save followed by no-paste auto-connect;
 - one active Fast Momentum paper position surviving service/server restart and later MARK/CLOSE;
 - persist/recover or explicitly retire the older carry paper engine.
 
-## New user requirement — persistent Demo credentials
-
-The Binance Demo modal currently requires re-entering API key/secret. Implement a server-side credential vault after PR #35 is merged:
-
-- user enters Demo key + secret once in the app;
-- backend stores encrypted-at-rest credentials outside Git and outside browser persistent storage;
-- browser never receives the secret back;
-- status endpoint returns only saved/connected/masked metadata;
-- explicit Replace and Delete credential actions;
-- no withdrawal permission requirement and no real-money key path;
-- service/server restarts must preserve the saved Demo credential.
-
 ## Next exact task
 
-1. Revalidate and squash-merge PR #35.
-2. Implement encrypted server-side one-time Binance Demo credential persistence with tests and phone-first UI status/replace/delete flow.
+1. Revalidate and squash-merge PR #36.
+2. Implement a deterministic real-ablation CLI/workflow that takes the PR #35 feature `dataset_ref`, creates the PR #34 baseline/treatment batch in the M4 store/queue, and emits machine-readable batch/experiment IDs.
 3. Run `eba-build-orderflow-features` on Linode for a real BTCUSDT USD-M development window outside frozen OOS.
-4. Emit the #34 deterministic ablation batch and run it through M4 queue/worker/evidence/gates.
+4. Run the ablation experiments through M4 queue/worker/evidence/gates.
 5. Compare/persist survivors for triage only; keep frozen OOS and live execution closed.
-6. Continue remaining production smoke/restart proof in parallel.
+6. Verify the one-time encrypted Demo credential UX and remaining production smoke/restart proof in parallel.
 
 ## Notes for the next AI session
 
-Read `AGENTS.md`, `PROJECT_STATE.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TODO.md`, and this file before coding. Actual code/Git overrides stale text.
+Read `AGENTS.md`, `PROJECT_STATE.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TODO.md`, and this file before coding. Actual code/Git overrides stale text. Never request that the user paste an API secret into chat; credential entry belongs in the PWA only.

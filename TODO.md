@@ -12,7 +12,7 @@ This list is ordered by current project priority and must be reconciled with act
 - [x] Add a read-only Research / AI Lab PWA dashboard backed by repo continuity plus optional M4 research-store counts.
 - [x] Clarify Home carry metrics and add a read-only Fast Momentum server heartbeat with last/next scan visibility.
 - [x] Add a deterministic ablation orchestrator that emits one deduplicated candle baseline plus paired bounded candle+delta/CVD experiments with identical EMA/cost/dataset assumptions.
-- [x] Add a venue-verified USD-M CLI/workflow that acquires exact futures candles plus verified order flow and materializes a causal development feature dataset (`eba-build-orderflow-features`); implemented in PR #35 pending merge.
+- [x] Add a venue-verified USD-M CLI/workflow that acquires exact futures candles plus verified order flow and materializes a causal development feature dataset (`eba-build-orderflow-features`); merged in PR #35 at `178611f535e95d61747a726b73cf7346f94358e4`.
 - [ ] Run the real BTCUSDT USD-M development feature build on Linode for an authorized development-only window outside frozen OOS.
 - [ ] Run controlled development ablations on the resulting real dataset under identical fees/slippage/gates.
 - [ ] Compare survivors under the same development/robustness policy; do not promote from win rate alone.
@@ -23,8 +23,9 @@ This list is ordered by current project priority and must be reconciled with act
 - [x] Verify public HTTPS PWA from an external iPhone at `https://eba-trader-172-236-150-62.sslip.io/`.
 - [x] Verify Home / Scan / Settings against server truth.
 - [x] Verify History and Fast Paper trade-detail/chart rendering against persisted server truth on 2026-08-26.
+- [x] Implement one-time Binance Demo API credential persistence in PR #36: authenticated test-before-save, encrypted Linode vault, masked status only, auto-connect after app/server restart, explicit replace/delete, no browser localStorage/sessionStorage secret persistence. Pending final merge.
 - [ ] Verify standalone Chart / Positions / Research screens against server truth.
-- [ ] Add one-time Binance Demo API credential persistence: encrypted server-side storage, secret never returned to browser, explicit replace/delete controls, no browser localStorage secret persistence.
+- [ ] After PR #36 deploys, enter the Binance Demo key/secret once in the PWA and verify encrypted save + subsequent no-paste auto-connect on the real Linode runtime.
 - [ ] Perform one real service/server restart and prove Fast Momentum `OPEN -> recovery -> MARK/CLOSE` persistence in production SQLite.
 - [ ] Decide whether to persist/recover the older carry paper engine or retire it explicitly.
 
@@ -75,3 +76,4 @@ This list is ordered by current project priority and must be reconciled with act
 - [x] Research / AI Lab PWA dashboard merged (#32) with read-only research status and safety-lock visibility.
 - [x] Carry label clarification and Fast Momentum heartbeat merged (#33).
 - [x] Deterministic one-control-to-many-treatment ablation orchestration merged (#34).
+- [x] Venue-matched real USD-M candle + order-flow feature-dataset workflow merged (#35).

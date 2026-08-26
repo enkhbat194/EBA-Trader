@@ -2,8 +2,11 @@
 set -euo pipefail
 
 REPO_DIR="/opt/Eba-Trader"
+ENV_DIR="/etc/eba-trader"
 STATE_DIR="/var/lib/eba-trader"
 DEPLOY_STATE="$STATE_DIR/deploy-state"
+CREDENTIAL_DIR="$STATE_DIR/credentials"
+CREDENTIAL_KEY="$ENV_DIR/demo-credential.key"
 DATA_SERVICE="eba-binance-data.service"
 API_SERVICE="eba-runtime-api.service"
 WEB_SERVICE="eba-web.service"
@@ -19,7 +22,8 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 cd "$REPO_DIR"
-mkdir -p "$STATE_DIR" "$DEPLOY_STATE"
+mkdir -p "$ENV_DIR" "$STATE_DIR" "$DEPLOY_STATE" "$CREDENTIAL_DIR"
+chmod 700 "$ENV_DIR" "$CREDENTIAL_DIR"
 chmod 750 "$STATE_DIR" "$DEPLOY_STATE"
 
 # Never deploy over local edits: a dirty runtime checkout is unsafe to auto-reset.
@@ -78,6 +82,23 @@ fi
 . .venv/bin/activate
 python -m pip install --upgrade --quiet pip
 python -m pip install --quiet -e '.[trading]'
+
+# Provision the encryption key once. Never rotate it implicitly during deploys because
+# existing encrypted Demo credentials must remain decryptable across updates/restarts.
+if [[ ! -f "$CREDENTIAL_KEY" ]]; then
+  CREDENTIAL_KEY="$CREDENTIAL_KEY" python - <<'PY'
+import os
+from pathlib import Path
+
+from cryptography.fernet import Fernet
+
+path = Path(os.environ["CREDENTIAL_KEY"])
+fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+with os.fdopen(fd, "wb") as handle:
+    handle.write(Fernet.generate_key() + b"\n")
+PY
+fi
+chmod 600 "$CREDENTIAL_KEY"
 
 install -m 0644 deploy/systemd/eba-binance-data.service "/etc/systemd/system/$DATA_SERVICE"
 install -m 0644 deploy/systemd/eba-runtime-api.service "/etc/systemd/system/$API_SERVICE"

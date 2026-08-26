@@ -10,28 +10,42 @@ from typing import Any
 
 from . import web_server as base
 from .autonomous_runner import AutonomousDemoRunner
+from .credential_vault import (
+    DEFAULT_KEY_PATH,
+    DEFAULT_VAULT_PATH,
+    CredentialVaultError,
+    DemoCredentialVault,
+)
 from .persistent_momentum import PersistentMomentumPaperEngine, ledger_from_env
 from .providers import CredentialEnvelope
 from .research_dashboard import build_research_status
 
 MOMENTUM_ENGINE = PersistentMomentumPaperEngine(ledger=ledger_from_env())
-APP_VERSION = "0.12.1"
-APP_RELEASE = "LINODE-M6"
-PWA_CACHE_VERSION = "eba-trader-ui-v14"
+APP_VERSION = "0.12.2"
+APP_RELEASE = "LINODE-M7"
+PWA_CACHE_VERSION = "eba-trader-ui-v15"
 APP_RELEASED_AT = "2026-08-26"
 APP_CHANGES = [
+    "Binance Demo API credentials can be entered once and saved encrypted on Linode",
+    "Saved Demo secrets never return to the browser and can be replaced or deleted explicitly",
     "Home separates carry opportunity from Fast Momentum scanner heartbeat state",
     "Fast Momentum shows last server scan, next expected scan and stale/live heartbeat",
     "Research / AI Lab shows the current M5 frontier and experiment-store state",
     "Order-flow ablation adapters compare candle-only and candle-plus-footprint arms",
     "Linode bootstraps a public HTTPS PWA automatically with an IP-backed hostname",
-    "Fast Momentum paper runs from public Binance Demo market data even without account secrets",
     "Fast Momentum OPEN, MARK and CLOSE state remains restart-safe in SQLite",
     "LONG and SHORT remain symmetric paper directions; real execution remains locked",
 ]
 
 
-def _server_demo_credentials() -> CredentialEnvelope | None:
+def _demo_credential_vault() -> DemoCredentialVault:
+    return DemoCredentialVault(
+        key_path=os.getenv("EBA_DEMO_CREDENTIAL_KEY_FILE", str(DEFAULT_KEY_PATH)),
+        vault_path=os.getenv("EBA_DEMO_CREDENTIAL_VAULT_FILE", str(DEFAULT_VAULT_PATH)),
+    )
+
+
+def _legacy_env_demo_credentials() -> CredentialEnvelope | None:
     api_key = (
         os.getenv("EBA_BINANCE_DEMO_API_KEY", "").strip()
         or os.getenv("BINANCE_DEMO_API_KEY", "").strip()
@@ -43,6 +57,16 @@ def _server_demo_credentials() -> CredentialEnvelope | None:
     if not api_key or not api_secret:
         return None
     return CredentialEnvelope(api_key=api_key, api_secret=api_secret)
+
+
+def _server_demo_credentials() -> CredentialEnvelope | None:
+    vault = _demo_credential_vault()
+    if vault.exists():
+        try:
+            return vault.load()
+        except CredentialVaultError:
+            return None
+    return _legacy_env_demo_credentials()
 
 
 def _build_sha() -> str:
@@ -88,11 +112,41 @@ RUNNER = AutonomousDemoRunner(
 
 
 def _credential_status() -> dict[str, Any]:
-    configured = _server_demo_credentials() is not None
+    vault = _demo_credential_vault()
+    if vault.exists():
+        try:
+            status = vault.status()
+        except CredentialVaultError as exc:
+            return {
+                "ok": False,
+                "configured": False,
+                "credentialMode": "encrypted_vault_error",
+                "message": str(exc),
+                "fastPaperAvailable": True,
+                "fastMarketDataMode": "public_demo",
+                "fastFeeMode": "conservative_fallback",
+                "runtime": "linode",
+                "liveExecutionAllowed": False,
+            }
+        return {
+            "ok": True,
+            "configured": status.configured,
+            "credentialMode": "encrypted_server_vault",
+            "maskedApiKey": status.masked_api_key,
+            "fastPaperAvailable": True,
+            "fastMarketDataMode": "authenticated_demo",
+            "fastFeeMode": "account_commission_with_fallback",
+            "runtime": "linode",
+            "liveExecutionAllowed": False,
+        }
+
+    legacy = _legacy_env_demo_credentials()
+    configured = legacy is not None
     return {
         "ok": True,
         "configured": configured,
-        "credentialMode": "server_secret" if configured else "optional_for_fast_paper",
+        "credentialMode": "legacy_server_env" if configured else "optional_for_fast_paper",
+        "maskedApiKey": "••••••••" if configured else None,
         "fastPaperAvailable": True,
         "fastMarketDataMode": "authenticated_demo" if configured else "public_demo",
         "fastFeeMode": (
@@ -133,14 +187,16 @@ def _research_status() -> dict[str, Any]:
 
 def run_server_autoconnect() -> dict[str, Any]:
     credentials = _server_demo_credentials()
+    status = _credential_status()
     if credentials is None:
         return {
             "ok": False,
             "configured": False,
             "state": "not_configured",
-            "message": (
+            "message": status.get(
+                "message",
                 "Binance Demo account secret is not configured; "
-                "Fast paper still runs from public Demo market data"
+                "Fast paper still runs from public Demo market data",
             ),
             "fastPaperAvailable": True,
             "liveExecutionAllowed": False,
@@ -157,9 +213,77 @@ def run_server_autoconnect() -> dict[str, Any]:
         session_store=base.DEMO_SESSIONS,
     )
     result["configured"] = True
-    result["credentialMode"] = "server_secret"
+    result["credentialMode"] = status["credentialMode"]
+    result["maskedApiKey"] = status.get("maskedApiKey")
     result["runtime"] = "linode"
     return result
+
+
+def run_save_demo_credentials(payload: dict[str, Any]) -> dict[str, Any]:
+    if payload.get("provider", "binance") != "binance":
+        raise ValueError("only Binance Demo credentials can be saved")
+    if payload.get("environment", "demo") != "demo":
+        raise ValueError("live credentials cannot be saved")
+    credentials_raw = payload.get("credentials")
+    if not isinstance(credentials_raw, dict):
+        raise ValueError("credentials object is required")
+    api_key = str(credentials_raw.get("apiKey", "")).strip()
+    api_secret = str(credentials_raw.get("apiSecret", "")).strip()
+    if not api_key or not api_secret:
+        raise ValueError("Binance Demo API key and secret are required")
+    if len(api_key) > 512 or len(api_secret) > 512:
+        raise ValueError("Binance Demo credential is too long")
+
+    credentials = CredentialEnvelope(api_key=api_key, api_secret=api_secret)
+    test_result = base.run_connection_test(
+        {
+            "provider": "binance",
+            "environment": "demo",
+            "credentials": {"apiKey": api_key, "apiSecret": api_secret},
+        }
+    )
+    if not test_result.get("ok"):
+        test_result["saved"] = False
+        test_result["configured"] = _credential_status().get("configured", False)
+        test_result["liveExecutionAllowed"] = False
+        return test_result
+
+    saved = _demo_credential_vault().save(credentials)
+    session_token = base.DEMO_SESSIONS.create(credentials)
+    test_result.update(
+        {
+            "saved": True,
+            "configured": True,
+            "credentialMode": "encrypted_server_vault",
+            "maskedApiKey": saved.masked_api_key,
+            "sessionToken": session_token,
+            "runtime": "linode",
+            "liveExecutionAllowed": False,
+        }
+    )
+    return test_result
+
+
+def run_delete_demo_credentials(payload: dict[str, Any]) -> dict[str, Any]:
+    if payload.get("confirm") is not True:
+        raise ValueError("confirm=true is required to delete saved Demo credentials")
+    token = str(payload.get("sessionToken", "")).strip()
+    if token:
+        MOMENTUM_ENGINE.clear(token)
+        base.PAPER_ENGINE.clear(token)
+        base.DEMO_SESSIONS.revoke(token)
+    deleted = _demo_credential_vault().delete()
+    status = _credential_status()
+    return {
+        **status,
+        "deleted": deleted,
+        "message": (
+            "Encrypted Binance Demo credential deleted"
+            if deleted
+            else "No encrypted Binance Demo credential was stored"
+        ),
+        "liveExecutionAllowed": False,
+    }
 
 
 def _session_credentials(payload: dict[str, Any]) -> tuple[str, CredentialEnvelope]:
@@ -226,7 +350,7 @@ def run_runner_close(payload: dict[str, Any]) -> dict[str, Any]:
 class EBAExtendedRequestHandler(base.EBARequestHandler):
     """Linode PWA server with autonomous paper scanners; real execution locked."""
 
-    server_version = "EBA-UI/0.12.1"
+    server_version = "EBA-UI/0.12.2"
 
     def do_GET(self) -> None:  # noqa: N802
         if self.path == "/api/app-info":
@@ -236,7 +360,9 @@ class EBAExtendedRequestHandler(base.EBARequestHandler):
             self._json_response(HTTPStatus.OK, _research_status())
             return
         if self.path == "/api/demo/credential-status":
-            self._json_response(HTTPStatus.OK, _credential_status())
+            status = _credential_status()
+            code = HTTPStatus.OK if status.get("ok") else HTTPStatus.SERVICE_UNAVAILABLE
+            self._json_response(code, status)
             return
         if self.path == "/api/runner/status":
             self._json_response(HTTPStatus.OK, RUNNER.status())
@@ -246,6 +372,8 @@ class EBAExtendedRequestHandler(base.EBARequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         extended_paths = {
             "/api/demo/autoconnect",
+            "/api/demo/credentials/save",
+            "/api/demo/credentials/delete",
             "/api/momentum/step",
             "/api/momentum/state",
             "/api/momentum/close",
@@ -264,6 +392,10 @@ class EBAExtendedRequestHandler(base.EBARequestHandler):
             payload = self._read_json_payload()
             if self.path == "/api/demo/autoconnect":
                 result = run_server_autoconnect()
+            elif self.path == "/api/demo/credentials/save":
+                result = run_save_demo_credentials(payload)
+            elif self.path == "/api/demo/credentials/delete":
+                result = run_delete_demo_credentials(payload)
             elif self.path == "/api/momentum/step":
                 result = run_momentum_step(payload)
             elif self.path == "/api/momentum/state":
@@ -285,6 +417,12 @@ class EBAExtendedRequestHandler(base.EBARequestHandler):
         except (json.JSONDecodeError, ValueError) as exc:
             self._json_response(
                 HTTPStatus.BAD_REQUEST,
+                {"ok": False, "message": str(exc), "liveExecutionAllowed": False},
+            )
+            return
+        except CredentialVaultError as exc:
+            self._json_response(
+                HTTPStatus.SERVICE_UNAVAILABLE,
                 {"ok": False, "message": str(exc), "liveExecutionAllowed": False},
             )
             return

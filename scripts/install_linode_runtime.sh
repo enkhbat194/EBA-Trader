@@ -4,6 +4,8 @@ set -euo pipefail
 REPO_DIR="/opt/Eba-Trader"
 ENV_DIR="/etc/eba-trader"
 STATE_DIR="/var/lib/eba-trader"
+CREDENTIAL_DIR="$STATE_DIR/credentials"
+CREDENTIAL_KEY="$ENV_DIR/demo-credential.key"
 DATA_SERVICE="eba-binance-data.service"
 API_SERVICE="eba-runtime-api.service"
 WEB_SERVICE="eba-web.service"
@@ -22,9 +24,24 @@ python3 -m venv .venv
 python -m pip install --upgrade pip
 python -m pip install -e '.[trading]'
 
-mkdir -p "$ENV_DIR" "$STATE_DIR" "$STATE_DIR/deploy-state"
-chmod 700 "$ENV_DIR"
+mkdir -p "$ENV_DIR" "$STATE_DIR" "$STATE_DIR/deploy-state" "$CREDENTIAL_DIR"
+chmod 700 "$ENV_DIR" "$CREDENTIAL_DIR"
 chmod 750 "$STATE_DIR" "$STATE_DIR/deploy-state"
+
+if [[ ! -f "$CREDENTIAL_KEY" ]]; then
+  CREDENTIAL_KEY="$CREDENTIAL_KEY" python - <<'PY'
+import os
+from pathlib import Path
+
+from cryptography.fernet import Fernet
+
+path = Path(os.environ["CREDENTIAL_KEY"])
+fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+with os.fdopen(fd, "wb") as handle:
+    handle.write(Fernet.generate_key() + b"\n")
+PY
+fi
+chmod 600 "$CREDENTIAL_KEY"
 
 if [[ ! -f "$ENV_DIR/eba-trader.env" ]]; then
   cat > "$ENV_DIR/eba-trader.env" <<'EOF'
@@ -40,8 +57,9 @@ EBA_RUNTIME_API_PORT=8765
 EBA_WEB_HOST=127.0.0.1
 EBA_WEB_PORT=8000
 
-# Optional Binance Demo credentials for Fast Momentum paper scanning.
-# Enter these once on the server. The browser never receives the secret.
+# Browser-entered Binance Demo credentials are encrypted at rest using
+# /etc/eba-trader/demo-credential.key and stored under /var/lib/eba-trader/credentials.
+# Legacy environment credentials remain optional fallback only.
 # BINANCE_DEMO_API_KEY=...
 # BINANCE_DEMO_API_SECRET=...
 EOF
