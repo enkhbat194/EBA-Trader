@@ -42,6 +42,8 @@ jobs:
         run: |
           bash -n scripts/install_linode_runtime.sh
           bash -n scripts/update_linode_runtime.sh
+          bash -n scripts/auto_update_entrypoint.sh
+          bash -n scripts/repair_linode_auto_update.sh
           bash -n scripts/configure_linode_https.sh
           bash -n scripts/bootstrap_linode_public_https.sh
 
@@ -50,6 +52,9 @@ jobs:
           test -f deploy/systemd/eba-auto-update.service
           test -f deploy/systemd/eba-auto-update.timer
           grep -q 'OnUnitActiveSec=5min' deploy/systemd/eba-auto-update.timer
+          grep -q 'auto_update_entrypoint.sh' deploy/systemd/eba-auto-update.service
+          grep -q 'last_error' scripts/auto_update_entrypoint.sh
+          grep -q 'raw.githubusercontent.com/enkhbat194/EBA-Trader/main' scripts/repair_linode_auto_update.sh
           grep -q 'rollback' scripts/update_linode_runtime.sh
           grep -q 'bootstrap_linode_public_https.sh' scripts/update_linode_runtime.sh
           grep -q 'sslip.io' scripts/bootstrap_linode_public_https.sh
