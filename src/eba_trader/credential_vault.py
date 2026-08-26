@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -66,7 +67,9 @@ class DemoCredentialVault:
         try:
             plaintext = fernet.decrypt(token)
         except InvalidToken as exc:
-            raise CredentialVaultError("encrypted Demo credential vault failed authentication") from exc
+            raise CredentialVaultError(
+                "encrypted Demo credential vault failed authentication"
+            ) from exc
         try:
             payload = json.loads(plaintext.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -157,7 +160,5 @@ def _atomic_private_write(path: Path, content: bytes) -> None:
         if fd is not None:
             os.close(fd)
         if temp_name is not None:
-            try:
+            with suppress(FileNotFoundError):
                 os.unlink(temp_name)
-            except FileNotFoundError:
-                pass
