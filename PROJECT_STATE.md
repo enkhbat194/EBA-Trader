@@ -1,7 +1,7 @@
 # EBA Trader — Project State
 
-_Last reconciled: 2026-08-26 (Asia/Ulaanbaatar)_
-_Verified through GitHub `main` PR #36 merge `06248eb9c901b44ca0a91ccd96bd15d23e156c9a`._
+_Last reconciled: 2026-08-27 (Asia/Ulaanbaatar)_
+_Verified through GitHub `main` PR #38 merge `2ef162bf975b8a1ace1adb86af269976d3c7c578` plus manual Linode production evidence on 2026-08-27._
 
 This is the primary cross-chat continuation summary. Actual current implementation/config/tests and Git history override stale text.
 
@@ -17,7 +17,9 @@ Operate EBA Trader as a restart-safe 24/7 Linode paper/research system, build a 
 - Deterministic order-flow ablation orchestration: **MERGED in #34**.
 - Venue-matched real USD-M development feature-dataset workflow: **MERGED in #35**.
 - Encrypted one-time Binance Demo credential persistence: **MERGED in #36**.
-- Current research frontier: add the deterministic real-ablation execution CLI, then build a BTCUSDT USD-M development dataset on Linode outside frozen OOS and run candle-only vs delta/CVD experiments through M4.
+- Linode auto-update recovery/diagnostics: **MERGED in #37 and production-verified**.
+- Binance market-data log-flood fix: **MERGED in #38 and production-verified**.
+- Current research frontier: persistent Linode research paths + deterministic real-ablation queue CLI, then build a BTCUSDT USD-M development dataset outside frozen OOS and run candle-only vs Delta/CVD experiments through M4.
 - Real-money execution: **LOCKED**.
 - Frozen OOS automation: **LOCKED pending lifecycle-order reconciliation**.
 
@@ -31,9 +33,10 @@ Operate EBA Trader as a restart-safe 24/7 Linode paper/research system, build a 
 - Market-data service: `eba-binance-data.service`
 - Runtime API service: `eba-runtime-api.service` on `127.0.0.1:8765`
 - PWA/web service: `eba-web.service` on `127.0.0.1:8000` behind nginx/Let's Encrypt HTTPS
-- Public PWA verified on 2026-08-26: `https://eba-trader-172-236-150-62.sslip.io/`
-- Auto deploy: `eba-auto-update.timer`; exact `origin/main`, dirty-checkout refusal, service/API health checks and rollback are implemented in `scripts/update_linode_runtime.sh`
-- Replit/Render: deprecated EBA Trader backend/runtime paths
+- Public PWA: `https://eba-trader-172-236-150-62.sslip.io/`
+- Auto deploy: `eba-auto-update.timer`; exact `origin/main`, dirty-checkout refusal, health checks, rollback and persistent deploy diagnostics are implemented.
+- Recovery helper: `scripts/repair_linode_auto_update.sh`; it refuses destructive repair on a dirty runtime checkout.
+- Replit/Render: deprecated EBA Trader backend/runtime paths.
 
 ## Completed research milestones
 
@@ -67,29 +70,28 @@ Enabled order-flow features: executed buy/sell volume, delta, delta ratio, CVD a
 
 PR #35 prevents Spot/Futures contamination end to end:
 
-- USD-M futures candles come from the futures kline endpoint with request provenance and exact interval coverage;
-- USD-M `aggTrades` cover one prior footprint window plus the development candle range;
+- USD-M futures candles use futures endpoints with request provenance and exact interval coverage;
+- USD-M `aggTrades` include one prior footprint window plus the development candle range;
 - aggregate-trade gaps are repaired and unresolved integrity errors fail closed;
 - candle/order-flow manifests are content-linked and hash verified;
 - closed footprint `[t-step,t)` becomes available to the candle opening at `t`;
 - `eba-build-orderflow-features` writes immutable feature/workflow manifests plus an M4-safe relative `dataset_ref`;
-- the existing frozen-OOS guard remains authoritative.
+- frozen OOS remains locked.
 
 ### Encrypted Binance Demo credential persistence
 
-PR #36 adds one-time credential storage without weakening the existing security model:
+PR #36 adds one-time credential storage without browser secret persistence:
 
-- the PWA sends a Binance **Demo** API key/secret only when the user explicitly saves/replaces it;
-- the backend validates the Demo credential before writing anything;
+- only Binance Demo credentials are accepted;
+- credentials are validated before disk write;
 - successful credentials are encrypted at rest using Fernet authenticated encryption;
-- master key: `/etc/eba-trader/demo-credential.key` with mode `0600`;
-- encrypted credential blob: `/var/lib/eba-trader/credentials/binance-demo.fernet` with mode `0600`;
-- install and auto-update provision the master key once and never rotate it implicitly;
-- browser status receives only configured/masked metadata; the saved secret is never returned;
+- master key: `/etc/eba-trader/demo-credential.key` mode `0600`;
+- encrypted blob: `/var/lib/eba-trader/credentials/binance-demo.fernet` mode `0600`;
+- install/auto-update provision the master key once and never rotate it implicitly;
+- browser receives configured/masked metadata only; the saved secret is never returned;
 - browser `localStorage`/`sessionStorage` are not used for credentials;
-- future app opens/server restarts may auto-connect using the encrypted server credential;
-- explicit Replace and Delete controls exist; deleting the key still leaves public-data Fast Paper available;
-- live/non-Binance credentials are rejected and real execution remains locked.
+- Replace/Delete controls exist; public-data Fast Paper remains available without credentials;
+- real execution remains locked.
 
 Credential-vault release is `0.12.2 / LINODE-M7`, PWA cache `eba-trader-ui-v15`.
 
@@ -101,21 +103,48 @@ Credential-vault release is `0.12.2 / LINODE-M7`, PWA cache `eba-trader-ui-v15`.
 - Research / AI Lab and scanner heartbeat are read-only observability.
 - The PWA consumes server truth rather than browser memory.
 
-## Production proof — manual evidence on 2026-08-26
+## Production operations proof — 2026-08-26/27
 
-Confirmed:
+Confirmed manually from the external iPhone/Linode console:
 
-- external iPhone access to the public HTTPS PWA succeeded;
-- Home, Scan and Settings displayed server-backed state;
+- external public HTTPS PWA access succeeded;
+- Home / Scan / Settings displayed server-backed state;
 - History displayed persisted Fast Paper trades with entry/exit, fees and exit reasons;
-- Fast Paper trade detail displayed execution facts, strategy evidence and trade chart.
+- Fast Paper trade detail displayed execution facts, strategy evidence and chart annotations;
+- PR #37 recovery advanced a stuck Linode from build `050cd9b` to current main and restored `eba-auto-update.timer` to active/waiting;
+- PR #38 build `2ef162bf975b8a1ace1adb86af269976d3c7c578` deployed successfully;
+- `eba-binance-data.service` is active after PR #38 while `journalctl` after the deployment window shows no per-tick `QuoteTick`/`TradeTick` flood;
+- root cause of disk growth was diagnostic logging, not research/trade data: `/var/log/syslog` reached about 15 GB and journald about 2.5 GB;
+- old logs were reclaimed manually; disk usage fell from about 90.1% to 21% (`4.8G` used, `19G` available), and `/var/log` fell to about `162M`;
+- production journald currently has a manually-installed `SystemMaxUse=250M`, `SystemKeepFree=1G`, `MaxRetentionSec=7day` drop-in.
 
-Still unproven:
+Still unproven / not yet fully codified:
 
+- the journald retention drop-in is **production-local manual state** and still needs repo provisioning so rebuilds/new servers inherit it automatically;
 - standalone Chart / Positions / Research screen smoke against server truth;
-- PR #36 real-Linode encrypted-save + subsequent no-paste auto-connect after deployment;
+- one real encrypted Demo credential save followed by no-paste auto-connect on production;
 - active Fast Momentum paper position surviving a service/server restart and later MARK/CLOSE;
 - final disposition of the older carry paper engine.
+
+## Operational fixes after M5 foundation
+
+### PR #37 — auto-update recovery
+
+Merged `9b265a4a880c380d66943e3964586be12ebfb9da`:
+
+- fail-closed one-command repair helper;
+- persistent deployment diagnostics under `/var/lib/eba-trader/deploy-state`;
+- hardened timer activation;
+- no web/PWA endpoint receives systemd/deploy authority.
+
+### PR #38 — Binance data log flood
+
+Merged `2ef162bf975b8a1ace1adb86af269976d3c7c578`:
+
+- `DataTesterConfig(log_data=False)` disables raw per-tick INFO logging while quote/trade/bar subscriptions remain active;
+- service-level systemd burst limiting provides defense in depth;
+- regression tests prevent silent reintroduction of per-tick flood behavior;
+- no execution path changed.
 
 ## Known architecture issue
 
@@ -127,11 +156,12 @@ Desired methodology conceptually wants robustness before opening frozen OOS. Do 
 
 ## Immediate Next
 
-1. Add a deterministic CLI/workflow that consumes a PR #35 feature `dataset_ref`, emits a PR #34 ablation batch into the M4 research store/queue and reports machine-readable experiment IDs.
-2. Build a real BTCUSDT USD-M development dataset on Linode outside frozen OOS.
-3. Run the deterministic ablation batch through M4 queue/worker/evidence/gates.
-4. Persist/rank survivors only for triage; do not open frozen OOS from ranking results.
-5. Verify one-time encrypted Demo save/no-paste auto-connect and finish remaining production smoke/restart-recovery proof in parallel.
+1. Codify the current production journald retention/free-space guard in repository deployment/install tooling so it survives rebuilds.
+2. Resume `m5-real-ablation-cli` from latest `main`: move long-running Linode research DB/data/evidence outside the Git checkout (target `/var/lib/eba-trader/research/...`) and add a deterministic feature-manifest/`dataset_ref` -> M4 ablation queue CLI.
+3. Build a real BTCUSDT USD-M development dataset on Linode outside frozen OOS.
+4. Run the deterministic candle-only vs Delta/CVD ablation batch through M4 queue/worker/evidence/gates.
+5. Persist/rank survivors only for triage; do not open frozen OOS from ranking results.
+6. Verify encrypted Demo save/no-paste auto-connect and finish remaining production smoke/restart-recovery proof in parallel.
 
 ## Important constraints
 
@@ -147,12 +177,15 @@ Desired methodology conceptually wants robustness before opening frozen OOS. Do 
 - Same-candle still-forming footprint data cannot be used in candle decisions.
 - A development win-rate increase is not promotion evidence.
 - Generic research workers and ablation orchestration cannot open frozen OOS or real execution.
+- High-frequency raw market ticks must not be emitted as normal INFO service logs.
 
 ## Validation status
 
-- PRs #29-#36 passed full regression/Ruff/deployment/runtime/continuity gates before merge.
-- PR #36 final head `baffa551dbc616130c4b228f126098009a4ae459` passed Continuity guard, Linode runtime checks and Linode production bundle before squash merge `06248eb9c901b44ca0a91ccd96bd15d23e156c9a`.
-- External HTTPS/latest-main proof is manually established; active-position restart-recovery proof remains open.
+- PR #37 merged and its repair path was exercised successfully on the real Linode.
+- PR #38 merged after regression/runtime/continuity validation and is production-verified by active data service + absence of per-tick flood after deployment.
+- External HTTPS/latest-main proof is manually established.
+- Disk/log recovery is manually established.
+- Active-position restart-recovery proof remains open.
 
 ## Continuity system
 

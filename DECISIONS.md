@@ -234,4 +234,83 @@ Spot and perpetual futures prices/order flow can diverge. Mixing venues creates 
 - `tests/test_m5_dataset_workflow.py`
 
 ### Status
-Accepted in PR #35 pending final merge.
+Accepted and merged in PR #35.
+
+## 2026-08-26 — Binance Demo credentials persist only in an encrypted server vault
+
+### Decision
+The phone PWA may accept a Binance **Demo** API key/secret once and send it to the Linode backend for test-before-save encrypted persistence. The secret is never returned to browser JavaScript, never written to browser persistent storage, never committed to Git, and never accepted for live/non-Binance use in this milestone.
+
+The Fernet master key is stored separately at `/etc/eba-trader/demo-credential.key` and must not be implicitly rotated during deploys. The encrypted credential blob lives under `/var/lib/eba-trader/credentials/`.
+
+### Reason
+The user needs no-paste reconnect across app/server restarts without weakening secret handling or coupling credentials to the Git checkout.
+
+### Related implementation
+- `src/eba_trader/credential_vault.py`
+- web/server Demo connection handlers
+- `scripts/install_linode_runtime.sh`
+- `scripts/update_linode_runtime.sh`
+
+### Status
+Accepted and merged in PR #36. Real production save/reconnect verification remains pending.
+
+## 2026-08-27 — Linode deployment recovery is fail-closed and stays outside PWA authority
+
+### Decision
+A stuck Linode deployment is repaired with a root-side helper that refuses dirty checkouts, downloads the latest canonical deployment script, records deployment diagnostics, and restores the timer. The PWA/web API does **not** receive systemd or deployment authority.
+
+Automatic deployments leave persistent diagnostics under `/var/lib/eba-trader/deploy-state` and continue to enforce exact `origin/main`, health checks and rollback.
+
+### Reason
+The old server could become stranded on a stale build while the phone PWA could only refresh its cache. Giving the browser system-level deployment authority would create an unnecessary security boundary violation.
+
+### Related implementation
+- `scripts/repair_linode_auto_update.sh`
+- `scripts/update_linode_runtime.sh`
+- auto-update systemd units/wrapper
+
+### Status
+Accepted in PR #37 and production-verified.
+
+## 2026-08-27 — High-frequency market events are data, not normal INFO diagnostics
+
+### Decision
+`eba-binance-data` must keep its Binance instrument/quote/trade/bar subscriptions active, but it must not emit every raw `QuoteTick`/`TradeTick` into INFO service logs. Per-tick `DataTester` logging stays disabled and the systemd unit carries a burst limit as defense in depth.
+
+Operational logs are for lifecycle/health/errors and bounded diagnostics. Canonical research datasets must be produced by the explicit acquisition/materialization pipelines, not reconstructed from syslog/journal output.
+
+### Reason
+On the production Nanode, per-tick INFO logging grew `/var/log/syslog` to roughly 15 GB and journald to roughly 2.5 GB, consuming about 90% of the 25 GB disk without adding valid research evidence. Disabling diagnostic spam does not remove market-data subscriptions.
+
+### Related implementation
+- `src/eba_trader/binance_probe.py`
+- `deploy/systemd/eba-binance-data.service`
+- log-flood regression tests
+
+### Status
+Accepted in PR #38 and production-verified. Old oversized logs were reclaimed manually.
+
+## 2026-08-27 — Production log retention must be bounded and reproducible
+
+### Decision
+The production server currently uses a journald policy equivalent to `SystemMaxUse=250M`, `SystemKeepFree=1G`, and `MaxRetentionSec=7day`. This manual production fix is **not yet sufficient**: repository install/update provisioning must create the bounded policy so rebuilds/new servers inherit it.
+
+### Reason
+A manual-only server setting is a continuity/deployment gap even if the current server is healthy.
+
+### Status
+Accepted operational policy; repository provisioning is the immediate pending task.
+
+## 2026-08-27 — Long-running Linode research state belongs outside the Git checkout
+
+### Decision
+Before real M5 ablation runs, long-running research DB/data/evidence on Linode should move to a persistent namespace under `/var/lib/eba-trader/research/...`. It must remain logically and physically separate from runtime `TradeLedger` state.
+
+Development defaults under `artifacts/` may remain useful locally, but production research state must not dirty `/opt/Eba-Trader` and block fail-closed auto-deploy.
+
+### Reason
+The deployment script correctly refuses a dirty runtime checkout. Writing research artifacts inside the repository would eventually turn valid research work into an auto-update blocker.
+
+### Status
+Accepted direction; implementation pending in the `m5-real-ablation-cli` track.

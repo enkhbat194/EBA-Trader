@@ -30,12 +30,17 @@ Akamai/Linode — Ubuntu 24.04 LTS
    +--> eba-web.service
    |       `--> 127.0.0.1:8000
    |
-   `--> public HTTPS bootstrap / reverse proxy
+   +--> eba-auto-update.timer/service
+   |       `--> exact origin/main deployment + diagnostics
+   |
+   `--> nginx / Let's Encrypt public HTTPS PWA
 ```
 
 GitHub `main` is the code source of truth. Linode is the sole active backend/runtime target. Replit and Render are deprecated backend paths.
 
 `scripts/update_linode_runtime.sh` refuses dirty runtime checkouts, resets to exact `origin/main`, installs the package, updates systemd units, restarts services, checks local API health and rolls back on runtime deployment failure. HTTPS bootstrap retries independently so a transient DNS/CA problem does not roll back an otherwise healthy runtime.
+
+PR #37 adds a fail-closed root-side recovery helper plus persistent deploy diagnostics under `/var/lib/eba-trader/deploy-state`. The PWA/web API does not receive systemd/deployment authority.
 
 ## 3. Runtime data flow
 
@@ -129,15 +134,7 @@ Survivor ranking (triage only)
 
 M5 does not accept arbitrary generated production Python as the normal strategy-generation contract.
 
-Core modules:
-
-- `m5_hypothesis.py`
-- `m5_features.py`
-- `m5_factory.py`
-- `m5_emitter.py`
-- `m5_family.py`
-- `m5_similarity.py`
-- `m5_selection.py`
+Core modules include `m5_hypothesis.py`, `m5_features.py`, `m5_factory.py`, `m5_emitter.py`, `m5_family.py`, `m5_similarity.py`, `m5_selection.py`, and `m5_ablation.py`.
 
 ## 5. Order-flow / footprint data plane
 
@@ -176,6 +173,12 @@ Unresolved sequence gaps are not backtest-ready. Resting order-book/LOB liquidit
 
 Current enabled feature registry entries are `of_buy_volume`, `of_sell_volume`, `of_delta`, `of_delta_ratio`, `of_cvd`, and `of_poc_price`. Stacked imbalance, absorption, exhaustion and LOB depth imbalance remain disabled until implemented and validated.
 
+### Diagnostic logging is not a dataset
+
+`eba-binance-data.service` keeps instrument/quote/trade/bar subscriptions active, but raw `QuoteTick`/`TradeTick` events are not written one-by-one as normal INFO diagnostics. PR #38 sets `DataTesterConfig(log_data=False)` and adds a service-level log burst cap.
+
+Research data must come from explicit acquisition/materialization pipelines with provenance and integrity checks. Syslog/journald output is operational diagnostics and must never be treated as canonical order-flow research data.
+
 ## 6. Persistence boundaries
 
 ### Runtime persistence
@@ -186,9 +189,24 @@ Current durable single-node runtime store:
 
 It owns paper/runtime trade state and must survive browser refreshes, process restarts, Git pulls and server restarts.
 
+### Credential persistence
+
+Binance Demo credentials use a separate encrypted server vault:
+
+- master key: `/etc/eba-trader/demo-credential.key`;
+- encrypted blob: `/var/lib/eba-trader/credentials/binance-demo.fernet`.
+
+The saved secret is never returned to browser JavaScript and browser persistent storage is not used for API secrets.
+
 ### Research persistence
 
-M4/M5 research metadata uses a separate SQLite research store, defaulting in development to `artifacts/research/eba_research.db`. Long-running research deployment may later move to durable server state, but it must remain logically separate from runtime positions.
+M4/M5 research metadata remains logically separate from `TradeLedger`.
+
+- Local/development defaults may use `artifacts/research/...`.
+- Before long-running real Linode ablations, production research DB/data/evidence must move outside the Git checkout under a persistent namespace such as `/var/lib/eba-trader/research/...`.
+- Research artifacts must not dirty `/opt/Eba-Trader`, because the fail-closed auto-deployer refuses dirty checkouts.
+
+This production research-path migration is the current pending M5 implementation task.
 
 ### Evidence
 
@@ -217,13 +235,15 @@ The desired research methodology conceptually wants robustness before opening fr
 
 ## 8. PWA / API boundary
 
-The PWA is presentation/control UI, not the trading engine. It reads server truth for position, history, TP/SL, leverage, indicators, fees, P&L and trade-specific chart data.
+The PWA is presentation/control UI, not the trading engine. It reads server truth for position, history, TP/SL, leverage, indicators, fees, P&L, research status and trade-specific chart data.
 
 Canonical services:
 
 - `eba-runtime-api.service` -> local runtime API on `127.0.0.1:8765`;
 - `eba-web.service` -> web/PWA service on `127.0.0.1:8000`;
-- public HTTPS bootstrap exposes the web service externally when DNS/certificate conditions are satisfied.
+- nginx/Let's Encrypt exposes the web service externally.
+
+The PWA may save/replace/delete Binance Demo credentials through the constrained encrypted-vault API, but it does not receive the saved secret back and has no systemd/deployment, OOS-promotion or real-execution authority.
 
 External phone/browser verification remains a production-proof requirement distinct from repository CI.
 
@@ -254,17 +274,20 @@ Git commit / PR
 next chat / agent
 ```
 
-`AGENTS.md` defines the mandatory session protocol. `scripts/check_continuity.py` and `.github/workflows/continuity.yml` ensure the required continuity surface is not removed or replaced with untouched templates.
+`AGENTS.md` defines the mandatory session protocol. `scripts/check_continuity.py` and `.github/workflows/continuity.yml` protect the required continuity surface. Actual code/tests/Git history override stale prose, and stale continuity must be repaired before a new session relies on it.
 
-## 10. Deployment rules
+## 10. Deployment and log-retention rules
 
 - Canonical install: `scripts/install_linode_runtime.sh`.
 - Canonical update: `scripts/update_linode_runtime.sh`.
+- Canonical stuck-update recovery: `scripts/repair_linode_auto_update.sh`.
 - Canonical systemd units: `deploy/systemd/`.
 - Do not create new Replit/Render runtime paths.
 - Do not use browser memory as durable trade state.
 - Do not couple research experiment metadata to runtime position persistence.
 - Do not make DNS/CA availability a reason to roll back a locally healthy runtime deployment.
+- High-frequency market events must not be emitted as normal INFO service logs.
+- Production journald must have bounded retention/free-space protection. The current real server has a manually-applied `SystemMaxUse=250M`, `SystemKeepFree=1G`, `MaxRetentionSec=7day` drop-in; repository provisioning of this policy is still pending and is an explicit next task.
 
 ## 11. Safety invariants
 
@@ -280,6 +303,9 @@ next chat / agent
 10. AI-generated hypotheses must pass the constrained M5 validation surface.
 11. Order-flow data with unresolved integrity gaps fails closed.
 12. Development ranking is not promotion authority.
+13. Browser/PWA code has no systemd deployment authority.
+14. Raw diagnostic logs are not canonical research datasets.
+15. Runtime trade state, research state and encrypted credential state remain separate persistence domains.
 
 ## 12. Validation direction
 
