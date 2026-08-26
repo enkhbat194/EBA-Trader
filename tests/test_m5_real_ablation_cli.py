@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from pathlib import Path
 
 import pytest
 
 from eba_trader.m5_ablation_cli import emit_real_ablation_batch
 from eba_trader.research_evidence import sha256_file
-from eba_trader.research_store import ResearchStore
 
 
 START_MS = 1_704_067_200_000
@@ -115,8 +115,9 @@ def test_real_ablation_cli_emits_deterministic_development_jobs(tmp_path: Path) 
     assert first["frozen_oos_opened"] is False
     assert first["live_execution_allowed"] is False
 
-    store = ResearchStore(tmp_path / "research.db")
-    assert len(store.list_experiments()) == 3
+    with sqlite3.connect(tmp_path / "research.db") as connection:
+        count = connection.execute("SELECT COUNT(*) FROM experiment_runs").fetchone()[0]
+    assert count == 3
 
 
 def test_real_ablation_cli_rejects_tampered_feature_csv(tmp_path: Path) -> None:
