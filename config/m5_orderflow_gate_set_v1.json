@@ -1,0 +1,12 @@
+{
+  "schema": "m5_orderflow_gate_set_v1",
+  "gates": [
+    {"delta_ratio_threshold": -1.0},
+    {"delta_ratio_threshold": 0.0},
+    {"delta_ratio_threshold": 0.05},
+    {"delta_ratio_threshold": 0.1},
+    {"delta_ratio_threshold": 0.2},
+    {"cvd_threshold": 0.0},
+    {"delta_ratio_threshold": 0.1, "cvd_threshold": 0.0}
+  ]
+}
