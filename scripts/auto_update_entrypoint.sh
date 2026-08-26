@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -uo pipefail
+set -euo pipefail
 
 REPO_DIR="/opt/Eba-Trader"
 STATE_DIR="/var/lib/eba-trader/deploy-state"
