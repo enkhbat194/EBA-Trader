@@ -1,7 +1,7 @@
 # EBA Trader — Project State
 
 _Last reconciled: 2026-08-26 (Asia/Ulaanbaatar)_
-_Verified through GitHub `main` PR #35 merge `178611f535e95d61747a726b73cf7346f94358e4`; PR #36 encrypted Binance Demo credential persistence is implemented and under final validation._
+_Verified through GitHub `main` PR #36 merge `06248eb9c901b44ca0a91ccd96bd15d23e156c9a`._
 
 This is the primary cross-chat continuation summary. Actual current implementation/config/tests and Git history override stale text.
 
@@ -16,8 +16,8 @@ Operate EBA Trader as a restart-safe 24/7 Linode paper/research system, build a 
 - Continuity system: **INSTALLED / ENFORCED IN CI**.
 - Deterministic order-flow ablation orchestration: **MERGED in #34**.
 - Venue-matched real USD-M development feature-dataset workflow: **MERGED in #35**.
-- Encrypted one-time Binance Demo credential persistence: **IMPLEMENTED in PR #36 pending final CI/merge**.
-- Next research frontier: build a real BTCUSDT USD-M development dataset on Linode outside frozen OOS, then execute the deterministic candle-only vs delta/CVD ablation batch through M4.
+- Encrypted one-time Binance Demo credential persistence: **MERGED in #36**.
+- Current research frontier: add the deterministic real-ablation execution CLI, then build a BTCUSDT USD-M development dataset on Linode outside frozen OOS and run candle-only vs delta/CVD experiments through M4.
 - Real-money execution: **LOCKED**.
 - Frozen OOS automation: **LOCKED pending lifecycle-order reconciliation**.
 
@@ -53,6 +53,7 @@ Merged PRs #20-#24 provide immutable strategy versions, deterministic experiment
 - #33 carry-label clarification and Fast Momentum heartbeat observability.
 - #34 deterministic one-control-to-many-treatment order-flow ablation orchestration.
 - #35 venue-aware USD-M candle acquisition plus one-command verified candle+order-flow feature-dataset workflow, merge `178611f535e95d61747a726b73cf7346f94358e4`.
+- #36 encrypted one-time Binance Demo credential vault and no-paste auto-connect path, merge `06248eb9c901b44ca0a91ccd96bd15d23e156c9a`.
 
 Enabled order-flow features: executed buy/sell volume, delta, delta ratio, CVD and POC price. Stacked imbalance, absorption, exhaustion and LOB depth imbalance remain disabled/unimplemented.
 
@@ -90,7 +91,7 @@ PR #36 adds one-time credential storage without weakening the existing security 
 - explicit Replace and Delete controls exist; deleting the key still leaves public-data Fast Paper available;
 - live/non-Binance credentials are rejected and real execution remains locked.
 
-Release target for PR #36 is `0.12.2 / LINODE-M7`, PWA cache `eba-trader-ui-v15`.
+Credential-vault release is `0.12.2 / LINODE-M7`, PWA cache `eba-trader-ui-v15`.
 
 ## Runtime / PWA
 
@@ -126,12 +127,11 @@ Desired methodology conceptually wants robustness before opening frozen OOS. Do 
 
 ## Immediate Next
 
-1. Final-CI and squash-merge PR #36.
-2. Add a deterministic CLI/workflow that consumes a PR #35 feature `dataset_ref`, emits a PR #34 ablation batch into the M4 research store/queue and reports machine-readable experiment IDs.
-3. Build a real BTCUSDT USD-M development dataset on Linode outside frozen OOS.
-4. Run the deterministic ablation batch through M4 queue/worker/evidence/gates.
-5. Persist/rank survivors only for triage; do not open frozen OOS from ranking results.
-6. Verify one-time encrypted Demo save/no-paste auto-connect and finish remaining production smoke/restart-recovery proof in parallel.
+1. Add a deterministic CLI/workflow that consumes a PR #35 feature `dataset_ref`, emits a PR #34 ablation batch into the M4 research store/queue and reports machine-readable experiment IDs.
+2. Build a real BTCUSDT USD-M development dataset on Linode outside frozen OOS.
+3. Run the deterministic ablation batch through M4 queue/worker/evidence/gates.
+4. Persist/rank survivors only for triage; do not open frozen OOS from ranking results.
+5. Verify one-time encrypted Demo save/no-paste auto-connect and finish remaining production smoke/restart-recovery proof in parallel.
 
 ## Important constraints
 
@@ -150,9 +150,8 @@ Desired methodology conceptually wants robustness before opening frozen OOS. Do 
 
 ## Validation status
 
-- PRs #29-#35 passed full regression/Ruff/deployment/runtime/continuity gates before merge.
-- PR #36 core head passed full regression, Ruff, Linode runtime checks, Linode production bundle and Continuity guard after stale contract-test and lint-only findings were corrected.
-- PR #36 continuity-updated final head must pass the same gates before merge.
+- PRs #29-#36 passed full regression/Ruff/deployment/runtime/continuity gates before merge.
+- PR #36 final head `baffa551dbc616130c4b228f126098009a4ae459` passed Continuity guard, Linode runtime checks and Linode production bundle before squash merge `06248eb9c901b44ca0a91ccd96bd15d23e156c9a`.
 - External HTTPS/latest-main proof is manually established; active-position restart-recovery proof remains open.
 
 ## Continuity system
