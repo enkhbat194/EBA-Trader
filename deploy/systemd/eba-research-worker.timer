@@ -1,0 +1,12 @@
+[Unit]
+Description=Run EBA Trader queued research work every minute
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+RandomizedDelaySec=10s
+Persistent=true
+Unit=eba-research-worker.service
+
+[Install]
+WantedBy=timers.target
