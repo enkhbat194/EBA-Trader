@@ -5,11 +5,20 @@ REPO_DIR="/opt/Eba-Trader"
 ENV_DIR="/etc/eba-trader"
 STATE_DIR="/var/lib/eba-trader"
 DEPLOY_STATE="$STATE_DIR/deploy-state"
+RESEARCH_DIR="$STATE_DIR/research"
+RESEARCH_DATASET_DIR="$RESEARCH_DIR/datasets"
+RESEARCH_EVIDENCE_DIR="$RESEARCH_DIR/evidence"
 CREDENTIAL_DIR="$STATE_DIR/credentials"
 CREDENTIAL_KEY="$ENV_DIR/demo-credential.key"
+JOURNALD_DROPIN_DIR="/etc/systemd/journald.conf.d"
+JOURNALD_DROPIN="$JOURNALD_DROPIN_DIR/eba-trader.conf"
 DATA_SERVICE="eba-binance-data.service"
 API_SERVICE="eba-runtime-api.service"
 WEB_SERVICE="eba-web.service"
+RESEARCH_SERVICE="eba-research-worker.service"
+RESEARCH_TIMER="eba-research-worker.timer"
+UPDATE_SERVICE="eba-auto-update.service"
+UPDATE_TIMER="eba-auto-update.timer"
 AUTO_MODE=0
 
 if [[ "${1:-}" == "--auto" ]]; then
@@ -22,9 +31,21 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 cd "$REPO_DIR"
-mkdir -p "$ENV_DIR" "$STATE_DIR" "$DEPLOY_STATE" "$CREDENTIAL_DIR"
+mkdir -p \
+  "$ENV_DIR" \
+  "$STATE_DIR" \
+  "$DEPLOY_STATE" \
+  "$CREDENTIAL_DIR" \
+  "$RESEARCH_DATASET_DIR" \
+  "$RESEARCH_EVIDENCE_DIR" \
+  "$JOURNALD_DROPIN_DIR"
 chmod 700 "$ENV_DIR" "$CREDENTIAL_DIR"
-chmod 750 "$STATE_DIR" "$DEPLOY_STATE"
+chmod 750 \
+  "$STATE_DIR" \
+  "$DEPLOY_STATE" \
+  "$RESEARCH_DIR" \
+  "$RESEARCH_DATASET_DIR" \
+  "$RESEARCH_EVIDENCE_DIR"
 
 # Never deploy over local edits: a dirty runtime checkout is unsafe to auto-reset.
 if [[ -n "$(git status --porcelain)" ]]; then
@@ -100,20 +121,40 @@ PY
 fi
 chmod 600 "$CREDENTIAL_KEY"
 
+# Ensure upgrades of an existing Linode env file gain the canonical persistent research
+# paths without overwriting any explicit operator choice already present.
+bash scripts/ensure_linode_research_env.sh
+
+# Keep research state outside the Git checkout so deployments cannot delete datasets,
+# queue metadata or immutable evidence.
+mkdir -p "$RESEARCH_DATASET_DIR" "$RESEARCH_EVIDENCE_DIR"
+chmod 750 "$RESEARCH_DIR" "$RESEARCH_DATASET_DIR" "$RESEARCH_EVIDENCE_DIR"
+
+# The journal cap is a host-safety invariant, not application state. It intentionally
+# survives application rollback so a bad release cannot re-open the disk-fill failure.
+install -m 0644 deploy/journald/eba-trader.conf "$JOURNALD_DROPIN"
+systemctl restart systemd-journald
+
 install -m 0644 deploy/systemd/eba-binance-data.service "/etc/systemd/system/$DATA_SERVICE"
 install -m 0644 deploy/systemd/eba-runtime-api.service "/etc/systemd/system/$API_SERVICE"
 install -m 0644 deploy/systemd/eba-web.service "/etc/systemd/system/$WEB_SERVICE"
-install -m 0644 deploy/systemd/eba-auto-update.service /etc/systemd/system/eba-auto-update.service
-install -m 0644 deploy/systemd/eba-auto-update.timer /etc/systemd/system/eba-auto-update.timer
+install -m 0644 deploy/systemd/eba-research-worker.service "/etc/systemd/system/$RESEARCH_SERVICE"
+install -m 0644 deploy/systemd/eba-research-worker.timer "/etc/systemd/system/$RESEARCH_TIMER"
+install -m 0644 deploy/systemd/eba-auto-update.service "/etc/systemd/system/$UPDATE_SERVICE"
+install -m 0644 deploy/systemd/eba-auto-update.timer "/etc/systemd/system/$UPDATE_TIMER"
 systemctl daemon-reload
-systemctl enable "$DATA_SERVICE" "$API_SERVICE" "$WEB_SERVICE" eba-auto-update.timer >/dev/null
+systemctl reset-failed "$RESEARCH_SERVICE" || true
+systemctl enable "$DATA_SERVICE" "$API_SERVICE" "$WEB_SERVICE" >/dev/null
+systemctl enable --now "$UPDATE_TIMER" "$RESEARCH_TIMER" >/dev/null
 systemctl restart "$DATA_SERVICE" "$API_SERVICE" "$WEB_SERVICE"
+systemctl restart "$RESEARCH_TIMER"
 
 # Give the processes a short warm-up window, then require both APIs to answer.
 sleep 3
 systemctl is-active --quiet "$DATA_SERVICE"
 systemctl is-active --quiet "$API_SERVICE"
 systemctl is-active --quiet "$WEB_SERVICE"
+systemctl is-active --quiet "$RESEARCH_TIMER"
 curl --fail --silent --max-time 5 http://127.0.0.1:8765/health >/dev/null
 curl --fail --silent --max-time 5 http://127.0.0.1:8000/api/health >/dev/null
 

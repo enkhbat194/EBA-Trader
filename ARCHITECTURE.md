@@ -19,16 +19,22 @@ GitHub main
 Akamai/Linode — Ubuntu 24.04 LTS
    |
    +--> eba-binance-data.service
-   |       `--> Binance / NautilusTrader market data
+   |       `--> Binance / NautilusTrader public market data
    |
    +--> Trading / risk / paper execution layer
-   |       `--> TradeLedger (SQLite)
+   |       `--> /var/lib/eba-trader/eba_trader.db (TradeLedger)
    |
    +--> eba-runtime-api.service
    |       `--> 127.0.0.1:8765
    |
    +--> eba-web.service
    |       `--> 127.0.0.1:8000
+   |
+   +--> eba-research-worker.timer
+   |       `--> bounded M4 worker
+   |            +--> /var/lib/eba-trader/research/eba_research.db
+   |            +--> /var/lib/eba-trader/research/datasets
+   |            `--> /var/lib/eba-trader/research/evidence
    |
    +--> eba-auto-update.timer/service
    |       `--> exact origin/main deployment + diagnostics
@@ -38,9 +44,9 @@ Akamai/Linode — Ubuntu 24.04 LTS
 
 GitHub `main` is the code source of truth. Linode is the sole active backend/runtime target. Replit and Render are deprecated backend paths.
 
-`scripts/update_linode_runtime.sh` refuses dirty runtime checkouts, resets to exact `origin/main`, installs the package, updates systemd units, restarts services, checks local API health and rolls back on runtime deployment failure. HTTPS bootstrap retries independently so a transient DNS/CA problem does not roll back an otherwise healthy runtime.
+`scripts/update_linode_runtime.sh` refuses dirty runtime checkouts, resets to exact `origin/main`, installs the package, updates systemd units, restarts services, checks local API health and rolls back on runtime deployment failure. HTTPS bootstrap retries independently so transient DNS/CA failure does not roll back an otherwise healthy runtime.
 
-PR #37 adds a fail-closed root-side recovery helper plus persistent deploy diagnostics under `/var/lib/eba-trader/deploy-state`. The PWA/web API does not receive systemd/deployment authority.
+PR #37 adds fail-closed root-side recovery plus persistent deploy diagnostics under `/var/lib/eba-trader/deploy-state`. The PWA/web API has no systemd/deployment authority.
 
 ## 3. Runtime data flow
 
@@ -55,22 +61,13 @@ Data Engine
    +--> regime / setup classification
    |
    v
-Strategy proposal
-   |
-   +--> LONG
-   +--> SHORT
-   +--> EXIT
-   `--> NO_TRADE
+Strategy proposal: LONG / SHORT / EXIT / NO_TRADE
    |
    v
 Deterministic Risk Engine (veto authority)
    |
    v
-Paper Execution
-   |
-   +--> OPEN
-   +--> MARK / state update
-   `--> CLOSE
+Paper Execution: OPEN / MARK / CLOSE
    |
    v
 SQLite TradeLedger
@@ -86,25 +83,34 @@ Browser RAM is never the authoritative position store.
 ### M4 foundation
 
 ```text
-Strategy specification
-   |
-   v
 Immutable Strategy Version
    |
    v
 Experiment Queue / Worker Lease
    |
    v
+Allowlisted Backtest Adapter
+   |
+   v
 Immutable Evidence / Provenance
    |
    v
 Development / Robustness Gates
-   |
-   +--> reject / quarantine / retest
-   `--> eligible next lifecycle state
 ```
 
-The M4 research SQLite store is separate from `TradeLedger`. Generic research workers cannot mutate runtime position state and cannot silently unlock frozen OOS or execution.
+The research store is separate from `TradeLedger`. Generic research workers cannot mutate runtime positions and cannot silently unlock frozen OOS or execution.
+
+### Persistent Linode research runtime
+
+PR #40 implements the production research persistence boundary:
+
+- DB: `/var/lib/eba-trader/research/eba_research.db`
+- datasets: `/var/lib/eba-trader/research/datasets`
+- immutable evidence: `/var/lib/eba-trader/research/evidence`
+
+These paths are outside `/opt/Eba-Trader`, so long-running research cannot dirty the Git checkout and block fail-closed deployment. Existing `/etc/eba-trader/eba-trader.env` files are upgraded idempotently with research defaults without overwriting explicit operator values.
+
+The systemd research worker is oneshot and bounded: at most eight jobs per invocation, 50% CPU quota, 512 MB memory cap, and filesystem write access limited to the research namespace. The timer runs approximately once per minute and only consumes already queued work.
 
 ### M5 AI Strategy Factory
 
@@ -126,7 +132,7 @@ Deterministic candidate IDs
 M4 immutable strategy version + experiment queue
    |
    v
-Development backtest evidence
+Development evidence
    |
    v
 Survivor ranking (triage only)
@@ -134,85 +140,99 @@ Survivor ranking (triage only)
 
 M5 does not accept arbitrary generated production Python as the normal strategy-generation contract.
 
-Core modules include `m5_hypothesis.py`, `m5_features.py`, `m5_factory.py`, `m5_emitter.py`, `m5_family.py`, `m5_similarity.py`, `m5_selection.py`, and `m5_ablation.py`.
-
 ## 5. Order-flow / footprint data plane
 
-Executed order flow is a separate research feature domain layered on top of raw market events:
+Executed order flow is derived from raw Binance aggregate trades, not chart pixels or diagnostic logs:
 
 ```text
-Binance aggregate trades
+Binance USD-M aggregate trades
    |
    v
-Strict normalization
+Strict normalization + venue provenance
    |
-   +--> aggregate trade ID
-   +--> timestamp
-   +--> price / quantity
-   `--> aggressor BUY/SELL from buyer-maker semantics
+   +--> trade ID / timestamp / price / quantity
+   `--> aggressor BUY/SELL
    |
    v
 Integrity gate
    |
    +--> duplicate/conflict reject
    +--> backward-time reject
-   +--> sequence-gap accounting
-   `--> SHA-256/content-addressed cache
+   +--> missing-ID repair / unresolved-gap reject
+   `--> content hashes
    |
    v
-Fixed causal footprint windows [start,end)
+Causal fixed footprint windows [start,end)
    |
-   +--> buy volume
-   +--> sell volume
+   +--> buy/sell volume
    +--> delta / delta ratio
    +--> CVD
    `--> POC
 ```
 
-Unresolved sequence gaps are not backtest-ready. Resting order-book/LOB liquidity is not inferred from footprint; it requires a separate future snapshot/diff reconstruction pipeline with its own sequence-integrity contract.
+Closed footprint `[t-step,t)` may be used by the candle opening at `t`; the still-forming footprint `[t,t+step)` cannot be used in that same candle decision.
 
-Current enabled feature registry entries are `of_buy_volume`, `of_sell_volume`, `of_delta`, `of_delta_ratio`, `of_cvd`, and `of_poc_price`. Stacked imbalance, absorption, exhaustion and LOB depth imbalance remain disabled until implemented and validated.
+Current enabled executed-trade feature registry entries are `of_buy_volume`, `of_sell_volume`, `of_delta`, `of_delta_ratio`, `of_cvd`, and `of_poc_price`. Stacked imbalance, absorption and exhaustion remain future candidates. Resting order-book/LOB liquidity is a different sequence-sensitive dataset and must not be inferred from footprint.
 
 ### Diagnostic logging is not a dataset
 
-`eba-binance-data.service` keeps instrument/quote/trade/bar subscriptions active, but raw `QuoteTick`/`TradeTick` events are not written one-by-one as normal INFO diagnostics. PR #38 sets `DataTesterConfig(log_data=False)` and adds a service-level log burst cap.
+`eba-binance-data.service` keeps quote/trade/bar subscriptions active but does not emit every `QuoteTick`/`TradeTick` as INFO. PR #38 disables per-tick `DataTester` logging and adds a service burst cap. Canonical research data comes only from explicit acquisition/materialization pipelines with provenance and integrity checks.
 
-Research data must come from explicit acquisition/materialization pipelines with provenance and integrity checks. Syslog/journald output is operational diagnostics and must never be treated as canonical order-flow research data.
+## 6. Real M5 ablation execution path
 
-## 6. Persistence boundaries
+PR #40 adds the controlled production research path:
+
+```text
+Explicit development-only UTC window
+   |
+   v
+eba-build-orderflow-features
+   |  verifies venue/range/gaps/provenance/causal alignment
+   v
+immutable PR #35 workflow + feature CSV/manifest
+   |
+   v
+eba-m5-real-ablation
+   |  verifies schema, USD-M venue, symbol/range,
+   |  path containment, SHA-256, feature manifest,
+   |  and frozen first-cycle OOS non-overlap
+   v
+PR #34 deterministic control + Delta/CVD treatments
+   |
+   v
+M4 queue -> bounded worker -> immutable evidence
+```
+
+`scripts/run_m5_real_ablation.sh` composes the build, queue and exact emitted job count into one root-side command with a process lock.
+
+The initial versioned gate set includes a permissive Delta-ratio arm as a sanity invariant plus bounded Delta/CVD hypotheses. It does not define promotion thresholds.
+
+This path is fixed to `m5_orderflow_ablation_dev`; it has no OOS, lifecycle-promotion, Binance Demo-order or real-order authority.
+
+## 7. Persistence boundaries
 
 ### Runtime persistence
 
-Current durable single-node runtime store:
+`/var/lib/eba-trader/eba_trader.db` owns paper/runtime trade state and must survive browser refreshes, process restarts, Git pulls and server restarts.
 
-`/var/lib/eba-trader/eba_trader.db`
+### Research persistence
 
-It owns paper/runtime trade state and must survive browser refreshes, process restarts, Git pulls and server restarts.
+`/var/lib/eba-trader/research/...` owns research strategies, experiments, datasets and evidence on Linode. Local development may still use `artifacts/research/...`, but production research must not write durable state into the Git checkout.
 
 ### Credential persistence
 
 Binance Demo credentials use a separate encrypted server vault:
 
-- master key: `/etc/eba-trader/demo-credential.key`;
-- encrypted blob: `/var/lib/eba-trader/credentials/binance-demo.fernet`.
+- master key: `/etc/eba-trader/demo-credential.key`
+- encrypted blob: `/var/lib/eba-trader/credentials/binance-demo.fernet`
 
 The saved secret is never returned to browser JavaScript and browser persistent storage is not used for API secrets.
-
-### Research persistence
-
-M4/M5 research metadata remains logically separate from `TradeLedger`.
-
-- Local/development defaults may use `artifacts/research/...`.
-- Before long-running real Linode ablations, production research DB/data/evidence must move outside the Git checkout under a persistent namespace such as `/var/lib/eba-trader/research/...`.
-- Research artifacts must not dirty `/opt/Eba-Trader`, because the fail-closed auto-deployer refuses dirty checkouts.
-
-This production research-path migration is the current pending M5 implementation task.
 
 ### Evidence
 
 Strategy specs/evidence are immutable by version/content hash. Changed specifications require a new version/evidence chain.
 
-## 7. Strategy lifecycle and open architecture issue
+## 8. Strategy lifecycle and open architecture issue
 
 Current machine promotion path in `src/eba_trader/lifecycle.py` is:
 
@@ -231,23 +251,17 @@ GENERATED
  -> LIVE_ACTIVE
 ```
 
-The desired research methodology conceptually wants robustness before opening frozen OOS. This is an acknowledged mismatch. Current code remains authoritative until a deliberate migration changes lifecycle policy and tests. Manual bypass is prohibited.
+Accepted methodology wants robustness before opening frozen OOS. This mismatch is acknowledged and automated frozen OOS remains locked. A deliberate migration must change lifecycle semantics/storage/tests; manual bypass is prohibited.
 
-## 8. PWA / API boundary
+## 9. PWA / API boundary
 
-The PWA is presentation/control UI, not the trading engine. It reads server truth for position, history, TP/SL, leverage, indicators, fees, P&L, research status and trade-specific chart data.
+The PWA is presentation/control UI, not the trading engine. It reads server truth for positions, history, trade detail and research status.
 
-Canonical services:
-
-- `eba-runtime-api.service` -> local runtime API on `127.0.0.1:8765`;
-- `eba-web.service` -> web/PWA service on `127.0.0.1:8000`;
-- nginx/Let's Encrypt exposes the web service externally.
-
-The PWA may save/replace/delete Binance Demo credentials through the constrained encrypted-vault API, but it does not receive the saved secret back and has no systemd/deployment, OOS-promotion or real-execution authority.
+The PWA may save/replace/delete Binance Demo credentials through the constrained encrypted-vault API, but it does not receive the saved secret back and has no deployment, OOS-promotion or real-execution authority.
 
 External phone/browser verification remains a production-proof requirement distinct from repository CI.
 
-## 9. Continuity architecture
+## 10. Continuity architecture
 
 ```text
 ChatGPT branch / AI agent
@@ -262,21 +276,15 @@ PROJECT_STATE + ARCHITECTURE + DECISIONS + TODO + HANDOFF
 actual code / tests / Git history
    |
    v
-work
-   |
-   v
-update code + continuity state
-   |
-   v
-Git commit / PR
+work -> validation -> continuity update -> PR/merge
    |
    v
 next chat / agent
 ```
 
-`AGENTS.md` defines the mandatory session protocol. `scripts/check_continuity.py` and `.github/workflows/continuity.yml` protect the required continuity surface. Actual code/tests/Git history override stale prose, and stale continuity must be repaired before a new session relies on it.
+Actual code/tests/Git history override stale prose, and stale continuity must be repaired before a new session relies on it.
 
-## 10. Deployment and log-retention rules
+## 11. Deployment and host-protection rules
 
 - Canonical install: `scripts/install_linode_runtime.sh`.
 - Canonical update: `scripts/update_linode_runtime.sh`.
@@ -287,11 +295,12 @@ next chat / agent
 - Do not couple research experiment metadata to runtime position persistence.
 - Do not make DNS/CA availability a reason to roll back a locally healthy runtime deployment.
 - High-frequency market events must not be emitted as normal INFO service logs.
-- Production journald must have bounded retention/free-space protection. The current real server has a manually-applied `SystemMaxUse=250M`, `SystemKeepFree=1G`, `MaxRetentionSec=7day` drop-in; repository provisioning of this policy is still pending and is an explicit next task.
+- Production journald policy is versioned under `deploy/journald/eba-trader.conf`: `SystemMaxUse=250M`, `SystemKeepFree=1G`, `MaxRetentionSec=7day`.
+- The journald resource cap is a host-safety invariant and intentionally is not removed by application rollback.
 
-## 11. Safety invariants
+## 12. Safety invariants
 
-1. API keys/secrets are never committed to Git.
+1. API keys/secrets are never committed to Git or pasted into chat.
 2. Withdrawal permission is never required.
 3. Stale/malformed market data blocks unsafe new decisions.
 4. Deterministic risk controls have veto authority.
@@ -306,10 +315,9 @@ next chat / agent
 13. Browser/PWA code has no systemd deployment authority.
 14. Raw diagnostic logs are not canonical research datasets.
 15. Runtime trade state, research state and encrypted credential state remain separate persistence domains.
+16. The real-ablation CLI accepts only contained, hash-verified development datasets and cannot open frozen OOS.
 
-## 12. Validation direction
-
-Current intended methodology is:
+## 13. Validation direction
 
 ```text
 Hypothesis

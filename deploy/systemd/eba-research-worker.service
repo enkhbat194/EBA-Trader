@@ -1,0 +1,17 @@
+[Unit]
+Description=EBA Trader queued research worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/Eba-Trader
+ExecStart=/opt/Eba-Trader/.venv/bin/eba-research-worker --db /var/lib/eba-trader/research/eba_research.db --dataset-root /var/lib/eba-trader/research/datasets --evidence-dir /var/lib/eba-trader/research/evidence --max-jobs 8 --lease-seconds 900 --retry-delay-seconds 60
+Nice=10
+CPUQuota=50%
+MemoryMax=512M
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/eba-trader/research
