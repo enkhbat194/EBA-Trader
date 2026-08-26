@@ -101,7 +101,9 @@ def build_data_only_node(settings: BinanceProbeSettings | None = None):
             subscribe_quotes=True,
             subscribe_trades=True,
             subscribe_bars=True,
-            log_data=True,
+            # The probe validates the live feed; per-tick INFO logging is intentionally
+            # disabled because quote/trade rates can fill a small VPS disk within hours.
+            log_data=False,
         )
     )
     node.trader.add_actor(tester)

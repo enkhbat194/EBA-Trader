@@ -24,6 +24,9 @@ ReadWritePaths=/opt/Eba-Trader /var/lib/eba-trader
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=eba-binance-data
+# Defense-in-depth: even if a dependency becomes noisy, cap service log bursts.
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=200
 
 [Install]
 WantedBy=multi-user.target
