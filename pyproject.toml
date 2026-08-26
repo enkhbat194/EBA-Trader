@@ -8,7 +8,9 @@ version = "0.1.0"
 description = "Research-first autonomous trading system with deterministic risk control"
 readme = "README.md"
 requires-python = ">=3.12,<3.15"
-dependencies = []
+dependencies = [
+  "cryptography>=45,<47",
+]
 
 [project.scripts]
 eba-binance-data = "eba_trader.binance_probe:run_data_only_probe"
