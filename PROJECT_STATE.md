@@ -1,7 +1,7 @@
 # EBA Trader — Project State
 
 _Last reconciled: 2026-08-26 (Asia/Ulaanbaatar)_
-_Verified through GitHub `main` PR #34 merge `ee5fd3f16ed5ad88ca928ced0efdb5790cbf568d`._
+_Verified through GitHub `main` PR #34 merge `ee5fd3f16ed5ad88ca928ced0efdb5790cbf568d`; PR #35 real USD-M feature-dataset workflow is implemented and under final validation._
 
 This is the primary cross-chat continuation summary. Actual current implementation/config/tests and Git history override stale text.
 
@@ -14,9 +14,9 @@ Operate EBA Trader as a restart-safe 24/7 Linode paper/research system, build a 
 - Research platform: **M4 COMPLETE**.
 - AI Strategy Factory: **M5 IN PROGRESS**.
 - Continuity system: **INSTALLED / ENFORCED IN CI**.
-- Current M5 frontier: materialize a real BTCUSDT USD-M development feature dataset, then execute the deterministic candle-only vs delta/CVD ablation batch through M4.
-- Historical order-flow acquisition, missing-ID repair, causal candle alignment, feature-dataset materialization and allowlisted ablation adapters: **IMPLEMENTED / MERGED through #31**.
-- Deterministic ablation orchestration: **MERGED in #34**.
+- Deterministic order-flow ablation orchestration: **MERGED in #34**.
+- Real USD-M development feature-dataset workflow: **IMPLEMENTED in PR #35 pending final CI/merge**.
+- Next research frontier after #35: build a real BTCUSDT USD-M development dataset on Linode, then execute the deterministic candle-only vs delta/CVD ablation batch through M4.
 - Research / AI Lab PWA: **MERGED in #32**; read-only observability only.
 - Scanner heartbeat UI: **MERGED in #33**.
 - Real-money execution: **LOCKED**.
@@ -53,6 +53,7 @@ Merged PRs #20-#24 provide immutable strategy versions, deterministic experiment
 - #32 phone-first Research / AI Lab PWA dashboard.
 - #33 carry-label clarification and Fast Momentum heartbeat observability.
 - #34 deterministic one-control-to-many-treatment order-flow ablation orchestration.
+- #35 adds venue-aware candle acquisition plus one-command verified USD-M candle+order-flow feature-dataset build; final merge is pending.
 
 Enabled order-flow features: executed buy/sell volume, delta, delta ratio, CVD and POC price. Stacked imbalance, absorption, exhaustion and LOB depth imbalance remain disabled/unimplemented.
 
@@ -62,22 +63,21 @@ Enabled order-flow features: executed buy/sell volume, delta, delta ratio, CVD a
 
 AI hypotheses are constrained structured data. Unknown/disabled features fail closed. Parameter fan-out is bounded and candidates are deterministically identified/emitted into the M4 research store/queue.
 
-PR #34 adds `M5OrderFlowAblationOrchestrator`:
+`M5OrderFlowAblationOrchestrator` emits one deduplicated `ema_feature_baseline_v1` control and bounded deterministic `ema_orderflow_v1` treatments. All arms share dataset identity, symbol/time window, EMA parameters, initial capital, fees, slippage and trade-start semantics; only allowlisted delta/CVD thresholds differ. Fan-out is capped at 64 and the stage is fixed to development only.
 
-- one deduplicated `ema_feature_baseline_v1` control experiment;
-- bounded deterministic `ema_orderflow_v1` treatment variants;
-- exact shared dataset identity, symbol/time window, EMA parameters, initial capital, fees, slippage and trade-start semantics;
-- only delta-ratio/CVD gate parameters may differ;
-- treatment fan-out capped at 64;
-- duplicate, empty or non-finite gates fail closed;
-- gate input ordering does not alter deterministic batch identity;
-- fixed stage `m5_orderflow_ablation_dev`; no OOS or lifecycle-promotion authority.
+### Real USD-M feature dataset workflow
 
-### Order flow / footprint
+PR #35 prevents Spot/Futures contamination by making the real M5 pipeline venue-explicit end to end:
 
-Footprint is derived from raw executed market events, not chart pixels. Historical datasets are content-addressed and validated for duplicate/conflicting IDs, timestamp ordering, file hash and sequence gaps. Unresolved gaps are not backtest-ready.
+- Binance USD-M futures candles are acquired from the futures kline endpoint with request provenance and exact interval coverage validation;
+- Binance USD-M `aggTrades` cover one prior footprint window plus the development candle range;
+- aggregate-trade gaps are repaired and unresolved integrity errors fail closed;
+- candle and order-flow manifests are content-linked and hash verified;
+- closed footprint `[t-step,t)` is aligned to the candle opening at `t`;
+- `eba-build-orderflow-features` emits an immutable feature CSV/workflow manifest plus an M4-safe relative `dataset_ref`;
+- the existing frozen-OOS guard remains authoritative.
 
-USD-M Futures is the default venue for BTCUSDT perpetual research. Closed footprint `[t-step,t)` is available to the candle opening at `t`; still-forming same-candle flow is never injected into that decision.
+Core implementation tests, full regression, Ruff, deployment/runtime and continuity checks passed on the pre-doc-update PR #35 head. Final continuity head must be green before merge.
 
 ### Runtime / PWA
 
@@ -86,6 +86,7 @@ USD-M Futures is the default venue for BTCUSDT perpetual research. Closed footpr
 - Fast Momentum supports persistent OPEN/MARK/CLOSE state/history.
 - The PWA consumes server truth rather than browser memory.
 - Research / AI Lab and scanner heartbeat are read-only observability.
+- Binance Demo API credentials are currently re-entered manually in the app; next production UX task is encrypted server-side one-time credential persistence with replace/delete controls. Secrets must never be returned to the browser or stored in browser localStorage.
 
 ## Production proof — manual evidence on 2026-08-26
 
@@ -94,11 +95,14 @@ Confirmed:
 - Linode checkout consumed GitHub `main` through state commit `050cd9be203a09aca95a152d7102fa280c397ee7`.
 - nginx + Certbot configured `eba-trader-172-236-150-62.sslip.io`.
 - External iPhone access to the HTTPS PWA succeeded.
-- Home, Scan and Settings displayed live server state; Binance Demo connection and Fast Paper scanner were observed operating.
+- Home, Scan and Settings displayed live server state.
+- History displayed persisted Fast Paper trades with entry/exit, fees and exit reasons.
+- Fast Paper trade detail displayed persisted execution facts, strategy evidence and trade chart.
+- Binance Demo connection modal is present and currently accepts optional API key/secret manually.
 
 Still unproven:
 
-- complete smoke test of Chart / Positions / History / Research / trade detail;
+- standalone Chart / Positions / Research screen smoke against server truth;
 - active Fast Momentum paper position surviving a service/server restart and later MARK/CLOSE;
 - final disposition of the older carry paper engine.
 
@@ -112,29 +116,31 @@ Desired methodology conceptually wants robustness before opening frozen OOS. Do 
 
 ## Immediate Next
 
-1. Add a CLI/workflow to materialize the real development feature dataset from candle CSV + verified order-flow/acquisition manifests.
-2. Run controlled BTCUSDT USD-M development ablations through M4 queue/worker/evidence/gates.
-3. Persist/rank survivors only for triage; do not open frozen OOS from ranking results.
-4. In parallel, finish remaining production smoke/restart-recovery proof.
+1. Final-CI and squash-merge PR #35.
+2. Add encrypted server-side one-time Binance Demo credential persistence; browser receives status/masked metadata only and supports explicit replace/delete.
+3. Build a real BTCUSDT USD-M development dataset on Linode outside frozen OOS using `eba-build-orderflow-features`.
+4. Run the #34 deterministic ablation batch through M4 queue/worker/evidence/gates.
+5. Persist/rank survivors only for triage; do not open frozen OOS from ranking results.
+6. Finish remaining production smoke/restart-recovery proof in parallel.
 
 ## Important constraints
 
-- No API secrets in Git; withdrawal permission is never required.
+- No API secrets in Git or browser persistent storage; withdrawal permission is never required.
 - Deterministic risk has veto authority.
 - Runtime state must survive Git pulls, browser refreshes and process/server restarts.
 - Strategy versions/evidence are immutable.
 - AI strategy generation does not execute arbitrary generated Python.
 - Order-flow executed trades and resting LOB liquidity are separate data domains.
 - Order-flow dataset gaps fail closed.
-- Spot and USD-M futures order flow are separate experiment datasets.
+- Spot and USD-M futures data are separate experiment datasets and must not be silently mixed.
 - Same-candle still-forming footprint data cannot be used in candle decisions.
 - A development win-rate increase is not promotion evidence.
 - Generic research workers and ablation orchestration cannot open frozen OOS or real execution.
 
 ## Validation status
 
-- PRs #29-#33 passed their full regression/Ruff/deployment/runtime/continuity gates before merge.
-- PR #34 final head passed Continuity guard, Linode runtime checks and Linode production bundle before squash merge at `ee5fd3f16ed5ad88ca928ced0efdb5790cbf568d`.
+- PRs #29-#34 passed their full regression/Ruff/deployment/runtime/continuity gates before merge.
+- PR #35 pre-continuity-update head passed full regression, Ruff, Linode runtime checks, Linode production bundle and Continuity guard after two lint-only findings were fixed.
 - External HTTPS/latest-main proof is manually established; restart-recovery proof remains open.
 
 ## Continuity system
