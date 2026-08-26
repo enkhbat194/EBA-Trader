@@ -5,8 +5,13 @@ REPO_DIR="/opt/Eba-Trader"
 ENV_DIR="/etc/eba-trader"
 STATE_DIR="/var/lib/eba-trader"
 DEPLOY_STATE="$STATE_DIR/deploy-state"
+RESEARCH_DIR="$STATE_DIR/research"
+RESEARCH_DATASET_DIR="$RESEARCH_DIR/datasets"
+RESEARCH_EVIDENCE_DIR="$RESEARCH_DIR/evidence"
 CREDENTIAL_DIR="$STATE_DIR/credentials"
 CREDENTIAL_KEY="$ENV_DIR/demo-credential.key"
+JOURNALD_DROPIN_DIR="/etc/systemd/journald.conf.d"
+JOURNALD_DROPIN="$JOURNALD_DROPIN_DIR/eba-trader.conf"
 DATA_SERVICE="eba-binance-data.service"
 API_SERVICE="eba-runtime-api.service"
 WEB_SERVICE="eba-web.service"
@@ -22,9 +27,21 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 cd "$REPO_DIR"
-mkdir -p "$ENV_DIR" "$STATE_DIR" "$DEPLOY_STATE" "$CREDENTIAL_DIR"
+mkdir -p \
+  "$ENV_DIR" \
+  "$STATE_DIR" \
+  "$DEPLOY_STATE" \
+  "$CREDENTIAL_DIR" \
+  "$RESEARCH_DATASET_DIR" \
+  "$RESEARCH_EVIDENCE_DIR" \
+  "$JOURNALD_DROPIN_DIR"
 chmod 700 "$ENV_DIR" "$CREDENTIAL_DIR"
-chmod 750 "$STATE_DIR" "$DEPLOY_STATE"
+chmod 750 \
+  "$STATE_DIR" \
+  "$DEPLOY_STATE" \
+  "$RESEARCH_DIR" \
+  "$RESEARCH_DATASET_DIR" \
+  "$RESEARCH_EVIDENCE_DIR"
 
 # Never deploy over local edits: a dirty runtime checkout is unsafe to auto-reset.
 if [[ -n "$(git status --porcelain)" ]]; then
@@ -99,6 +116,16 @@ with os.fdopen(fd, "wb") as handle:
 PY
 fi
 chmod 600 "$CREDENTIAL_KEY"
+
+# Keep research state outside the Git checkout so deployments cannot delete datasets,
+# queue metadata or immutable evidence.
+mkdir -p "$RESEARCH_DATASET_DIR" "$RESEARCH_EVIDENCE_DIR"
+chmod 750 "$RESEARCH_DIR" "$RESEARCH_DATASET_DIR" "$RESEARCH_EVIDENCE_DIR"
+
+# The journal cap is a host-safety invariant, not application state. It intentionally
+# survives application rollback so a bad release cannot re-open the disk-fill failure.
+install -m 0644 deploy/journald/eba-trader.conf "$JOURNALD_DROPIN"
+systemctl restart systemd-journald
 
 install -m 0644 deploy/systemd/eba-binance-data.service "/etc/systemd/system/$DATA_SERVICE"
 install -m 0644 deploy/systemd/eba-runtime-api.service "/etc/systemd/system/$API_SERVICE"
