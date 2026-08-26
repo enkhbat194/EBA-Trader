@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .experiment_queue import ExperimentStatus
+from .lifecycle import CURRENT_LIFECYCLE_POLICY_VERSION, StrategyLifecycle
 from .research_evidence import canonical_json, sha256_text
 from .research_gates import GateEvaluation, GateSet, evaluate_gate_set
 from .research_store import ResearchStore
@@ -23,11 +24,10 @@ class RobustnessVerdict:
 
 
 class RobustnessVerdictEngine:
-    """Aggregate completed robustness experiments without changing lifecycle state.
+    """Aggregate robustness evidence and explicitly gate lifecycle promotion.
 
-    M4 deliberately stops at an immutable robustness verdict. OOS authorization and any
-    later lifecycle promotion remain separate gates so this engine cannot unlock frozen OOS
-    or live execution.
+    ``evaluate`` is immutable/non-mutating. ``promote_if_passed`` is the only helper here
+    that can move a v2 strategy from BACKTESTED to ROBUSTNESS_VERIFIED. It never opens OOS.
     """
 
     def __init__(self, store: ResearchStore) -> None:
@@ -154,6 +154,59 @@ class RobustnessVerdictEngine:
             experiment_count=len(experiments),
             failed_experiment_ids=tuple(failed_ids),
         )
+
+    def promote_if_passed(self, *, batch_id: str, gate_set: GateSet) -> dict[str, Any]:
+        verdict = self.evaluate(batch_id=batch_id, gate_set=gate_set)
+        if not verdict.passed:
+            raise RuntimeError("failed robustness verdict cannot promote lifecycle")
+
+        batch = self.planner.get_batch(batch_id)
+        if batch is None:  # pragma: no cover - evaluate already proved existence
+            raise RuntimeError("robustness batch disappeared")
+        strategy_id = str(batch["strategy_id"])
+        strategy_version = int(batch["strategy_version"])
+        strategy = self.store.get_strategy_version(strategy_id, strategy_version)
+        if strategy is None:  # pragma: no cover - foreign key invariant
+            raise RuntimeError("robustness strategy disappeared")
+        if strategy["lifecycle_policy_version"] != CURRENT_LIFECYCLE_POLICY_VERSION:
+            raise RuntimeError("robustness promotion requires lifecycle policy v2")
+
+        evidence_ref = f"robustness-verdict:{verdict.verdict_id}"
+        if strategy["lifecycle_state"] is StrategyLifecycle.ROBUSTNESS_VERIFIED:
+            with self.store._connection() as connection:
+                row = connection.execute(
+                    """
+                    SELECT evidence_ref
+                    FROM lifecycle_history
+                    WHERE strategy_id = ? AND strategy_version = ?
+                      AND current_state = ?
+                    ORDER BY id DESC
+                    LIMIT 1
+                    """,
+                    (
+                        strategy_id,
+                        strategy_version,
+                        StrategyLifecycle.ROBUSTNESS_VERIFIED.value,
+                    ),
+                ).fetchone()
+            if row is None or row["evidence_ref"] != evidence_ref:
+                raise RuntimeError("strategy robustness state is backed by different evidence")
+            return strategy
+
+        if strategy["lifecycle_state"] is not StrategyLifecycle.BACKTESTED:
+            raise RuntimeError("robustness promotion requires BACKTESTED lifecycle state")
+
+        self.store.record_transition(
+            strategy_id=strategy_id,
+            strategy_version=strategy_version,
+            current=StrategyLifecycle.ROBUSTNESS_VERIFIED,
+            reason=f"Robustness gate set {gate_set.gate_set_id} passed",
+            evidence_ref=evidence_ref,
+        )
+        promoted = self.store.get_strategy_version(strategy_id, strategy_version)
+        if promoted is None:  # pragma: no cover
+            raise RuntimeError("promoted strategy could not be reloaded")
+        return promoted
 
     def list_verdicts(self, batch_id: str) -> list[dict[str, Any]]:
         with self.store._connection() as connection:
