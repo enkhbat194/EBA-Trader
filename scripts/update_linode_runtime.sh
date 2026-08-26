@@ -121,6 +121,10 @@ PY
 fi
 chmod 600 "$CREDENTIAL_KEY"
 
+# Ensure upgrades of an existing Linode env file gain the canonical persistent research
+# paths without overwriting any explicit operator choice already present.
+bash scripts/ensure_linode_research_env.sh
+
 # Keep research state outside the Git checkout so deployments cannot delete datasets,
 # queue metadata or immutable evidence.
 mkdir -p "$RESEARCH_DATASET_DIR" "$RESEARCH_EVIDENCE_DIR"
