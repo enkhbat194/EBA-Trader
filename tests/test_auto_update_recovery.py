@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,3 +25,18 @@ def test_repair_helper_is_fail_closed_on_dirty_checkout() -> None:
     assert "raw.githubusercontent.com/enkhbat194/EBA-Trader/main" in repair
     assert "systemctl enable --now" in repair
     assert "api/app-info" in repair
+
+
+def test_recovery_shell_scripts_have_valid_bash_syntax() -> None:
+    for relative in (
+        "scripts/auto_update_entrypoint.sh",
+        "scripts/repair_linode_auto_update.sh",
+        "scripts/install_linode_runtime.sh",
+    ):
+        result = subprocess.run(
+            ["bash", "-n", str(ROOT / relative)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
