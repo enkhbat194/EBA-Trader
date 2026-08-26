@@ -72,7 +72,9 @@ install -m 0644 deploy/systemd/eba-web.service "/etc/systemd/system/$WEB_SERVICE
 install -m 0644 deploy/systemd/eba-auto-update.service "/etc/systemd/system/$UPDATE_SERVICE"
 install -m 0644 deploy/systemd/eba-auto-update.timer "/etc/systemd/system/$UPDATE_TIMER"
 systemctl daemon-reload
-systemctl enable "$DATA_SERVICE" "$API_SERVICE" "$WEB_SERVICE" "$UPDATE_TIMER"
+systemctl reset-failed "$UPDATE_SERVICE" || true
+systemctl enable "$DATA_SERVICE" "$API_SERVICE" "$WEB_SERVICE" >/dev/null
+systemctl enable --now "$UPDATE_TIMER" >/dev/null
 systemctl restart "$DATA_SERVICE" "$API_SERVICE" "$WEB_SERVICE"
 systemctl restart "$UPDATE_TIMER"
 
@@ -95,6 +97,7 @@ echo "Market-data logs: journalctl -u $DATA_SERVICE -f"
 echo "Runtime API logs: journalctl -u $API_SERVICE -f"
 echo "PWA/server logs: journalctl -u $WEB_SERVICE -f"
 echo "Auto-update logs: journalctl -u $UPDATE_SERVICE"
+echo "Auto-update state: /var/lib/eba-trader/deploy-state/last_output.log"
 echo "Runtime health: curl http://127.0.0.1:8765/health"
 echo "PWA health: curl http://127.0.0.1:8000/api/health"
 if [[ -s "$ENV_DIR/public-url" ]]; then
