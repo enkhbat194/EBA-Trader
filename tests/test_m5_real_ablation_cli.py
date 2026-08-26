@@ -9,7 +9,6 @@ import pytest
 from eba_trader.m5_ablation_cli import emit_real_ablation_batch
 from eba_trader.research_evidence import sha256_file
 
-
 START_MS = 1_704_067_200_000
 END_MS = START_MS + 600_000
 
