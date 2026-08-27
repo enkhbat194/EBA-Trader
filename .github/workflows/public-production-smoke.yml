@@ -1,0 +1,38 @@
+name: Public production smoke
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eba-public-production-smoke
+  cancel-in-progress: false
+
+jobs:
+  external-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install EBA Trader
+        run: python -m pip install -e .
+
+      - name: Wait for Linode deploy and verify public production
+        env:
+          EBA_PUBLIC_PWA_URL: https://eba-trader-172-236-150-62.sslip.io
+          EBA_EXPECTED_BUILD_SHA: ${{ github.sha }}
+        run: >-
+          python -m eba_trader.public_smoke
+          --expected-build "$EBA_EXPECTED_BUILD_SHA"
+          --timeout-seconds 720
