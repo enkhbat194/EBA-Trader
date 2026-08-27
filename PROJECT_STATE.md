@@ -210,7 +210,7 @@ The corpus contains 12 non-overlapping four-hour windows and deliberately exclud
 
 Corpus identity is deterministic (`m5corpus_*`), window names must be unique, chronology/non-overlap is enforced and corpus fan-out has a hard cap of 24.
 
-## PR #63 validation status
+## Validation status — PR #63
 
 PR #63 initially exposed two implementation issues and both were corrected before merge:
 
