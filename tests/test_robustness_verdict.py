@@ -70,7 +70,7 @@ def _pass(store: ResearchStore, experiment_id: str, *, pf: float = 1.3) -> None:
     )
 
 
-def test_all_scenarios_must_pass_and_verdict_is_idempotent(tmp_path: Path) -> None:
+def test_evaluate_is_idempotent_and_does_not_mutate_lifecycle(tmp_path: Path) -> None:
     store, batch_id, experiment_ids = _batch(tmp_path)
     for experiment_id in experiment_ids:
         _pass(store, experiment_id)
@@ -90,18 +90,51 @@ def test_all_scenarios_must_pass_and_verdict_is_idempotent(tmp_path: Path) -> No
     assert strategy["lifecycle_state"] is StrategyLifecycle.BACKTESTED
 
 
-def test_one_failed_scenario_fails_batch_without_lifecycle_promotion(tmp_path: Path) -> None:
+def test_passed_verdict_can_promote_only_to_robustness_verified(tmp_path: Path) -> None:
+    store, batch_id, experiment_ids = _batch(tmp_path)
+    for experiment_id in experiment_ids:
+        _pass(store, experiment_id)
+
+    engine = RobustnessVerdictEngine(store)
+    promoted = engine.promote_if_passed(batch_id=batch_id, gate_set=_gate_set())
+    replay = engine.promote_if_passed(batch_id=batch_id, gate_set=_gate_set())
+
+    assert promoted["lifecycle_state"] is StrategyLifecycle.ROBUSTNESS_VERIFIED
+    assert replay["lifecycle_state"] is StrategyLifecycle.ROBUSTNESS_VERIFIED
+
+    with pytest.raises(ValueError, match="not allowed"):
+        store.record_transition(
+            strategy_id="STR-V",
+            strategy_version=1,
+            current=StrategyLifecycle.PAPER_CANDIDATE,
+            reason="Trying to skip frozen OOS",
+            evidence_ref="paper:too-early",
+        )
+
+    oos = store.record_transition(
+        strategy_id="STR-V",
+        strategy_version=1,
+        current=StrategyLifecycle.OOS_VERIFIED,
+        reason="Frozen OOS evidence passed after robustness",
+        evidence_ref="oos:final-1",
+    )
+    assert oos.previous is StrategyLifecycle.ROBUSTNESS_VERIFIED
+    assert oos.current is StrategyLifecycle.OOS_VERIFIED
+
+
+def test_failed_scenario_cannot_promote_lifecycle(tmp_path: Path) -> None:
     store, batch_id, experiment_ids = _batch(tmp_path)
     _pass(store, experiment_ids[0], pf=1.3)
     _pass(store, experiment_ids[1], pf=0.8)
 
-    verdict = RobustnessVerdictEngine(store).evaluate(
-        batch_id=batch_id,
-        gate_set=_gate_set(),
-    )
+    engine = RobustnessVerdictEngine(store)
+    verdict = engine.evaluate(batch_id=batch_id, gate_set=_gate_set())
 
     assert verdict.passed is False
     assert verdict.failed_experiment_ids == (experiment_ids[1],)
+    with pytest.raises(RuntimeError, match="failed robustness verdict"):
+        engine.promote_if_passed(batch_id=batch_id, gate_set=_gate_set())
+
     strategy = store.get_strategy_version("STR-V", 1)
     assert strategy is not None
     assert strategy["lifecycle_state"] is StrategyLifecycle.BACKTESTED
