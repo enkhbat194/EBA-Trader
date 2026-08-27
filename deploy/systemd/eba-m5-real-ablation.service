@@ -1,0 +1,24 @@
+[Unit]
+Description=EBA Trader one-shot real M5 development ablation
+After=network-online.target eba-runtime-api.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/Eba-Trader
+ExecStart=/bin/bash /opt/Eba-Trader/scripts/run_m5_real_ablation_once.sh
+User=root
+Group=root
+Nice=10
+CPUQuota=40%
+MemoryMax=700M
+TasksMax=128
+IOSchedulingClass=idle
+TimeoutStartSec=45min
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/eba-trader/research
+
+[Install]
+WantedBy=multi-user.target
