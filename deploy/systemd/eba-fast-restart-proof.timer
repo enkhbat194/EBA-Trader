@@ -2,7 +2,7 @@
 Description=Check for a natural Fast Momentum position to prove restart persistence
 
 [Timer]
-OnBootSec=2min
+OnActiveSec=2min
 OnUnitActiveSec=1min
 AccuracySec=10s
 Persistent=true
