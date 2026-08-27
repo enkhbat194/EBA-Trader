@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from .footprint_dataset import FootprintDatasetBuilder
@@ -14,16 +14,21 @@ from .orderflow_dataset import (
     load_orderflow_records,
     require_research_ready,
 )
+from .orderflow_divergence import price_delta_divergence
 from .research_evidence import canonical_json, sha256_file, sha256_text
 
-FEATURE_DATASET_SCHEMA = "m5_orderflow_feature_dataset_v3"
+FEATURE_DATASET_SCHEMA = "m5_orderflow_feature_dataset_v4"
+RESPONSE_FEATURE_DATASET_SCHEMA = "m5_orderflow_feature_dataset_v3"
 STACKED_FEATURE_DATASET_SCHEMA = "m5_orderflow_feature_dataset_v2"
 LEGACY_FEATURE_DATASET_SCHEMA = "m5_orderflow_feature_dataset_v1"
 SUPPORTED_FEATURE_DATASET_SCHEMAS = {
     LEGACY_FEATURE_DATASET_SCHEMA,
     STACKED_FEATURE_DATASET_SCHEMA,
+    RESPONSE_FEATURE_DATASET_SCHEMA,
     FEATURE_DATASET_SCHEMA,
 }
+DEFAULT_DIVERGENCE_LOOKBACK = 3
+DEFAULT_DIVERGENCE_MIN_TOTAL_VOLUME = 0.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +46,9 @@ class OrderFlowFeatureRow:
     of_stacked_imbalance: int = 0
     of_absorption: float = 0.0
     of_exhaustion: float = 0.0
+    of_bullish_price_delta_divergence: float = 0.0
+    of_bearish_price_delta_divergence: float = 0.0
+    of_price_delta_divergence: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,6 +63,8 @@ class OrderFlowFeatureDatasetManifest:
     price_bucket: float
     imbalance_ratio: float
     imbalance_min_volume: float
+    divergence_lookback: int
+    divergence_min_total_volume: float
     venue: str
     acquisition_id: str
     candle_sha256: str
@@ -75,6 +85,8 @@ class OrderFlowFeatureDatasetManifest:
             "price_bucket": self.price_bucket,
             "imbalance_ratio": self.imbalance_ratio,
             "imbalance_min_volume": self.imbalance_min_volume,
+            "divergence_lookback": self.divergence_lookback,
+            "divergence_min_total_volume": self.divergence_min_total_volume,
             "venue": self.venue,
             "acquisition_id": self.acquisition_id,
             "candle_sha256": self.candle_sha256,
@@ -117,6 +129,61 @@ def _load_acquisition(path: str | Path) -> dict[str, object]:
     return payload
 
 
+def apply_price_delta_divergence(
+    rows: tuple[OrderFlowFeatureRow, ...] | list[OrderFlowFeatureRow],
+    *,
+    lookback: int = DEFAULT_DIVERGENCE_LOOKBACK,
+    min_total_volume: float = DEFAULT_DIVERGENCE_MIN_TOTAL_VOLUME,
+) -> tuple[OrderFlowFeatureRow, ...]:
+    """Attach causal divergence using only price bars already closed at feature availability.
+
+    Row ``i`` is available at candle open ``t`` and contains footprint flow from
+    ``[t-step, t)``. Therefore that flow belongs to the price candle stored on row
+    ``i-1``. The candle attached to row ``i`` is just opening at ``t`` and its future
+    high/low/close must never participate in the divergence available at ``t``.
+    """
+
+    if isinstance(lookback, bool) or not isinstance(lookback, int) or lookback < 1:
+        raise ValueError("divergence lookback must be an integer >= 1")
+    if not math.isfinite(min_total_volume) or min_total_volume < 0.0:
+        raise ValueError("divergence min_total_volume must be finite and >= 0")
+
+    source = tuple(rows)
+    output: list[OrderFlowFeatureRow] = []
+    for index, row in enumerate(source):
+        divergence = None
+        if index >= lookback + 1:
+            current_price = source[index - 1].candle
+            reference_indexes = range(index - lookback, index)
+            reference_price_rows = [source[ref_index - 1].candle for ref_index in reference_indexes]
+            reference_flow_rows = [source[ref_index] for ref_index in reference_indexes]
+            divergence = price_delta_divergence(
+                current_high=current_price.high,
+                current_low=current_price.low,
+                current_delta_ratio=row.of_delta_ratio,
+                current_total_volume=row.of_buy_volume + row.of_sell_volume,
+                reference_highs=tuple(candle.high for candle in reference_price_rows),
+                reference_lows=tuple(candle.low for candle in reference_price_rows),
+                reference_delta_ratios=tuple(flow.of_delta_ratio for flow in reference_flow_rows),
+                reference_total_volumes=tuple(
+                    flow.of_buy_volume + flow.of_sell_volume for flow in reference_flow_rows
+                ),
+                min_total_volume=min_total_volume,
+            )
+        if divergence is None:
+            output.append(row)
+        else:
+            output.append(
+                replace(
+                    row,
+                    of_bullish_price_delta_divergence=divergence.bullish,
+                    of_bearish_price_delta_divergence=divergence.bearish,
+                    of_price_delta_divergence=divergence.signed_score,
+                )
+            )
+    return tuple(output)
+
+
 def materialize_orderflow_feature_dataset(
     *,
     candle_path: str | Path,
@@ -130,6 +197,8 @@ def materialize_orderflow_feature_dataset(
     output_root: str | Path,
     imbalance_ratio: float = 3.0,
     imbalance_min_volume: float = 0.0,
+    divergence_lookback: int = DEFAULT_DIVERGENCE_LOOKBACK,
+    divergence_min_total_volume: float = DEFAULT_DIVERGENCE_MIN_TOTAL_VOLUME,
 ) -> OrderFlowFeatureDatasetManifest:
     symbol = symbol.strip().upper()
     if not symbol:
@@ -142,6 +211,17 @@ def materialize_orderflow_feature_dataset(
         raise ValueError("imbalance_ratio must be finite and > 1")
     if not math.isfinite(imbalance_min_volume) or imbalance_min_volume < 0.0:
         raise ValueError("imbalance_min_volume must be finite and >= 0")
+    if (
+        isinstance(divergence_lookback, bool)
+        or not isinstance(divergence_lookback, int)
+        or divergence_lookback < 1
+    ):
+        raise ValueError("divergence_lookback must be an integer >= 1")
+    if (
+        not math.isfinite(divergence_min_total_volume)
+        or divergence_min_total_volume < 0.0
+    ):
+        raise ValueError("divergence_min_total_volume must be finite and >= 0")
     step = INTERVAL_MS[interval]
     if start_ms < step:
         raise ValueError("start_ms must allow one prior footprint window")
@@ -190,7 +270,7 @@ def materialize_orderflow_feature_dataset(
         require_complete=True,
     )
 
-    rows = tuple(
+    base_rows = tuple(
         OrderFlowFeatureRow(
             candle=item.candle,
             of_buy_volume=item.footprint.buy_volume,
@@ -208,6 +288,11 @@ def materialize_orderflow_feature_dataset(
         )
         for item in aligned
     )
+    rows = apply_price_delta_divergence(
+        base_rows,
+        lookback=divergence_lookback,
+        min_total_volume=divergence_min_total_volume,
+    )
     if len(rows) != len(candles):
         raise RuntimeError("aligned feature dataset row count does not match candle count")
 
@@ -223,6 +308,8 @@ def materialize_orderflow_feature_dataset(
             "price_bucket": price_bucket,
             "imbalance_ratio": imbalance_ratio,
             "imbalance_min_volume": imbalance_min_volume,
+            "divergence_lookback": divergence_lookback,
+            "divergence_min_total_volume": divergence_min_total_volume,
             "candle_sha256": sha256_file(candle_file),
             "orderflow_dataset_id": orderflow_manifest.dataset_id,
             "orderflow_records_sha256": orderflow_manifest.records_sha256,
@@ -245,6 +332,8 @@ def materialize_orderflow_feature_dataset(
         price_bucket=price_bucket,
         imbalance_ratio=imbalance_ratio,
         imbalance_min_volume=imbalance_min_volume,
+        divergence_lookback=divergence_lookback,
+        divergence_min_total_volume=divergence_min_total_volume,
         venue=str(acquisition["venue"]),
         acquisition_id=str(acquisition["acquisition_id"]),
         candle_sha256=sha256_file(candle_file),
@@ -283,6 +372,9 @@ def _write_feature_csv(rows: tuple[OrderFlowFeatureRow, ...], path: Path) -> Non
         "of_stacked_imbalance",
         "of_absorption",
         "of_exhaustion",
+        "of_bullish_price_delta_divergence",
+        "of_bearish_price_delta_divergence",
+        "of_price_delta_divergence",
         "footprint_available_at_ms",
     ]
     with path.open("w", newline="", encoding="utf-8") as handle:
@@ -312,6 +404,9 @@ def _write_feature_csv(rows: tuple[OrderFlowFeatureRow, ...], path: Path) -> Non
                     "of_stacked_imbalance": row.of_stacked_imbalance,
                     "of_absorption": row.of_absorption,
                     "of_exhaustion": row.of_exhaustion,
+                    "of_bullish_price_delta_divergence": row.of_bullish_price_delta_divergence,
+                    "of_bearish_price_delta_divergence": row.of_bearish_price_delta_divergence,
+                    "of_price_delta_divergence": row.of_price_delta_divergence,
                     "footprint_available_at_ms": row.footprint_available_at_ms,
                 }
             )
@@ -345,16 +440,23 @@ def load_orderflow_feature_csv(path: str | Path) -> tuple[OrderFlowFeatureRow, .
             "of_stacked_imbalance",
         }
         response_fields = {"of_absorption", "of_exhaustion"}
+        divergence_fields = {
+            "of_bullish_price_delta_divergence",
+            "of_bearish_price_delta_divergence",
+            "of_price_delta_divergence",
+        }
         actual_fields = set(reader.fieldnames or ())
         supported_fields = {
             frozenset(legacy_fields),
             frozenset(legacy_fields | stacked_fields),
             frozenset(legacy_fields | stacked_fields | response_fields),
+            frozenset(legacy_fields | stacked_fields | response_fields | divergence_fields),
         }
         if actual_fields not in supported_fields:
             raise ValueError("invalid order-flow feature CSV columns")
         has_stacked = stacked_fields <= actual_fields
         has_response = response_fields <= actual_fields
+        has_divergence = divergence_fields <= actual_fields
         for payload in reader:
             poc_text = payload["of_poc_price"].strip()
             candle = Candle(
@@ -392,6 +494,21 @@ def load_orderflow_feature_csv(path: str | Path) -> tuple[OrderFlowFeatureRow, .
                     ),
                     of_absorption=(float(payload["of_absorption"]) if has_response else 0.0),
                     of_exhaustion=(float(payload["of_exhaustion"]) if has_response else 0.0),
+                    of_bullish_price_delta_divergence=(
+                        float(payload["of_bullish_price_delta_divergence"])
+                        if has_divergence
+                        else 0.0
+                    ),
+                    of_bearish_price_delta_divergence=(
+                        float(payload["of_bearish_price_delta_divergence"])
+                        if has_divergence
+                        else 0.0
+                    ),
+                    of_price_delta_divergence=(
+                        float(payload["of_price_delta_divergence"])
+                        if has_divergence
+                        else 0.0
+                    ),
                 )
             )
     validate_interval_window(

@@ -14,18 +14,17 @@ def test_external_production_proof_requires_terminal_m5_evidence() -> None:
         '"m5_evidence_complete": m5.get("evidenceComplete") is True',
         '"m5_frozen_oos_closed": m5.get("frozenOosOpened") is False',
         '"m5_live_execution_locked": m5.get("liveExecutionAllowed") is False',
-        '"m5_response_report_path": "m5-absorption-exhaustion-ablation-"',
+        '"m5_divergence_report_path": "m5-price-delta-divergence-ablation-"',
         '"m5_report_all_passed": m5_report.get("allExperimentsPassed") is True',
-        '"m5_report_treatments": isinstance(treatments, list) and len(treatments) == 4',
-        '"m5_report_response_gates": response_gates == expected_response_gates',
+        '"m5_report_treatments": isinstance(treatments, list) and len(treatments) == 3',
+        '"m5_report_divergence_gates": divergence_gates == expected_divergence_gates',
     )
     for contract in required_checks:
         assert contract in text
 
-    assert '"absorption_threshold": 0.1' in text
-    assert '"absorption_threshold": 0.2' in text
-    assert '"exhaustion_threshold": 0.01' in text
-    assert '"exhaustion_threshold": 0.03' in text
-    assert '"m5ResponseGates": response_gates' in text
+    assert '"price_delta_divergence_threshold": 0.01' in text
+    assert '"price_delta_divergence_threshold": 0.05' in text
+    assert '"price_delta_divergence_threshold": 0.1' in text
+    assert '"m5DivergenceGates": divergence_gates' in text
     assert "deadline = time.time() + 900" in text
     assert "time.sleep(20)" in text

@@ -45,16 +45,15 @@ def test_real_ablation_autorun_is_bounded_idempotent_and_development_only() -> N
     assert 'START="2026-08-01T00:00:00Z"' in wrapper
     assert 'END="2026-08-01T04:00:00Z"' in wrapper
     assert "m5-real-ablation-latest.json" in wrapper
-    assert 'GATES_JSON="$REPO_DIR/config/m5_absorption_exhaustion_gate_set_v3.json"' in wrapper
-    assert 'GATE_SET_ID="m5_orderflow_gate_set_v3"' in wrapper
-    assert "m5-absorption-exhaustion-ablation-$WINDOW_ID.json" in wrapper
+    assert 'GATES_JSON="$REPO_DIR/config/m5_price_delta_divergence_gate_set_v4.json"' in wrapper
+    assert 'GATE_SET_ID="m5_orderflow_gate_set_v4"' in wrapper
+    assert "m5-price-delta-divergence-ablation-$WINDOW_ID.json" in wrapper
     assert '--gates-json "$GATES_JSON"' in wrapper
-    assert '"comparisonKind": "absorption_exhaustion"' in wrapper
-    assert '"absorption_threshold": 0.1' in wrapper
-    assert '"absorption_threshold": 0.2' in wrapper
-    assert '"exhaustion_threshold": 0.01' in wrapper
-    assert '"exhaustion_threshold": 0.03' in wrapper
-    assert 'report.get("treatmentCount") == 4' in wrapper
+    assert '"comparisonKind": "price_delta_divergence"' in wrapper
+    assert '"price_delta_divergence_threshold": 0.01' in wrapper
+    assert '"price_delta_divergence_threshold": 0.05' in wrapper
+    assert '"price_delta_divergence_threshold": 0.1' in wrapper
+    assert 'report.get("treatmentCount") == 3' in wrapper
     assert 'report.get("allExperimentsPassed") is True' in wrapper
     assert 'report.get("developmentComparisonOnly") is True' in wrapper
     assert 'report.get("edgeClaimAllowed") is False' in wrapper

@@ -49,6 +49,7 @@ class OrderFlowGate:
     stacked_imbalance_threshold: int | None = None
     absorption_threshold: float | None = None
     exhaustion_threshold: float | None = None
+    price_delta_divergence_threshold: float | None = None
 
     def parameters(self) -> dict[str, float | int]:
         if (
@@ -57,10 +58,12 @@ class OrderFlowGate:
             and self.stacked_imbalance_threshold is None
             and self.absorption_threshold is None
             and self.exhaustion_threshold is None
+            and self.price_delta_divergence_threshold is None
         ):
             raise ValueError(
                 "order-flow gate requires delta_ratio_threshold, cvd_threshold, "
-                "stacked_imbalance_threshold, absorption_threshold, or exhaustion_threshold"
+                "stacked_imbalance_threshold, absorption_threshold, exhaustion_threshold, "
+                "or price_delta_divergence_threshold"
             )
         result: dict[str, float | int] = {}
         if self.delta_ratio_threshold is not None:
@@ -84,6 +87,11 @@ class OrderFlowGate:
             result["exhaustion_threshold"] = _positive_unit(
                 self.exhaustion_threshold,
                 name="exhaustion_threshold",
+            )
+        if self.price_delta_divergence_threshold is not None:
+            result["price_delta_divergence_threshold"] = _positive_unit(
+                self.price_delta_divergence_threshold,
+                name="price_delta_divergence_threshold",
             )
         return result
 
