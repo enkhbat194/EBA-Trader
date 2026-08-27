@@ -1,0 +1,12 @@
+[Unit]
+Description=Retry EBA Trader real M5 development ablation until proof completes
+
+[Timer]
+OnBootSec=4min
+OnUnitInactiveSec=30min
+AccuracySec=1min
+Persistent=true
+Unit=eba-m5-real-ablation.service
+
+[Install]
+WantedBy=timers.target
