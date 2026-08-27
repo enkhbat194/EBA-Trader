@@ -1,0 +1,9 @@
+{
+  "schema": "m5_orderflow_gate_set_v3",
+  "gates": [
+    {"absorption_threshold": 0.10},
+    {"absorption_threshold": 0.20},
+    {"exhaustion_threshold": 0.01},
+    {"exhaustion_threshold": 0.03}
+  ]
+}
