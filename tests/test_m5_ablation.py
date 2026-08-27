@@ -108,6 +108,7 @@ def test_arms_share_dataset_and_execution_assumptions(tmp_path) -> None:
         assert set(pair.orderflow_parameters) <= {
             "delta_ratio_threshold",
             "cvd_threshold",
+            "stacked_imbalance_threshold",
         }
 
 
@@ -149,7 +150,7 @@ def test_invalid_gate_and_unbounded_fanout_fail_closed(tmp_path) -> None:
 
     with pytest.raises(ValueError, match="at least one order-flow gate"):
         orchestrator.emit(_definition(gates=()))
-    with pytest.raises(ValueError, match="requires delta_ratio_threshold or cvd_threshold"):
+    with pytest.raises(ValueError, match="requires delta_ratio_threshold"):
         orchestrator.emit(_definition(gates=(OrderFlowGate(),)))
     with pytest.raises(ValueError, match="duplicate order-flow gate"):
         orchestrator.emit(
