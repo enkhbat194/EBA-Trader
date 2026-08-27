@@ -1,97 +1,101 @@
 # EBA Trader — Session Handoff
 
-_Last handoff prepared: 2026-08-27 20:09 (Asia/Ulaanbaatar)_
+_Last handoff prepared: 2026-08-27 22:25 (Asia/Ulaanbaatar)_
 
 ## Purpose
 
-This file is the exact cross-chat continuation point. A new AI session must restore project state from GitHub/runtime evidence before coding; it must not restart the project from memory or invent missing state. The continuity-only merge containing this handoff advances `main` beyond the functional proof SHA below, so actual GitHub state must always be queried first.
+This file is the exact cross-chat continuation point. A new AI session must restore project state from GitHub/runtime evidence before coding; it must not restart the project from memory or invent missing state. Actual GitHub code, workflow state and production proof override this prose if they diverge.
 
 ## Exact functional repository state behind this handoff
 
 - Repository: `enkhbat194/EBA-Trader`
 - Authoritative base branch: `main`
-- Functional stacked-proof main SHA: `738ed32e557045abb6b738c7f5236962ee3dd516`
-- PR #56: stacked/diagonal implementation — merged.
-- PR #56 implementation merge SHA: `d15c29895d39ae6db5fabea4895daf7ad5facfa6`.
-- PR #57: stacked fixed-window Linode proof — merged.
-- PR #57 merge / functional proof SHA: `738ed32e557045abb6b738c7f5236962ee3dd516`.
-- Completed feature branch: `m5-stacked-imbalance-feature`; do not resume or recreate it.
-- Completed production-proof branch: `m5-stacked-production-proof`; do not resume or recreate it.
-- Continuity branch preparing this file: `continuity-m5-stacked-proof`.
-- After this continuity-only PR merges, query actual `main` SHA and open PR state; do not assume the functional SHA above is still tip.
+- Latest functional response-proof main SHA before this continuity-only update: `a49790838064769768fe4ca9fe500f6ed941ba82`
+- PR #59: absorption/exhaustion implementation — merged.
+- PR #59 merge SHA: `a48fdb6a7845390cf3dcad9f5e649d4b716a12b1`.
+- PR #60: absorption/exhaustion fixed-window Linode proof — merged.
+- PR #60 merge / functional proof SHA: `a49790838064769768fe4ca9fe500f6ed941ba82`.
+- Completed implementation branch: `m5-absorption-exhaustion-feature`; do not recreate completed work if that branch still exists.
+- Completed production-proof branch: `m5-absorption-exhaustion-production-proof`; do not resume it.
+- Continuity branch preparing this handoff: `continuity-m5-absorption-exhaustion-proof`.
+- After the continuity PR merges, query actual `main` SHA/open PR/workflow state; do not assume `a497908...` is still tip.
 
 ## Verified production state
 
-Exact functional main `738ed32e557045abb6b738c7f5236962ee3dd516` passed:
+Exact functional main `a49790838064769768fe4ca9fe500f6ed941ba82` passed:
 
-- Linode production bundle (`33070015955`);
-- Linode runtime checks (`33070015882`);
-- public production smoke (`33070015880`);
-- hardened external exact-build stacked production proof (`33070015871`).
+- Linode production bundle;
+- Linode runtime checks;
+- public production smoke;
+- hardened external exact-build production proof run `33081041663`.
 
-External stacked proof completed successfully at `2026-08-27T12:08:54Z` (`20:08:54` Asia/Ulaanbaatar) and verified:
+External proof completed successfully at `2026-08-27T14:24:41Z` (`22:24:41` Asia/Ulaanbaatar) and verified:
 
-- server build exactly `738ed32e557045abb6b738c7f5236962ee3dd516`;
+- server build exactly `a49790838064769768fe4ca9fe500f6ed941ba82`;
 - HTTPS/public runtime ready;
 - encrypted saved Binance Demo reconnect;
 - Chart and Positions checks;
 - Fast restart proof PASS;
-- stacked M5 phase `COMPLETE`;
-- all experiments passed;
-- all experiments terminal;
+- M5 response ablation phase `COMPLETE`;
+- all experiments terminal and passed;
 - evidence complete;
-- stacked treatment thresholds exactly `[1,2,3]`;
+- exactly four response treatments: absorption `0.10/0.20`, exhaustion `0.01/0.03`;
+- response-specific immutable report path;
 - Frozen OOS remained closed;
 - real execution remained locked.
 
-Production stacked report:
+Production response report:
 
-`/var/lib/eba-trader/research/evidence/m5-stacked-imbalance-ablation-20260801T000000Z-20260801T040000Z.json`
+`/var/lib/eba-trader/research/evidence/m5-absorption-exhaustion-ablation-20260801T000000Z-20260801T040000Z.json`
+
+Batch:
+
+`abl_c9bf89e7fb1dd4971345d87d`
+
+Workflow dataset:
+
+`m5ds_eadc90a3c97b12f599de21fa`
 
 App/server release remains `0.12.2 · LINODE-M7`; PWA cache `eba-trader-ui-v15`. Fast Momentum remains the sole active production paper engine. Real exchange orders remain disabled.
 
 ## What was completed in this package
 
-### PR #56 — stacked / diagonal implementation
-
-The existing `m5-stacked-imbalance-feature` work was resumed rather than restarted.
+### PR #59 — absorption / exhaustion implementation
 
 Completed:
 
-- deterministic bullish/bearish diagonal imbalance from executed-trade footprint levels;
-- exact `price_step` adjacency; missing price buckets break comparisons/stacks;
-- zero/empty diagonal protection against false infinite imbalance;
-- longest consecutive bullish/bearish stacks and signed stacked score;
-- causal prior-closed-footprint propagation;
-- feature-dataset schema v2 with legacy v1 Delta/CVD replay compatibility;
-- allowlisted `of_stacked_imbalance`;
-- fail-closed stacked gate on legacy datasets without physical stacked columns;
-- bounded gate thresholds `1/2/3`;
-- deterministic directionality, zero-volume, missing-bucket, replay, schema, causal-availability, adapter and gate-version regression tests;
+- causal absorption executed-flow response proxy;
+- causal exhaustion weakening-flow proxy;
+- explicit distinction from resting/hidden LOB liquidity;
+- feature-dataset schema v3;
+- allowlisted response-feature research consumption;
+- fail-closed adapter behavior if required v3 columns are not physically present;
+- bounded response gate support;
+- deterministic directionality, boundary, zero/low-volume, replay/input-order and no-future-leakage regression tests;
 - full regression, Ruff, shell/deployment/runtime and continuity CI before merge.
 
-### PR #57 — exact Linode stacked evidence
+### PR #60 — exact Linode response evidence
 
 Completed:
 
-- prior Delta/CVD immutable report preserved;
-- Linode one-shot M5 autorun switched explicitly to `config/m5_stacked_imbalance_gate_set_v2.json`;
-- separate immutable stacked report path used;
-- idempotent COMPLETE acceptance requires all-terminal/evidence-complete, locks closed, treatmentCount `3` and stacked thresholds `[1,2,3]`;
-- external production proof rejects stale Delta-only evidence and requires the stacked-specific report path/thresholds;
-- existing 40% CPU / 700 MB memory / 45-minute / research-only-write systemd bounds retained;
+- prior Delta/CVD and stacked immutable reports preserved;
+- one-shot M5 autorun switched to the response gate family on the same fixed four-hour development window;
+- separate immutable absorption/exhaustion report path;
+- exact response treatment set required: absorption `0.10/0.20`, exhaustion `0.01/0.03`;
+- stale stacked evidence cannot satisfy the response proof;
+- existing bounded systemd/research-only authority retained;
 - exact-head PR CI passed before merge;
 - exact-main Linode proof passed after merge.
 
-## Prior Delta/CVD result for comparison
-
-Fixed development window:
+## Fixed development comparison window
 
 `2026-08-01T00:00:00Z -> 2026-08-01T04:00:00Z`
 
-Prior Delta batch: `abl_6c4a8eeb83a662894a3f2816`.
+This window has remained unchanged across Delta/CVD, stacked and response candidate comparisons.
 
-Candle-only baseline:
+## Baseline and prior candidates
+
+### Candle-only baseline
 
 - total return: `-0.004244488397751933` (~`-0.42445%`)
 - final equity: `9957.55511602248`
@@ -101,74 +105,83 @@ Candle-only baseline:
 - expectancy: `-10.611220994379892`
 - total cost: `43.90484437829747`
 
-Best prior tested Delta treatment (`delta_ratio_threshold=0.2`):
+### Best prior Delta treatment (`delta_ratio_threshold=0.2`)
 
-- total return: `-0.0012055415604976805` (~`-0.12055%`)
-- final equity: `9987.944584395023`
+- total return: ~`-0.12055%`
 - trade count: `2`
 - win rate: `0.5`
-- max drawdown: `-0.0026586496267955173` (~`-0.26586%`)
-- expectancy: `-6.027707802488294`
-- total cost: `21.99920182120285`
+- expectancy: `-6.0277`
 - absolute baseline loss reduction: ~`71.60%`
 
-This remains negative-return/negative-expectancy development evidence only.
+Still negative-return/negative-expectancy development evidence only.
 
-## Stacked / diagonal fixed-window result — interpreted
+### Best stacked treatment (threshold `1`)
 
-Stacked batch: `abl_232b7cb262de90363283356d`.
-
-Dataset workflow: `m5ds_ca555c0ee588e17847d4c477`.
-
-The candle baseline reproduced exactly, confirming comparability with the prior run.
-
-### Threshold 1 — best stacked treatment on this window
-
-- total return: `-0.0012408244799629875` (~`-0.12408%`)
-- final equity: `9987.59175520037`
+- total return: ~`-0.12408%`
 - trade count: `2`
 - win rate: `0.5`
-- max drawdown: `-0.0024163539692870772` (~`-0.24164%`)
-- expectancy: `-6.204122399814878`
-- total cost: `21.98249146741619`
+- expectancy: `-6.2041`
 - absolute baseline loss reduction: ~`70.77%`
 
-### Thresholds 2 and 3
+It did not beat Delta `0.2` on return or expectancy.
 
-Both produced the same result in this window:
+## Absorption / exhaustion fixed-window result — interpreted
 
-- total return: `-0.0013709100484625703` (~`-0.13709%`)
-- final equity: `9986.290899515374`
+### Absorption thresholds `0.10` and `0.20`
+
+Both produced the same result:
+
+- total return: `-0.0016739996904260313` (~`-0.16740%`)
+- final equity: `9983.26000309574`
 - trade count: `1`
 - win rate: `0.0`
-- max drawdown: `-0.0013709100484625703`
-- expectancy: `-13.709100484626106`
-- total cost: `10.994657857876607`
+- max drawdown: `-0.0016739996904260313`
+- expectancy: `-16.739996904259897`
+- total cost: `10.99299019778177`
+- absolute baseline loss reduction: ~`60.56%`
+
+Interpretation: absorption materially reduced exposure and absolute loss versus baseline, but the only remaining trade lost. It is worse than prior Delta `0.2` and stacked threshold `1` on total return and expectancy.
+
+### Exhaustion thresholds `0.01` and `0.03`
+
+Both produced:
+
+- total return: `0.0`
+- final equity: `10000.0`
+- trade count: `0`
+- win rate: `0.0`
+- max drawdown: `0.0`
+- expectancy: `0.0`
+- total cost: `0.0`
+
+Interpretation: these thresholds rejected every candidate entry on this small fixed sample. **Zero trades are not evidence of a profitable edge.** Do not rank this as a winner merely because it avoided the baseline loss.
 
 ### Research conclusion
 
-Stacked threshold `1` is a substantial filter versus candle-only baseline, but it does **not** beat prior Delta `0.2` on return or expectancy. Its absolute loss is about `2.93%` larger than the Delta treatment's absolute loss. It has a slightly smaller drawdown and marginally lower total cost, with the same two trades and 50% win rate.
+Absorption/exhaustion is retained as useful feature infrastructure and future combination material, but this isolated candidate family is closed without edge/survivor promotion. Delta `0.2` remains the least-negative tested development arm on the fixed window, and it is still negative.
 
-Thresholds `2/3` mostly suppress exposure; the remaining trade loses and expectancy is worse.
+No candidate has earned Frozen-OOS, paper/demo, shadow, micro-live or real-execution authority.
 
-Therefore stacked/diagonal imbalance is closed as useful development evidence/infrastructure, **not** as proven edge or promoted survivor. It receives no Frozen-OOS, paper, Demo, shadow, micro-live or real-execution authority.
+See `docs/M5_ABSORPTION_EXHAUSTION.md` for the full exact record.
 
-## Next exact task — absorption / exhaustion
+## Next exact task — price / delta divergence
 
-Do not reopen the completed stacked branches. Start the next candidate only after verifying actual GitHub state following this continuity merge.
+Do not reopen completed Delta, stacked or response branches. Start the next candidate only after querying actual GitHub state following this continuity merge.
 
-1. Read canonical continuity files, then query actual `main`, branches, open PRs and workflows.
-2. Create one new absorption/exhaustion branch from actual latest `main`.
-3. Define absorption/exhaustion strictly from causal executed-trade footprint data; do not infer resting LOB liquidity.
-4. Specify bounded allowlisted feature fields/parameters and fail-closed unavailable-data behavior.
-5. Add deterministic directionality, zero/low-volume, boundary, replay/input-order and no-future-leakage tests.
-6. Extend feature materialization/registry/backtest adapter only as needed for the bounded candidate.
-7. Add a small controlled gate set; preserve exact candle baseline, EMA, initial capital, fee/slippage assumptions and fixed development window.
-8. Run full regression + Ruff + shell/deployment/continuity checks; fix all failures.
-9. Open one PR, require exact-head green workflows, merge, deploy exact main and obtain external exact-build Linode proof.
-10. Run the same fixed `2026-08-01T00:00Z -> 04:00Z` comparison and interpret metrics versus candle baseline, Delta and stacked evidence.
-11. Only then move to price/delta divergence.
-12. LOB reconstruction stays separate and later.
+1. Read canonical continuity files and query actual `main`, branches, open PRs and workflows.
+2. Create one fresh `price/delta divergence` branch from actual latest `main`.
+3. Define divergence causally using price and already-closed executed-flow Delta only.
+4. A bearish candidate should mean price makes/extends a local high while Delta fails to confirm; bullish is the symmetric local-low case.
+5. Do **not** use future bars to label pivots. Define lookback/local-extreme logic available at decision time.
+6. Specify bounded lookback, minimum price excursion, minimum flow activity and confirmation rules; fail closed on insufficient history.
+7. Add bullish/bearish directionality, flat/zero-volume, boundary, replay/input-order and no-future-leakage tests.
+8. Extend versioned feature materialization/registry/backtest adapter only through bounded allowlisted fields.
+9. Add a small controlled treatment set while preserving exact baseline, EMA, initial capital, fees/slippage and fixed development window.
+10. Run full regression + Ruff + shell/deployment/runtime/continuity checks and fix all failures.
+11. Open one PR, require exact-head green workflows, merge, deploy exact main and obtain external exact-build Linode proof.
+12. Run the same fixed development comparison and interpret versus baseline, Delta, stacked and response evidence.
+13. A development improvement still cannot open Frozen OOS. Robustness remains required before OOS under lifecycle policy v2.
+14. LOB reconstruction stays separate and later.
 
 ## Hard safety / architecture constraints
 
@@ -176,15 +189,17 @@ Do not reopen the completed stacked branches. Start the next candidate only afte
 - Frozen OOS remains locked until lifecycle policy explicitly permits it.
 - Deterministic Risk Engine retains final veto authority; AI/lifecycle code cannot bypass it.
 - Development rankings/wins have no promotion authority.
+- Zero-trade arms are not profitable-edge evidence.
 - API secrets never go to Git, chat, logs or browser persistent storage.
 - Research workers/ablation jobs have no exchange-order authority.
 - Runtime TradeLedger and research DB/evidence/datasets remain separate.
 - Spot and USD-M futures data are never silently mixed.
 - Executed-trade footprint and resting LOB liquidity remain separate data planes.
+- Absorption/exhaustion are proxies, not direct observation of hidden/passive institutional intent.
 - Same-candle still-forming footprint data cannot enter a candle decision.
 - Historical fixed windows are not silently shifted.
 - Archive checksum/sequence/integrity problems fail closed.
-- High-frequency raw market ticks are not normal INFO service logs.
+- Missing versioned feature columns fail closed.
 
 ## Continuous-work / new-chat startup protocol
 
