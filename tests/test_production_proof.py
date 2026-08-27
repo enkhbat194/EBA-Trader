@@ -80,6 +80,19 @@ def test_linode_deploy_collects_proof_without_making_m5_completion_a_gate() -> N
     assert 'proof["m5RealAblation"]["phase"] == "COMPLETE"' not in collector
 
 
+def test_external_proof_workflow_logs_only_sanitized_runtime_phases() -> None:
+    workflow = (ROOT / ".github/workflows/production-proof.yml").read_text(encoding="utf-8")
+
+    assert "sanitized_diagnostics" in workflow
+    assert 'proof.get("m5RealAblation")' in workflow
+    assert 'proof.get("fastRestart")' in workflow
+    assert '"m5RealAblationPhase"' in workflow
+    assert '"fastRestartPhase"' in workflow
+    assert "apiSecret" not in workflow
+    assert "sessionToken" not in workflow
+    assert "credentials_raw" not in workflow
+
+
 def test_research_ui_renders_production_proof_read_only() -> None:
     source = (ROOT / "web/research_ui.js").read_text(encoding="utf-8")
 
