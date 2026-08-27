@@ -29,15 +29,29 @@ def _finite(value: float, *, name: str) -> float:
     return result
 
 
+def _positive_int(value: int, *, name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError(f"{name} must be an integer >= 1")
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class OrderFlowGate:
     delta_ratio_threshold: float | None = None
     cvd_threshold: float | None = None
+    stacked_imbalance_threshold: int | None = None
 
-    def parameters(self) -> dict[str, float]:
-        if self.delta_ratio_threshold is None and self.cvd_threshold is None:
-            raise ValueError("order-flow gate requires delta_ratio_threshold or cvd_threshold")
-        result: dict[str, float] = {}
+    def parameters(self) -> dict[str, float | int]:
+        if (
+            self.delta_ratio_threshold is None
+            and self.cvd_threshold is None
+            and self.stacked_imbalance_threshold is None
+        ):
+            raise ValueError(
+                "order-flow gate requires delta_ratio_threshold, cvd_threshold, "
+                "or stacked_imbalance_threshold"
+            )
+        result: dict[str, float | int] = {}
         if self.delta_ratio_threshold is not None:
             result["delta_ratio_threshold"] = _finite(
                 self.delta_ratio_threshold,
@@ -45,6 +59,11 @@ class OrderFlowGate:
             )
         if self.cvd_threshold is not None:
             result["cvd_threshold"] = _finite(self.cvd_threshold, name="cvd_threshold")
+        if self.stacked_imbalance_threshold is not None:
+            result["stacked_imbalance_threshold"] = _positive_int(
+                self.stacked_imbalance_threshold,
+                name="stacked_imbalance_threshold",
+            )
         return result
 
     @property
@@ -127,7 +146,7 @@ class AblationPair:
     gate_id: str
     baseline_experiment_id: str
     orderflow_experiment_id: str
-    orderflow_parameters: dict[str, float]
+    orderflow_parameters: dict[str, float | int]
 
 
 @dataclass(frozen=True, slots=True)
