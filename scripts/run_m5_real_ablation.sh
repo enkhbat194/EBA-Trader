@@ -87,6 +87,7 @@ if ! flock -n 9; then
 fi
 
 cd "$REPO_DIR"
+echo "EBA_M5_STAGE=dataset_build" >&2
 BUILD_JSON="$($REPO_DIR/.venv/bin/eba-build-orderflow-features \
   --symbol "$SYMBOL" \
   --interval "$INTERVAL" \
@@ -107,6 +108,7 @@ PY
 
 echo "$BUILD_JSON"
 
+echo "EBA_M5_STAGE=queue_emit" >&2
 QUEUE_JSON="$($REPO_DIR/.venv/bin/eba-m5-real-ablation \
   --workflow-manifest "$WORKFLOW_MANIFEST" \
   --gates-json "$GATES_JSON" \
@@ -129,6 +131,7 @@ print(len(payload["experiment_ids"]))
 PY
 )"
 
+echo "EBA_M5_STAGE=worker" >&2
 $REPO_DIR/.venv/bin/eba-research-worker \
   --db "$RESEARCH_DB" \
   --dataset-root "$DATASET_ROOT" \
@@ -139,6 +142,7 @@ $REPO_DIR/.venv/bin/eba-research-worker \
   --retry-delay-seconds 60
 
 if [[ -n "$RESULT_JSON" ]]; then
+  echo "EBA_M5_STAGE=report" >&2
   mkdir -p "$(dirname "$RESULT_JSON")"
   $REPO_DIR/.venv/bin/python -m eba_trader.m5_ablation_report \
     --db "$RESEARCH_DB" \
@@ -146,6 +150,7 @@ if [[ -n "$RESULT_JSON" ]]; then
     --output "$RESULT_JSON"
 fi
 
+echo "EBA_M5_STAGE=complete" >&2
 echo "M5 real development ablation run complete."
 echo "Research DB: $RESEARCH_DB"
 echo "Evidence root: $EVIDENCE_ROOT"
