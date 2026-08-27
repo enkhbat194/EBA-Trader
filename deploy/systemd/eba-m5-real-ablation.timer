@@ -2,7 +2,7 @@
 Description=Retry EBA Trader real M5 development ablation until proof completes
 
 [Timer]
-OnBootSec=4min
+OnActiveSec=4min
 OnUnitInactiveSec=30min
 AccuracySec=1min
 Persistent=true
