@@ -80,7 +80,9 @@ def _request_bytes(
             time.sleep(_retry_delay_seconds(error, attempt, backoff_seconds))
         except (URLError, TimeoutError) as error:
             if attempt >= max_retries:
-                raise RuntimeError("Binance archive network request failed after retries") from error
+                raise RuntimeError(
+                    "Binance archive network request failed after retries"
+                ) from error
             time.sleep(min(backoff_seconds * (2**attempt), 30.0))
     raise RuntimeError("Unreachable archive retry state")
 
@@ -119,7 +121,11 @@ def _download_archive_to_temp(
         temp_path: Path | None = None
         try:
             digest = hashlib.sha256()
-            with tempfile.NamedTemporaryFile(prefix="eba-binance-archive-", suffix=".zip", delete=False) as handle:
+            with tempfile.NamedTemporaryFile(
+                prefix="eba-binance-archive-",
+                suffix=".zip",
+                delete=False,
+            ) as handle:
                 temp_path = Path(handle.name)
                 with urlopen(request, timeout=request_timeout) as response:  # noqa: S310
                     while True:
@@ -145,7 +151,9 @@ def _download_archive_to_temp(
                 temp_path.unlink(missing_ok=True)
             last_error = error
             if attempt >= max_retries:
-                raise RuntimeError("Binance archive network request failed after retries") from error
+                raise RuntimeError(
+                    "Binance archive network request failed after retries"
+                ) from error
             time.sleep(min(backoff_seconds * (2**attempt), 30.0))
     raise RuntimeError("Binance archive download failed") from last_error
 
@@ -153,7 +161,11 @@ def _download_archive_to_temp(
 def _bytes_archive_to_temp(payload: bytes, expected_sha256: str) -> Path:
     if hashlib.sha256(payload).hexdigest() != expected_sha256:
         raise RuntimeError("Binance archive ZIP SHA-256 mismatch")
-    with tempfile.NamedTemporaryFile(prefix="eba-binance-archive-", suffix=".zip", delete=False) as handle:
+    with tempfile.NamedTemporaryFile(
+        prefix="eba-binance-archive-",
+        suffix=".zip",
+        delete=False,
+    ) as handle:
         handle.write(payload)
         return Path(handle.name)
 
@@ -193,45 +205,48 @@ def _read_archive_window(
         if len(members) != 1 or members[0].filename != expected_csv_name:
             raise RuntimeError("Binance aggregate-trade archive contains unexpected files")
         payloads: list[dict[str, object]] = []
-        with archive.open(members[0], "r") as raw_handle:
-            with io.TextIOWrapper(raw_handle, encoding="utf-8-sig", newline="") as text_handle:
-                reader = csv.reader(text_handle)
-                for line_number, row in enumerate(reader, start=1):
-                    if not row:
-                        raise RuntimeError(
-                            f"Binance aggregate-trade archive has blank row {line_number}"
-                        )
-                    if line_number == 1 and _is_header(row):
-                        continue
-                    if len(row) != 7:
-                        raise RuntimeError(
-                            f"Binance aggregate-trade archive row {line_number} has {len(row)} columns"
-                        )
-                    try:
-                        aggregate_trade_id = int(row[0])
-                        price = row[1].strip()
-                        quantity = row[2].strip()
-                        int(row[3])
-                        int(row[4])
-                        timestamp_ms = int(row[5])
-                        buyer_is_maker = _maker_flag(row[6])
-                    except ValueError as exc:
-                        raise RuntimeError(
-                            f"Binance aggregate-trade archive row {line_number} is malformed"
-                        ) from exc
-                    if timestamp_ms >= end_ms:
-                        break
-                    if timestamp_ms < start_ms:
-                        continue
-                    payload: dict[str, object] = {
-                        "a": aggregate_trade_id,
-                        "p": price,
-                        "q": quantity,
-                        "T": timestamp_ms,
-                        "m": buyer_is_maker,
-                    }
-                    parse_binance_agg_trade(payload)
-                    payloads.append(payload)
+        with (
+            archive.open(members[0], "r") as raw_handle,
+            io.TextIOWrapper(raw_handle, encoding="utf-8-sig", newline="") as text_handle,
+        ):
+            reader = csv.reader(text_handle)
+            for line_number, row in enumerate(reader, start=1):
+                if not row:
+                    raise RuntimeError(
+                        f"Binance aggregate-trade archive has blank row {line_number}"
+                    )
+                if line_number == 1 and _is_header(row):
+                    continue
+                if len(row) != 7:
+                    raise RuntimeError(
+                        "Binance aggregate-trade archive row "
+                        f"{line_number} has {len(row)} columns"
+                    )
+                try:
+                    aggregate_trade_id = int(row[0])
+                    price = row[1].strip()
+                    quantity = row[2].strip()
+                    int(row[3])
+                    int(row[4])
+                    timestamp_ms = int(row[5])
+                    buyer_is_maker = _maker_flag(row[6])
+                except ValueError as exc:
+                    raise RuntimeError(
+                        f"Binance aggregate-trade archive row {line_number} is malformed"
+                    ) from exc
+                if timestamp_ms >= end_ms:
+                    break
+                if timestamp_ms < start_ms:
+                    continue
+                payload: dict[str, object] = {
+                    "a": aggregate_trade_id,
+                    "p": price,
+                    "q": quantity,
+                    "T": timestamp_ms,
+                    "m": buyer_is_maker,
+                }
+                parse_binance_agg_trade(payload)
+                payloads.append(payload)
     return tuple(payloads)
 
 
