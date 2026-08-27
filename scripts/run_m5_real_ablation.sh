@@ -95,7 +95,8 @@ BUILD_JSON="$($REPO_DIR/.venv/bin/eba-build-orderflow-features \
   --end "$END" \
   --price-bucket "$PRICE_BUCKET" \
   --dataset-root "$DATASET_ROOT" \
-  --namespace m5_orderflow_dev)"
+  --namespace m5_orderflow_dev \
+  --orderflow-source archive)"
 
 WORKFLOW_MANIFEST="$(BUILD_JSON="$BUILD_JSON" python3 - <<'PY'
 import json
