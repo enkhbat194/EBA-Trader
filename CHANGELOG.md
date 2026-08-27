@@ -14,15 +14,8 @@
 - Read-only Research / AI Lab dashboard and Fast Momentum server heartbeat.
 - Fail-closed Linode auto-update repair plus persistent deployment diagnostics (#37).
 - Binance data-service raw-tick logging regression protection and systemd burst limiting (#38).
-- PR #40 implementation:
-  - versioned journald host protection (`250M` max journal, `1G` keep-free, `7day` retention);
-  - persistent research DB/dataset/evidence paths under `/var/lib/eba-trader/research`;
-  - idempotent existing-env reconciliation for research paths;
-  - bounded systemd research worker/timer;
-  - `eba-m5-real-ablation` verified deterministic queue CLI;
-  - versioned initial Delta/CVD gate set;
-  - one-command Linode real development build -> queue -> worker/evidence runner;
-  - deployment/runtime/security regression coverage.
+- PR #40: versioned journald host protection; persistent research DB/dataset/evidence paths; bounded research worker/timer; `eba-m5-real-ablation`; initial Delta/CVD gate set; one-command real development runner.
+- PR #41 candidate: lifecycle policy v2 with explicit policy-version persistence, robustness-before-OOS transition order, legacy SQLite migration/freeze rules and passing-robustness promotion helper.
 
 ### Changed
 - GitHub `main` + Linode is the canonical runtime path; Replit/Render backend paths are deprecated.
@@ -31,9 +24,10 @@
 - M5 ablation arms share the exact aligned dataset and identical EMA/capital/fees/slippage/trade-start/exit assumptions; only allowlisted Delta/CVD entry filters differ.
 - Binance Demo credentials validate before encrypted write and never return the saved secret to browser JavaScript.
 - `eba-binance-data` no longer emits every market tick at INFO while subscriptions remain active.
-- Long-running production research state no longer belongs inside the Git checkout; PR #40 uses `/var/lib/eba-trader/research/...`.
+- Long-running production research state lives under `/var/lib/eba-trader/research/...`, outside the Git checkout.
 - Existing Linode environment files gain missing research defaults without replacing explicit operator values.
-- Production journald limits are now repository-provisioned rather than manual-only state.
+- Production journald limits are repository-provisioned rather than manual-only state.
+- Lifecycle policy v2 changes current research promotion order from historical `BACKTESTED -> OOS_VERIFIED -> ROBUSTNESS_VERIFIED` to `BACKTESTED -> ROBUSTNESS_VERIFIED -> OOS_VERIFIED` without silently reinterpreting persisted legacy rows.
 
 ### Operations
 - Public HTTPS PWA access from external iPhone was manually verified on 2026-08-26.
@@ -41,9 +35,9 @@
 - PR #37 recovery restored a stuck Linode auto-update path and active timer.
 - Production investigation found `/var/log` near 18 GB because raw Binance ticks were logged at INFO; PR #38 removed the flood.
 - Old logs were reclaimed manually; root filesystem usage fell from ~90.1% to ~21%, `/var/log` to ~162M.
-- The original journald cap was applied manually and is now codified by PR #40 install/update provisioning.
-- PR #40 still needs real Linode deployment verification and the first BTCUSDT USD-M development ablation run.
-- Remaining production proof: standalone Chart / Positions / Research smoke, real encrypted Demo no-paste reconnect, active Fast Momentum restart/recovery, and carry-engine disposition.
+- PR #40 merged at `8876bc22b59f236e8df038440aaa6116c5d1afdf`; the PWA now reports server build `8876bc2`, confirming deployment reached the active Linode runtime.
+- A real Binance Demo credential has been entered through the PWA and the UI reports it encrypted/saved securely on Linode.
+- Remaining production proof: direct #40 server-internal journald/research-worker verification, standalone Chart / Positions / Research smoke, Demo no-paste reconnect after restart, active Fast Momentum restart/recovery, and carry-engine disposition.
 
 ### Safety / research controls
 - Arbitrary AI-generated production code is not an approved M5 strategy-generation path.
@@ -51,21 +45,38 @@
 - Same-candle still-forming footprint data is not injected into candle decisions.
 - Development screening/ranking/ablation results do not open frozen OOS or execution.
 - PR #40 real-ablation queueing re-verifies USD-M venue, dataset containment, feature SHA-256 and frozen first-cycle OOS non-overlap.
-- The persistent research worker is resource-bounded and has no lifecycle-promotion or exchange-order authority.
+- The persistent research worker is resource-bounded and has no exchange-order authority.
+- Policy v2 forbids `BACKTESTED -> OOS_VERIFIED`; a strategy must first pass robustness evidence and reach `ROBUSTNESS_VERIFIED`.
+- Legacy post-OOS policy-v1 strategies are promotion-frozen and require `RETEST_REQUIRED` plus explicit v2 re-entry before fresh robustness/OOS validation.
 - API secrets are not committed to Git, browser persistent storage or chat.
 - Real-money Binance order submission remains locked.
+
+---
+
+## 2026-08-27 — Lifecycle policy v2 / robustness before frozen OOS
+
+### Implementation
+- Introduced lifecycle policy versioning in strategy persistence and lifecycle history.
+- New/current path is `GENERATED -> BACKTESTED -> ROBUSTNESS_VERIFIED -> OOS_VERIFIED -> ...`.
+- Existing pre-OOS legacy rows can migrate safely to v2.
+- Existing legacy rows that already reached OOS or later stay policy v1 and promotion-frozen until `RETEST_REQUIRED` and explicit v2 re-entry.
+- Robustness fan-out requires exact v2 `BACKTESTED` state.
+- A passing immutable robustness verdict can promote only to `ROBUSTNESS_VERIFIED`; OOS remains a separate evidence-bearing transition.
+
+### Validation
+- Added legacy SQLite migration tests plus direct-OOS-skip, failed-verdict and idempotent robustness-promotion regression coverage.
+- PR #41 pre-continuity head passed full Python regression, Ruff, shell syntax, deployment contract, Linode runtime checks and continuity guard.
 
 ---
 
 ## 2026-08-27 — Persistent M5 research runtime / real-ablation package
 
 ### Implementation
-- PR #40 branch `m5-real-ablation-cli` adds reproducible journald protection, persistent research storage, bounded research worker automation and the verified real development ablation execution surface.
+- PR #40 adds reproducible journald protection, persistent research storage, bounded research worker automation and the verified real development ablation execution surface.
 - `scripts/run_m5_real_ablation.sh` composes verified USD-M feature build, deterministic queue emission and exact emitted job count through the immutable M4 evidence worker.
 
 ### Validation
-- Pre-continuity PR #40 head passed the full Python regression suite, Ruff, shell syntax, deployment contract, Linode runtime checks and continuity guard after correcting test import formatting.
-- Final continuity-updated PR #40 head must pass the same gates before squash merge.
+- PR #40 passed the full Python regression suite, Ruff, shell syntax, deployment contract, Linode runtime checks and continuity guard before squash merge.
 - No real BTCUSDT Delta/CVD edge claim exists until the first production development run completes and evidence is compared.
 
 ---
