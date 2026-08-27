@@ -23,8 +23,24 @@ def _candidate(*, capital=1000.0, delivery=2_000_000_000_000):
     }
 
 
-def test_no_trade_does_not_open_paper_position() -> None:
+def _legacy_engine(**kwargs) -> PaperExecutionEngine:
+    return PaperExecutionEngine(allow_new_entries=True, **kwargs)
+
+
+def test_default_engine_retires_new_carry_entries() -> None:
     engine = PaperExecutionEngine()
+    state = engine.step("s", _candidate(), now_ms=1000)
+    assert state["openPosition"] is None
+    assert state["history"] == []
+    assert state["event"] == "NO_ACTION"
+    assert state["reason"] == "LEGACY_CARRY_RETIRED"
+    assert state["legacyCarryRetired"] is True
+    assert state["newEntriesAllowed"] is False
+    assert state["liveExecutionAllowed"] is False
+
+
+def test_no_trade_does_not_open_paper_position() -> None:
+    engine = _legacy_engine()
     state = engine.step("s", {"decision": "NO_TRADE"}, now_ms=1000)
     assert state["openPosition"] is None
     assert state["history"] == []
@@ -32,7 +48,7 @@ def test_no_trade_does_not_open_paper_position() -> None:
 
 
 def test_candidate_opens_only_one_paired_paper_position() -> None:
-    engine = PaperExecutionEngine()
+    engine = _legacy_engine()
     first = engine.step("s", _candidate(), now_ms=1000)
     assert first["event"] == "PAPER_ENTRY"
     assert first["openPosition"]["spot_entry_vwap"] == 100.0
@@ -43,7 +59,7 @@ def test_candidate_opens_only_one_paired_paper_position() -> None:
 
 
 def test_paper_mark_uses_executable_pair_close_and_both_fees() -> None:
-    engine = PaperExecutionEngine()
+    engine = _legacy_engine()
     engine.step("s", _candidate(), now_ms=1000)
     marked = engine.step("s", _candidate(), now_ms=2000)
     # Spot +1 plus short future +1 = +2 gross; 0.20 entry + 0.20 exit fees.
@@ -53,7 +69,7 @@ def test_paper_mark_uses_executable_pair_close_and_both_fees() -> None:
 
 
 def test_manual_paper_close_creates_history_and_entry_exit_markers() -> None:
-    engine = PaperExecutionEngine()
+    engine = _legacy_engine()
     engine.step("s", _candidate(), now_ms=1000)
     closed = engine.close("s", _candidate(), now_ms=3000)
     assert closed["openPosition"] is None
@@ -63,14 +79,14 @@ def test_manual_paper_close_creates_history_and_entry_exit_markers() -> None:
 
 
 def test_paper_capital_limit_fails_closed() -> None:
-    engine = PaperExecutionEngine(max_capital_usd=10_000)
+    engine = _legacy_engine(max_capital_usd=10_000)
     state = engine.step("s", _candidate(capital=10_001), now_ms=1000)
     assert state["openPosition"] is None
     assert state["reason"] == "PAPER_CAPITAL_LIMIT"
 
 
 def test_entry_can_be_disabled_while_existing_position_still_marks() -> None:
-    engine = PaperExecutionEngine()
+    engine = _legacy_engine()
     no_entry = engine.step("s", _candidate(), allow_entry=False, now_ms=1000)
     assert no_entry["openPosition"] is None
     assert no_entry["reason"] == "ENTRY_SCANNER_STOPPED"
@@ -82,7 +98,7 @@ def test_entry_can_be_disabled_while_existing_position_still_marks() -> None:
 
 def test_delivery_safety_exit_closes_15_minutes_before_delivery() -> None:
     delivery = 2_000_000_000
-    engine = PaperExecutionEngine()
+    engine = _legacy_engine()
     engine.step("s", _candidate(delivery=delivery), now_ms=1000)
     state = engine.step(
         "s",
