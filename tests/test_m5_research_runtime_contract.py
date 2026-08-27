@@ -18,7 +18,7 @@ def test_research_worker_timer_is_bounded_and_persistent() -> None:
     assert "Persistent=true" in timer
 
 
-def test_one_command_runner_keeps_research_only_guards() -> None:
+def test_one_command_runner_keeps_research_only_guards_and_stage_markers() -> None:
     script = (ROOT / "scripts/run_m5_real_ablation.sh").read_text(encoding="utf-8")
     assert "eba-build-orderflow-features" in script
     assert "eba-m5-real-ablation" in script
@@ -27,6 +27,8 @@ def test_one_command_runner_keeps_research_only_guards() -> None:
     assert "/var/lib/eba-trader/research" in script
     assert "--result-json" in script
     assert "m5_ablation_report" in script
+    for stage in ("dataset_build", "queue_emit", "worker", "report", "complete"):
+        assert f"EBA_M5_STAGE={stage}" in script
     assert "Frozen OOS was not opened" in script
     assert "real execution remains locked" in script
 
@@ -49,6 +51,11 @@ def test_real_ablation_autorun_is_bounded_idempotent_and_development_only() -> N
     assert '"liveExecutionAllowed": False' in wrapper
     assert '"edgeClaimAllowed": False' in wrapper
     assert '"promotionAuthority": False' in wrapper
+    assert 'payload["failureStage"]' in wrapper
+    assert 'payload["errorSummary"]' in wrapper
+    assert "[REDACTED]" in wrapper
+    assert "[-12000:]" in wrapper
+    assert "[-1600:]" in wrapper
     assert "order_send" not in wrapper
     assert "place_order" not in wrapper
 

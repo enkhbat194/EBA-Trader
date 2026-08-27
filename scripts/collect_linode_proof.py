@@ -166,6 +166,8 @@ def _m5_ablation_status() -> dict[str, Any]:
         "end",
         "reportPath",
         "exitCode",
+        "failureStage",
+        "errorSummary",
         "batchId",
         "workflowId",
         "treatmentCount",

@@ -73,6 +73,8 @@ def test_linode_deploy_collects_proof_without_making_m5_completion_a_gate() -> N
     assert "session token returned by the autoconnect endpoint" in collector
     assert "m5-real-ablation-latest.json" in collector
     assert "eba-m5-real-ablation.timer" in collector
+    assert '"failureStage"' in collector
+    assert '"errorSummary"' in collector
     assert '"edgeClaimAllowed": False' in collector
     assert '"promotionAuthority": False' in collector
     assert '"m5RealAblation": _m5_ablation_status()' in collector
@@ -88,6 +90,8 @@ def test_external_proof_workflow_logs_only_sanitized_runtime_phases() -> None:
     assert 'proof.get("fastRestart")' in workflow
     assert '"m5RealAblationPhase"' in workflow
     assert '"m5ExitCode"' in workflow
+    assert '"m5FailureStage"' in workflow
+    assert '"m5ErrorSummary"' in workflow
     assert '"m5AllTerminal"' in workflow
     assert '"m5AllExperimentsPassed"' in workflow
     assert '"m5EvidenceComplete"' in workflow
