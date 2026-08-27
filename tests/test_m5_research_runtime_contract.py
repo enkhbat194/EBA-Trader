@@ -56,7 +56,8 @@ def test_real_ablation_autorun_is_bounded_idempotent_and_development_only() -> N
     assert "MemoryMax=700M" in service
     assert "TimeoutStartSec=45min" in service
     assert "ReadWritePaths=/var/lib/eba-trader/research" in service
-    assert "OnBootSec=4min" in timer
+    assert "OnActiveSec=4min" in timer
+    assert "OnBootSec=" not in timer
     assert "OnUnitInactiveSec=30min" in timer
     assert "Persistent=true" in timer
 
