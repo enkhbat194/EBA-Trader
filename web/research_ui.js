@@ -43,6 +43,7 @@
         <div class="research-flow-row"><span>Demo no-paste reconnect</span><strong id="productionDemoProof">—</strong></div>
         <div class="research-flow-row"><span>Chart smoke</span><strong id="productionChartProof">—</strong></div>
         <div class="research-flow-row"><span>Positions API</span><strong id="productionPositionsProof">—</strong></div>
+        <div class="research-flow-row"><span>Fast restart recovery</span><strong id="productionFastRestartProof">—</strong></div>
         <div class="research-flow-row"><span>Last collected</span><strong id="productionProofTime">—</strong></div>
       </div>`;
     updated.parentElement.insertBefore(card, updated);
@@ -61,12 +62,17 @@
     const demoPassed = proof?.demoReconnect?.passed === true;
     const chartPassed = proof?.chart?.passed === true;
     const positionsPassed = proof?.localApi?.positions === true;
+    const fastRestart = proof?.fastRestart || {};
 
     setText('productionProofBadge', proofText(smokePassed, available));
     setText('productionLocalProof', proofText(localPassed, available));
     setText('productionDemoProof', proofText(demoPassed, available));
     setText('productionChartProof', proofText(chartPassed, available));
     setText('productionPositionsProof', proofText(positionsPassed, available));
+    setText(
+      'productionFastRestartProof',
+      fastRestart.passed === true ? 'PASS' : (fastRestart.phase || 'WAITING_FOR_OPEN'),
+    );
     setText('productionProofTime', available ? (proof.collectedAt || '—') : 'Waiting for Linode collector');
 
     const badge = byId('productionProofBadge');
