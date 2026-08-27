@@ -9,6 +9,7 @@ from .orderflow import (
     diagonal_imbalance_stacks,
 )
 from .orderflow_dataset import AggregateTradeRecord
+from .orderflow_response import executed_flow_response
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,6 +27,8 @@ class FootprintWindowRow:
     stacked_buy_levels: int = 0
     stacked_sell_levels: int = 0
     stacked_imbalance: int = 0
+    absorption: float = 0.0
+    exhaustion: float = 0.0
 
 
 class FootprintDatasetBuilder:
@@ -78,6 +81,13 @@ class FootprintDatasetBuilder:
                 ratio_threshold=self.imbalance_ratio,
                 min_volume=self.imbalance_min_volume,
             )
+            response = executed_flow_response(
+                records,
+                features.levels,
+                start_ms=window_start,
+                end_ms=window_end,
+                price_step=self.aggregator.price_bucket,
+            )
             running_delta += features.delta
             rows.append(
                 FootprintWindowRow(
@@ -94,6 +104,8 @@ class FootprintDatasetBuilder:
                     stacked_buy_levels=stacks.buy_levels,
                     stacked_sell_levels=stacks.sell_levels,
                     stacked_imbalance=stacks.signed_score,
+                    absorption=response.absorption,
+                    exhaustion=response.exhaustion,
                 )
             )
         return tuple(rows)

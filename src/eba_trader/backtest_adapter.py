@@ -179,16 +179,27 @@ def _resolved_trend_config(
     }
 
 
-def _require_stacked_columns(path: Path) -> None:
+def _csv_fields(path: Path) -> set[str]:
     with path.open("r", newline="", encoding="utf-8") as handle:
-        fields = set(csv.DictReader(handle).fieldnames or ())
+        return set(csv.DictReader(handle).fieldnames or ())
+
+
+def _require_stacked_columns(path: Path) -> None:
     required = {
         "of_stacked_buy_levels",
         "of_stacked_sell_levels",
         "of_stacked_imbalance",
     }
-    if not required <= fields:
+    if not required <= _csv_fields(path):
         raise ValueError("stacked imbalance gate requires a v2 feature CSV with stacked columns")
+
+
+def _require_response_columns(path: Path) -> None:
+    required = {"of_absorption", "of_exhaustion"}
+    if not required <= _csv_fields(path):
+        raise ValueError(
+            "absorption/exhaustion gate requires a v3 feature CSV with response columns"
+        )
 
 
 class EmaTrendV1Adapter:
@@ -312,6 +323,8 @@ class EmaOrderFlowV1Adapter:
         "delta_ratio_threshold",
         "cvd_threshold",
         "stacked_imbalance_threshold",
+        "absorption_threshold",
+        "exhaustion_threshold",
     }
 
     def run(
@@ -335,10 +348,12 @@ class EmaOrderFlowV1Adapter:
         has_delta = "delta_ratio_threshold" in merged
         has_cvd = "cvd_threshold" in merged
         has_stacked = "stacked_imbalance_threshold" in merged
-        if not has_delta and not has_cvd and not has_stacked:
+        has_absorption = "absorption_threshold" in merged
+        has_exhaustion = "exhaustion_threshold" in merged
+        if not any((has_delta, has_cvd, has_stacked, has_absorption, has_exhaustion)):
             raise ValueError(
                 "order-flow adapter requires delta_ratio_threshold, cvd_threshold, "
-                "or stacked_imbalance_threshold"
+                "stacked_imbalance_threshold, absorption_threshold, or exhaustion_threshold"
             )
         delta_threshold = (
             _as_float(merged["delta_ratio_threshold"], name="delta_ratio_threshold")
@@ -353,12 +368,30 @@ class EmaOrderFlowV1Adapter:
             if has_stacked
             else None
         )
+        absorption_threshold = (
+            _as_float(merged["absorption_threshold"], name="absorption_threshold")
+            if has_absorption
+            else None
+        )
+        exhaustion_threshold = (
+            _as_float(merged["exhaustion_threshold"], name="exhaustion_threshold")
+            if has_exhaustion
+            else None
+        )
         if stacked_threshold is not None and stacked_threshold < 1:
             raise ValueError("stacked_imbalance_threshold must be >= 1")
+        for name, threshold in (
+            ("absorption_threshold", absorption_threshold),
+            ("exhaustion_threshold", exhaustion_threshold),
+        ):
+            if threshold is not None and not (0.0 < threshold <= 1.0):
+                raise ValueError(f"{name} must be > 0 and <= 1")
 
         path = Path(dataset_path)
         if stacked_threshold is not None:
             _require_stacked_columns(path)
+        if absorption_threshold is not None or exhaustion_threshold is not None:
+            _require_response_columns(path)
         feature_rows = load_orderflow_feature_csv(path)
         candles = validate_interval_window(
             [row.candle for row in feature_rows], interval, start_ms, end_ms
@@ -376,7 +409,11 @@ class EmaOrderFlowV1Adapter:
                 return False
             if cvd_threshold is not None and row.of_cvd < cvd_threshold:
                 return False
-            return stacked_threshold is None or row.of_stacked_imbalance >= stacked_threshold
+            if stacked_threshold is not None and row.of_stacked_imbalance < stacked_threshold:
+                return False
+            if absorption_threshold is not None and row.of_absorption < absorption_threshold:
+                return False
+            return exhaustion_threshold is None or row.of_exhaustion >= exhaustion_threshold
 
         result = run_trend_backtest(
             candles,
@@ -390,6 +427,8 @@ class EmaOrderFlowV1Adapter:
                 "delta_ratio_threshold": delta_threshold,
                 "cvd_threshold": cvd_threshold,
                 "stacked_imbalance_threshold": stacked_threshold,
+                "absorption_threshold": absorption_threshold,
+                "exhaustion_threshold": exhaustion_threshold,
             }
         )
         consumed = []
@@ -399,6 +438,10 @@ class EmaOrderFlowV1Adapter:
             consumed.append("of_cvd")
         if stacked_threshold is not None:
             consumed.append("of_stacked_imbalance")
+        if absorption_threshold is not None:
+            consumed.append("of_absorption")
+        if exhaustion_threshold is not None:
+            consumed.append("of_exhaustion")
         metadata = {
             "symbol": symbol,
             "interval": interval,

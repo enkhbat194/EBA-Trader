@@ -33,8 +33,10 @@ def _hypothesis(*, rationale: str = "test") -> StrategyHypothesis:
 
 def test_enabled_orderflow_features_are_allowed_and_future_features_fail_closed() -> None:
     assert DEFAULT_FEATURE_REGISTRY.require("of_delta").enabled is True
+    assert DEFAULT_FEATURE_REGISTRY.require("of_absorption").enabled is True
+    assert DEFAULT_FEATURE_REGISTRY.require("of_exhaustion").enabled is True
     with pytest.raises(ValueError, match="not enabled"):
-        DEFAULT_FEATURE_REGISTRY.require("of_absorption")
+        DEFAULT_FEATURE_REGISTRY.require("lob_depth_imbalance")
     with pytest.raises(ValueError, match="unsupported feature"):
         DEFAULT_FEATURE_REGISTRY.require("magic_whale_detector")
 
@@ -55,7 +57,7 @@ def test_hypothesis_requires_declared_approved_features() -> None:
         invalid.validate()
 
 
-def test_mapping_parser_rejects_arbitrary_fields_and_disabled_features() -> None:
+def test_mapping_parser_accepts_enabled_response_features_and_rejects_unsafe_fields() -> None:
     payload = {
         "family": "flow",
         "version": 1,
@@ -64,8 +66,21 @@ def test_mapping_parser_rejects_arbitrary_fields_and_disabled_features() -> None
         "features": ["of_absorption"],
         "entry_all": [{"feature": "of_absorption", "operator": "gt", "value": 0.5}],
     }
+    parsed = hypothesis_from_mapping(payload)
+    assert parsed.features == ("of_absorption",)
+
+    disabled = {
+        "family": "book",
+        "version": 1,
+        "direction": "long",
+        "timeframe": "1m",
+        "features": ["lob_depth_imbalance"],
+        "entry_all": [
+            {"feature": "lob_depth_imbalance", "operator": "gt", "value": 0.5}
+        ],
+    }
     with pytest.raises(ValueError, match="not enabled"):
-        hypothesis_from_mapping(payload)
+        hypothesis_from_mapping(disabled)
 
     payload["python_code"] = "import os"
     with pytest.raises(ValueError, match="unsupported hypothesis fields"):
