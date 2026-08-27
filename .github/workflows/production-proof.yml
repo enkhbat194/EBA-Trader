@@ -34,12 +34,11 @@ jobs:
           expected = os.environ["EXPECTED_SHA"].strip()
           deadline = time.time() + 900
           last_error = "not attempted"
-          expected_response_gates = sorted(
+          expected_divergence_gates = sorted(
               [
-                  {"absorption_threshold": 0.1},
-                  {"absorption_threshold": 0.2},
-                  {"exhaustion_threshold": 0.01},
-                  {"exhaustion_threshold": 0.03},
+                  {"price_delta_divergence_threshold": 0.01},
+                  {"price_delta_divergence_threshold": 0.05},
+                  {"price_delta_divergence_threshold": 0.1},
               ],
               key=lambda item: json.dumps(item, sort_keys=True),
           )
@@ -82,26 +81,23 @@ jobs:
                   m5 = proof.get("m5RealAblation") or {}
                   m5_report = research.get("m5Report") or {}
                   treatments = m5_report.get("treatments") or []
-                  response_gates = []
+                  divergence_gates = []
                   if isinstance(treatments, list):
                       for treatment in treatments:
-                          parameters = (
-                              treatment.get("parameters")
-                              if isinstance(treatment, dict)
-                              else None
-                          )
-                          if not isinstance(parameters, dict) or len(parameters) != 1:
-                              response_gates = []
+                          parameters = treatment.get("parameters") if isinstance(treatment, dict) else None
+                          if not isinstance(parameters, dict) or set(parameters) != {
+                              "price_delta_divergence_threshold"
+                          }:
+                              divergence_gates = []
                               break
-                          name, value = next(iter(parameters.items()))
-                          if name not in {"absorption_threshold", "exhaustion_threshold"}:
-                              response_gates = []
-                              break
+                          value = parameters["price_delta_divergence_threshold"]
                           if isinstance(value, bool) or not isinstance(value, (int, float)):
-                              response_gates = []
+                              divergence_gates = []
                               break
-                          response_gates.append({name: float(value)})
-                  response_gates.sort(key=lambda item: json.dumps(item, sort_keys=True))
+                          divergence_gates.append(
+                              {"price_delta_divergence_threshold": float(value)}
+                          )
+                  divergence_gates.sort(key=lambda item: json.dumps(item, sort_keys=True))
 
                   checks = {
                       "exact_build": build == expected,
@@ -121,7 +117,7 @@ jobs:
                       "m5_evidence_complete": m5.get("evidenceComplete") is True,
                       "m5_frozen_oos_closed": m5.get("frozenOosOpened") is False,
                       "m5_live_execution_locked": m5.get("liveExecutionAllowed") is False,
-                      "m5_response_report_path": "m5-absorption-exhaustion-ablation-"
+                      "m5_divergence_report_path": "m5-price-delta-divergence-ablation-"
                       in str(m5.get("reportPath") or ""),
                       "m5_report_available": m5_report.get("available") is True,
                       "m5_report_schema": m5_report.get("schema") == "m5_real_ablation_report_v1",
@@ -133,9 +129,11 @@ jobs:
                       "m5_report_no_promotion": m5_report.get("promotionAuthority") is False,
                       "m5_report_frozen_oos_closed": m5_report.get("frozenOosOpened") is False,
                       "m5_report_live_locked": m5_report.get("liveExecutionAllowed") is False,
-                      "m5_report_baseline_metrics": isinstance((m5_report.get("baseline") or {}).get("metrics"), dict),
-                      "m5_report_treatments": isinstance(treatments, list) and len(treatments) == 4,
-                      "m5_report_response_gates": response_gates == expected_response_gates,
+                      "m5_report_baseline_metrics": isinstance(
+                          (m5_report.get("baseline") or {}).get("metrics"), dict
+                      ),
+                      "m5_report_treatments": isinstance(treatments, list) and len(treatments) == 3,
+                      "m5_report_divergence_gates": divergence_gates == expected_divergence_gates,
                       "frozen_oos_locked": locks.get("frozenOos") is True,
                       "real_execution_locked": locks.get("realExecution") is True,
                   }
@@ -175,7 +173,7 @@ jobs:
                               "m5EvidenceComplete": m5.get("evidenceComplete"),
                               "m5BatchId": m5.get("batchId"),
                               "m5ReportPath": m5.get("reportPath"),
-                              "m5ResponseGates": response_gates,
+                              "m5DivergenceGates": divergence_gates,
                               "m5Report": m5_report,
                               "fastRestartPhase": fast_restart.get("phase", "UNKNOWN"),
                               "fastRestartPassed": fast_restart.get("passed") is True,
