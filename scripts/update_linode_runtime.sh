@@ -5,6 +5,8 @@ REPO_DIR="/opt/Eba-Trader"
 ENV_DIR="/etc/eba-trader"
 STATE_DIR="/var/lib/eba-trader"
 DEPLOY_STATE="$STATE_DIR/deploy-state"
+PROOF_DIR="$STATE_DIR/proofs"
+PROOF_FILE="$PROOF_DIR/latest.json"
 RESEARCH_DIR="$STATE_DIR/research"
 RESEARCH_DATASET_DIR="$RESEARCH_DIR/datasets"
 RESEARCH_EVIDENCE_DIR="$RESEARCH_DIR/evidence"
@@ -35,6 +37,7 @@ mkdir -p \
   "$ENV_DIR" \
   "$STATE_DIR" \
   "$DEPLOY_STATE" \
+  "$PROOF_DIR" \
   "$CREDENTIAL_DIR" \
   "$RESEARCH_DATASET_DIR" \
   "$RESEARCH_EVIDENCE_DIR" \
@@ -43,9 +46,19 @@ chmod 700 "$ENV_DIR" "$CREDENTIAL_DIR"
 chmod 750 \
   "$STATE_DIR" \
   "$DEPLOY_STATE" \
+  "$PROOF_DIR" \
   "$RESEARCH_DIR" \
   "$RESEARCH_DATASET_DIR" \
   "$RESEARCH_EVIDENCE_DIR"
+
+collect_proof() {
+  local expected_build="$1"
+  if [[ -x .venv/bin/python && -f scripts/collect_linode_proof.py ]]; then
+    .venv/bin/python scripts/collect_linode_proof.py \
+      --output "$PROOF_FILE" \
+      --expected-build "$expected_build" >/dev/null 2>&1 || true
+  fi
+}
 
 # Never deploy over local edits: a dirty runtime checkout is unsafe to auto-reset.
 if [[ -n "$(git status --porcelain)" ]]; then
@@ -64,6 +77,9 @@ if [[ "$CURRENT_SHA" == "$TARGET_SHA" ]]; then
   elif [[ $AUTO_MODE -eq 0 ]]; then
     echo "EBA Trader already up to date: $CURRENT_SHA"
   fi
+  # Refresh sanitized proof even when no deployment is needed. This lets Demo reconnect,
+  # Chart/Positions/Research smoke and host-contract state converge without operator action.
+  collect_proof "$CURRENT_SHA"
   exit 0
 fi
 
@@ -164,6 +180,10 @@ if [[ -f scripts/bootstrap_linode_public_https.sh ]]; then
   bash scripts/bootstrap_linode_public_https.sh || \
     echo "Public HTTPS bootstrap deferred; runtime deployment remains healthy." >&2
 fi
+
+# Collect a sanitized post-restart proof. External Binance/Demo availability does not
+# participate in rollback; local host/runtime failures are already gated above.
+collect_proof "$TARGET_SHA"
 
 trap - ERR
 printf '%s\n' "$TARGET_SHA" > "$DEPLOY_STATE/current_sha"
