@@ -125,80 +125,6 @@ DEFAULT_M5_STUDY_POLICY = M5OrderFlowStudyPolicy(
 )
 
 
-@dataclass(frozen=True, slots=True)
-class M5DevelopmentCorpusSpec:
-    policy_id: str
-    windows: tuple[M5StudyWindow, ...]
-
-    def __post_init__(self) -> None:
-        if self.policy_id != DEFAULT_M5_STUDY_POLICY.policy_id:
-            raise ValueError("M5 corpus must reference the sealed default study policy")
-        if not self.windows:
-            raise ValueError("M5 development corpus requires at least one window")
-        if len(self.windows) > MAX_M5_CORPUS_WINDOWS:
-            raise ValueError(
-                f"M5 development corpus exceeds hard cap {MAX_M5_CORPUS_WINDOWS}"
-            )
-        names = [window.name for window in self.windows]
-        if len(names) != len(set(names)):
-            raise ValueError("M5 development corpus window names must be unique")
-
-        ordered = sorted(self.windows, key=lambda item: (item.start_ms, item.end_ms, item.name))
-        if tuple(ordered) != self.windows:
-            raise ValueError("M5 development corpus windows must be chronological")
-
-        previous_end: int | None = None
-        for window in self.windows:
-            assert_m5_development_range(
-                symbol=M5_SYMBOL,
-                venue=M5_VENUE,
-                interval=M5_INTERVAL,
-                start_ms=window.start_ms,
-                end_ms=window.end_ms,
-                context=f"M5 corpus window {window.name}",
-            )
-            if previous_end is not None and window.start_ms < previous_end:
-                raise ValueError("M5 development corpus windows cannot overlap")
-            previous_end = window.end_ms
-
-    def as_dict(self) -> dict[str, object]:
-        return {
-            "schema": "m5_development_corpus_v1",
-            "policy_id": self.policy_id,
-            "windows": [window.as_dict() for window in self.windows],
-        }
-
-    @property
-    def corpus_id(self) -> str:
-        return f"m5corpus_{sha256_text(canonical_json(self.as_dict()))[:24]}"
-
-
-def _window(name: str, start: str, end: str) -> M5StudyWindow:
-    return M5StudyWindow(name=name, start_ms=parse_utc(start), end_ms=parse_utc(end))
-
-
-# Pre-registered fresh development windows. The already-inspected 2026-08-01 proof
-# window is deliberately not part of this corpus so the corpus can provide new
-# development evidence instead of repeatedly tuning on the original smoke window.
-DEFAULT_M5_DEVELOPMENT_CORPUS = M5DevelopmentCorpusSpec(
-    policy_id=DEFAULT_M5_STUDY_POLICY.policy_id,
-    windows=(
-        _window("dev-01", "2026-07-02T00:00:00Z", "2026-07-02T04:00:00Z"),
-        _window("dev-02", "2026-07-06T08:00:00Z", "2026-07-06T12:00:00Z"),
-        _window("dev-03", "2026-07-10T16:00:00Z", "2026-07-10T20:00:00Z"),
-        _window("dev-04", "2026-07-14T00:00:00Z", "2026-07-14T04:00:00Z"),
-        _window("dev-05", "2026-07-18T08:00:00Z", "2026-07-18T12:00:00Z"),
-        _window("dev-06", "2026-07-22T16:00:00Z", "2026-07-22T20:00:00Z"),
-        _window("dev-07", "2026-07-26T00:00:00Z", "2026-07-26T04:00:00Z"),
-        _window("dev-08", "2026-07-30T08:00:00Z", "2026-07-30T12:00:00Z"),
-        _window("dev-09", "2026-08-03T16:00:00Z", "2026-08-03T20:00:00Z"),
-        _window("dev-10", "2026-08-07T00:00:00Z", "2026-08-07T04:00:00Z"),
-        _window("dev-11", "2026-08-11T08:00:00Z", "2026-08-11T12:00:00Z"),
-        _window("dev-12", "2026-08-14T16:00:00Z", "2026-08-14T20:00:00Z"),
-    ),
-)
-
-
 def overlaps_m5_frozen_oos(
     *,
     symbol: str,
@@ -276,3 +202,77 @@ def assert_m5_development_range(
             f"{context} is outside sealed M5 development range "
             f"{M5_DEVELOPMENT_START} -> {M5_DEVELOPMENT_END_EXCLUSIVE}."
         )
+
+
+@dataclass(frozen=True, slots=True)
+class M5DevelopmentCorpusSpec:
+    policy_id: str
+    windows: tuple[M5StudyWindow, ...]
+
+    def __post_init__(self) -> None:
+        if self.policy_id != DEFAULT_M5_STUDY_POLICY.policy_id:
+            raise ValueError("M5 corpus must reference the sealed default study policy")
+        if not self.windows:
+            raise ValueError("M5 development corpus requires at least one window")
+        if len(self.windows) > MAX_M5_CORPUS_WINDOWS:
+            raise ValueError(
+                f"M5 development corpus exceeds hard cap {MAX_M5_CORPUS_WINDOWS}"
+            )
+        names = [window.name for window in self.windows]
+        if len(names) != len(set(names)):
+            raise ValueError("M5 development corpus window names must be unique")
+
+        ordered = sorted(self.windows, key=lambda item: (item.start_ms, item.end_ms, item.name))
+        if tuple(ordered) != self.windows:
+            raise ValueError("M5 development corpus windows must be chronological")
+
+        previous_end: int | None = None
+        for window in self.windows:
+            assert_m5_development_range(
+                symbol=M5_SYMBOL,
+                venue=M5_VENUE,
+                interval=M5_INTERVAL,
+                start_ms=window.start_ms,
+                end_ms=window.end_ms,
+                context=f"M5 corpus window {window.name}",
+            )
+            if previous_end is not None and window.start_ms < previous_end:
+                raise ValueError("M5 development corpus windows cannot overlap")
+            previous_end = window.end_ms
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "schema": "m5_development_corpus_v1",
+            "policy_id": self.policy_id,
+            "windows": [window.as_dict() for window in self.windows],
+        }
+
+    @property
+    def corpus_id(self) -> str:
+        return f"m5corpus_{sha256_text(canonical_json(self.as_dict()))[:24]}"
+
+
+def _window(name: str, start: str, end: str) -> M5StudyWindow:
+    return M5StudyWindow(name=name, start_ms=parse_utc(start), end_ms=parse_utc(end))
+
+
+# Pre-registered fresh development windows. The already-inspected 2026-08-01 proof
+# window is deliberately not part of this corpus so the corpus can provide new
+# development evidence instead of repeatedly tuning on the original smoke window.
+DEFAULT_M5_DEVELOPMENT_CORPUS = M5DevelopmentCorpusSpec(
+    policy_id=DEFAULT_M5_STUDY_POLICY.policy_id,
+    windows=(
+        _window("dev-01", "2026-07-02T00:00:00Z", "2026-07-02T04:00:00Z"),
+        _window("dev-02", "2026-07-06T08:00:00Z", "2026-07-06T12:00:00Z"),
+        _window("dev-03", "2026-07-10T16:00:00Z", "2026-07-10T20:00:00Z"),
+        _window("dev-04", "2026-07-14T00:00:00Z", "2026-07-14T04:00:00Z"),
+        _window("dev-05", "2026-07-18T08:00:00Z", "2026-07-18T12:00:00Z"),
+        _window("dev-06", "2026-07-22T16:00:00Z", "2026-07-22T20:00:00Z"),
+        _window("dev-07", "2026-07-26T00:00:00Z", "2026-07-26T04:00:00Z"),
+        _window("dev-08", "2026-07-30T08:00:00Z", "2026-07-30T12:00:00Z"),
+        _window("dev-09", "2026-08-03T16:00:00Z", "2026-08-03T20:00:00Z"),
+        _window("dev-10", "2026-08-07T00:00:00Z", "2026-08-07T04:00:00Z"),
+        _window("dev-11", "2026-08-11T08:00:00Z", "2026-08-11T12:00:00Z"),
+        _window("dev-12", "2026-08-14T16:00:00Z", "2026-08-14T20:00:00Z"),
+    ),
+)
