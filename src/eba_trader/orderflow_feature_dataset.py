@@ -335,7 +335,11 @@ def load_orderflow_feature_csv(path: str | Path) -> tuple[OrderFlowFeatureRow, .
             "of_stacked_imbalance",
         }
         actual_fields = set(reader.fieldnames or ())
-        if actual_fields not in {frozenset(legacy_fields), frozenset(legacy_fields | stacked_fields)}:
+        supported_fields = {
+            frozenset(legacy_fields),
+            frozenset(legacy_fields | stacked_fields),
+        }
+        if actual_fields not in supported_fields:
             raise ValueError("invalid order-flow feature CSV columns")
         has_stacked = stacked_fields <= actual_fields
         for payload in reader:
