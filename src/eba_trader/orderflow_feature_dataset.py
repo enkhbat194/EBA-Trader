@@ -16,10 +16,12 @@ from .orderflow_dataset import (
 )
 from .research_evidence import canonical_json, sha256_file, sha256_text
 
-FEATURE_DATASET_SCHEMA = "m5_orderflow_feature_dataset_v2"
+FEATURE_DATASET_SCHEMA = "m5_orderflow_feature_dataset_v3"
+STACKED_FEATURE_DATASET_SCHEMA = "m5_orderflow_feature_dataset_v2"
 LEGACY_FEATURE_DATASET_SCHEMA = "m5_orderflow_feature_dataset_v1"
 SUPPORTED_FEATURE_DATASET_SCHEMAS = {
     LEGACY_FEATURE_DATASET_SCHEMA,
+    STACKED_FEATURE_DATASET_SCHEMA,
     FEATURE_DATASET_SCHEMA,
 }
 
@@ -37,6 +39,8 @@ class OrderFlowFeatureRow:
     of_stacked_buy_levels: int = 0
     of_stacked_sell_levels: int = 0
     of_stacked_imbalance: int = 0
+    of_absorption: float = 0.0
+    of_exhaustion: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -199,6 +203,8 @@ def materialize_orderflow_feature_dataset(
             of_stacked_buy_levels=item.footprint.stacked_buy_levels,
             of_stacked_sell_levels=item.footprint.stacked_sell_levels,
             of_stacked_imbalance=item.footprint.stacked_imbalance,
+            of_absorption=item.footprint.absorption,
+            of_exhaustion=item.footprint.exhaustion,
         )
         for item in aligned
     )
@@ -275,6 +281,8 @@ def _write_feature_csv(rows: tuple[OrderFlowFeatureRow, ...], path: Path) -> Non
         "of_stacked_buy_levels",
         "of_stacked_sell_levels",
         "of_stacked_imbalance",
+        "of_absorption",
+        "of_exhaustion",
         "footprint_available_at_ms",
     ]
     with path.open("w", newline="", encoding="utf-8") as handle:
@@ -302,6 +310,8 @@ def _write_feature_csv(rows: tuple[OrderFlowFeatureRow, ...], path: Path) -> Non
                     "of_stacked_buy_levels": row.of_stacked_buy_levels,
                     "of_stacked_sell_levels": row.of_stacked_sell_levels,
                     "of_stacked_imbalance": row.of_stacked_imbalance,
+                    "of_absorption": row.of_absorption,
+                    "of_exhaustion": row.of_exhaustion,
                     "footprint_available_at_ms": row.footprint_available_at_ms,
                 }
             )
@@ -334,14 +344,17 @@ def load_orderflow_feature_csv(path: str | Path) -> tuple[OrderFlowFeatureRow, .
             "of_stacked_sell_levels",
             "of_stacked_imbalance",
         }
+        response_fields = {"of_absorption", "of_exhaustion"}
         actual_fields = set(reader.fieldnames or ())
         supported_fields = {
             frozenset(legacy_fields),
             frozenset(legacy_fields | stacked_fields),
+            frozenset(legacy_fields | stacked_fields | response_fields),
         }
         if actual_fields not in supported_fields:
             raise ValueError("invalid order-flow feature CSV columns")
         has_stacked = stacked_fields <= actual_fields
+        has_response = response_fields <= actual_fields
         for payload in reader:
             poc_text = payload["of_poc_price"].strip()
             candle = Candle(
@@ -377,6 +390,8 @@ def load_orderflow_feature_csv(path: str | Path) -> tuple[OrderFlowFeatureRow, .
                     of_stacked_imbalance=(
                         int(payload["of_stacked_imbalance"]) if has_stacked else 0
                     ),
+                    of_absorption=(float(payload["of_absorption"]) if has_response else 0.0),
+                    of_exhaustion=(float(payload["of_exhaustion"]) if has_response else 0.0),
                 )
             )
     validate_interval_window(
