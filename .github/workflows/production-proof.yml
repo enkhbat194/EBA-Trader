@@ -46,12 +46,13 @@ jobs:
                   raise RuntimeError(f"{path} returned non-object JSON")
               return payload
 
-          def sanitized_diagnostics(proof):
+          def sanitized_diagnostics(proof, report):
               return {
                   "journald": proof.get("journald"),
                   "researchRuntime": proof.get("researchRuntime"),
                   "services": proof.get("services"),
                   "m5RealAblation": proof.get("m5RealAblation"),
+                  "m5Report": report,
                   "localApi": proof.get("localApi"),
                   "fastRestart": proof.get("fastRestart"),
               }
@@ -70,6 +71,8 @@ jobs:
                   proof = research.get("productionProof") or {}
                   locks = research.get("locks") or {}
                   m5 = proof.get("m5RealAblation") or {}
+                  m5_report = research.get("m5Report") or {}
+                  treatments = m5_report.get("treatments") or []
 
                   checks = {
                       "exact_build": build == expected,
@@ -89,13 +92,24 @@ jobs:
                       "m5_evidence_complete": m5.get("evidenceComplete") is True,
                       "m5_frozen_oos_closed": m5.get("frozenOosOpened") is False,
                       "m5_live_execution_locked": m5.get("liveExecutionAllowed") is False,
+                      "m5_report_available": m5_report.get("available") is True,
+                      "m5_report_schema": m5_report.get("schema") == "m5_real_ablation_report_v1",
+                      "m5_report_terminal": m5_report.get("allTerminal") is True,
+                      "m5_report_evidence": m5_report.get("evidenceComplete") is True,
+                      "m5_report_development_only": m5_report.get("developmentComparisonOnly") is True,
+                      "m5_report_no_edge_claim": m5_report.get("edgeClaimAllowed") is False,
+                      "m5_report_no_promotion": m5_report.get("promotionAuthority") is False,
+                      "m5_report_frozen_oos_closed": m5_report.get("frozenOosOpened") is False,
+                      "m5_report_live_locked": m5_report.get("liveExecutionAllowed") is False,
+                      "m5_report_baseline_metrics": isinstance((m5_report.get("baseline") or {}).get("metrics"), dict),
+                      "m5_report_treatments": isinstance(treatments, list) and len(treatments) >= 1,
                       "frozen_oos_locked": locks.get("frozenOos") is True,
                       "real_execution_locked": locks.get("realExecution") is True,
                   }
                   failed = [name for name, passed in checks.items() if not passed]
                   if failed:
                       diagnostics = json.dumps(
-                          sanitized_diagnostics(proof),
+                          sanitized_diagnostics(proof, m5_report),
                           sort_keys=True,
                           separators=(",", ":"),
                       )
@@ -103,7 +117,7 @@ jobs:
                           "failed checks: "
                           + ", ".join(failed)
                           + "; sanitized diagnostics: "
-                          + diagnostics[:2400]
+                          + diagnostics[:4000]
                       )
                       time.sleep(20)
                       continue
@@ -127,7 +141,7 @@ jobs:
                               "m5AllExperimentsPassed": m5.get("allExperimentsPassed"),
                               "m5EvidenceComplete": m5.get("evidenceComplete"),
                               "m5BatchId": m5.get("batchId"),
-                              "m5ReportPath": m5.get("reportPath"),
+                              "m5Report": m5_report,
                               "fastRestartPhase": fast_restart.get("phase", "UNKNOWN"),
                               "fastRestartPassed": fast_restart.get("passed") is True,
                               "frozenOosLocked": True,
@@ -138,7 +152,7 @@ jobs:
                   )
                   raise SystemExit(0)
               except (OSError, ValueError, RuntimeError, urllib.error.URLError) as exc:
-                  last_error = str(exc)[:3000]
+                  last_error = str(exc)[:4000]
                   time.sleep(20)
 
           raise SystemExit(f"production proof timed out: {last_error}")
