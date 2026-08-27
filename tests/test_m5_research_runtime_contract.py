@@ -45,6 +45,14 @@ def test_real_ablation_autorun_is_bounded_idempotent_and_development_only() -> N
     assert 'START="2026-08-01T00:00:00Z"' in wrapper
     assert 'END="2026-08-01T04:00:00Z"' in wrapper
     assert "m5-real-ablation-latest.json" in wrapper
+    assert 'GATES_JSON="$REPO_DIR/config/m5_stacked_imbalance_gate_set_v2.json"' in wrapper
+    assert 'GATE_SET_ID="m5_stacked_imbalance_gate_set_v2"' in wrapper
+    assert "m5-stacked-imbalance-ablation-$WINDOW_ID.json" in wrapper
+    assert '--gates-json "$GATES_JSON"' in wrapper
+    assert '"comparisonKind": "stacked_imbalance"' in wrapper
+    assert '"stackedThresholds": [1, 2, 3]' in wrapper
+    assert 'sorted(thresholds) == [1, 2, 3]' in wrapper
+    assert 'report.get("treatmentCount") == 3' in wrapper
     assert "allTerminal" in wrapper
     assert "evidenceComplete" in wrapper
     assert '"frozenOosOpened": False' in wrapper
