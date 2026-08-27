@@ -14,12 +14,17 @@ from .m5_ablation import (
     OrderFlowGate,
 )
 from .m5_dataset_workflow import WORKFLOW_SCHEMA
-from .orderflow_feature_dataset import FEATURE_DATASET_SCHEMA
+from .orderflow_feature_dataset import (
+    FEATURE_DATASET_SCHEMA,
+    SUPPORTED_FEATURE_DATASET_SCHEMAS,
+)
 from .research_evidence import sha256_file
 from .research_queue import ExperimentQueue
 from .research_store import ResearchStore
 
-GATE_SET_SCHEMA = "m5_orderflow_gate_set_v1"
+GATE_SET_SCHEMA = "m5_orderflow_gate_set_v2"
+LEGACY_GATE_SET_SCHEMA = "m5_orderflow_gate_set_v1"
+SUPPORTED_GATE_SET_SCHEMAS = {LEGACY_GATE_SET_SCHEMA, GATE_SET_SCHEMA}
 DEFAULT_RESEARCH_ROOT = Path("/var/lib/eba-trader/research")
 
 
@@ -96,7 +101,8 @@ def _load_verified_workflow(
     feature_dataset_id = str(workflow["feature_dataset_id"])
     feature_manifest_path = dataset_path.with_suffix(".manifest.json")
     feature_manifest = _json_object(feature_manifest_path, label="feature manifest")
-    if feature_manifest.get("schema") != FEATURE_DATASET_SCHEMA:
+    feature_schema = feature_manifest.get("schema")
+    if feature_schema not in SUPPORTED_FEATURE_DATASET_SCHEMAS:
         raise ValueError("unsupported order-flow feature manifest schema")
     if feature_manifest.get("dataset_id") != feature_dataset_id:
         raise ValueError("feature manifest dataset_id does not match workflow")
@@ -110,6 +116,17 @@ def _load_verified_workflow(
         raise ValueError("feature manifest venue is not USD-M futures")
     if feature_manifest.get("feature_csv_sha256") != expected_sha:
         raise ValueError("feature manifest CSV hash does not match workflow")
+    if feature_schema == FEATURE_DATASET_SCHEMA:
+        ratio = feature_manifest.get("imbalance_ratio")
+        minimum = feature_manifest.get("imbalance_min_volume")
+        if not isinstance(ratio, (int, float)) or isinstance(ratio, bool) or float(ratio) <= 1.0:
+            raise ValueError("v2 feature manifest requires imbalance_ratio > 1")
+        if (
+            not isinstance(minimum, (int, float))
+            or isinstance(minimum, bool)
+            or float(minimum) < 0.0
+        ):
+            raise ValueError("v2 feature manifest requires imbalance_min_volume >= 0")
 
     assert_not_first_cycle_oos_overlap(
         symbol=symbol,
@@ -123,8 +140,9 @@ def _load_verified_workflow(
 
 def _load_gates(path: Path) -> tuple[OrderFlowGate, ...]:
     payload = _json_object(path, label="gate set")
-    if set(payload) != {"schema", "gates"} or payload["schema"] != GATE_SET_SCHEMA:
+    if set(payload) != {"schema", "gates"} or payload["schema"] not in SUPPORTED_GATE_SET_SCHEMAS:
         raise ValueError("invalid M5 order-flow gate set")
+    schema = str(payload["schema"])
     raw_gates = payload["gates"]
     if not isinstance(raw_gates, list) or not raw_gates:
         raise ValueError("gate set requires a non-empty gates list")
@@ -134,12 +152,15 @@ def _load_gates(path: Path) -> tuple[OrderFlowGate, ...]:
         if not isinstance(raw, dict):
             raise ValueError("each order-flow gate must be an object")
         allowed = {"delta_ratio_threshold", "cvd_threshold"}
+        if schema == GATE_SET_SCHEMA:
+            allowed.add("stacked_imbalance_threshold")
         if not raw or not set(raw) <= allowed:
             raise ValueError("order-flow gate contains unsupported fields")
         gates.append(
             OrderFlowGate(
                 delta_ratio_threshold=raw.get("delta_ratio_threshold"),
                 cvd_threshold=raw.get("cvd_threshold"),
+                stacked_imbalance_threshold=raw.get("stacked_imbalance_threshold"),
             )
         )
     return tuple(gates)
