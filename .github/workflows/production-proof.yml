@@ -141,6 +141,7 @@ jobs:
                               "m5AllExperimentsPassed": m5.get("allExperimentsPassed"),
                               "m5EvidenceComplete": m5.get("evidenceComplete"),
                               "m5BatchId": m5.get("batchId"),
+                              "m5ReportPath": m5.get("reportPath"),
                               "m5Report": m5_report,
                               "fastRestartPhase": fast_restart.get("phase", "UNKNOWN"),
                               "fastRestartPassed": fast_restart.get("passed") is True,
