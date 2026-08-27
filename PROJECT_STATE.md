@@ -128,6 +128,13 @@ Continue sequentially through robustness, verified knowledge-base persistence, f
 - Generic research workers cannot open frozen OOS or exchange execution.
 - Frozen OOS and real-money execution remain locked.
 
+## Validation status
+
+- Exact production build `93e684794cd692bf1534ec46a5c9186bb974bbb9` has passed the external public proof chain described above.
+- First real M5 batch is terminal and evidence-complete, but its metrics are development-only.
+- Active stacked-imbalance branch `ec015d6b...` has not yet passed regression/CI/PR review and is not validated for merge or production.
+- New-chat continuation must verify actual GitHub state again before implementation.
+
 ## Continuity protocol
 
 Canonical continuation files: `AGENTS.md`, `PROJECT_STATE.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TODO.md`, `CHANGELOG.md`, `SESSION_HANDOFF.md`, `docs/CONTINUITY_PROTOCOL.md`.
