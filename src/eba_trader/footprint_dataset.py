@@ -74,6 +74,7 @@ class FootprintDatasetBuilder:
             )
             stacks = diagonal_imbalance_stacks(
                 features.levels,
+                price_step=self.aggregator.price_bucket,
                 ratio_threshold=self.imbalance_ratio,
                 min_volume=self.imbalance_min_volume,
             )
