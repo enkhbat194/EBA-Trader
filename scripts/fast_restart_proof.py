@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sqlite3
 import subprocess
 import tempfile
 import time
@@ -11,7 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from eba_trader.persistence import DEFAULT_DB_PATH, TradeLedger
+from eba_trader.persistence import DEFAULT_DB_PATH
 
 WEB_API = "http://127.0.0.1:8000"
 DEFAULT_STATE = Path("/var/lib/eba-trader/proofs/fast-restart.json")
@@ -92,23 +93,48 @@ def _atomic_write(path: Path, payload: dict[str, Any]) -> None:
     temp.replace(path)
 
 
-def _events_for(ledger: TradeLedger, position_id: str) -> list[dict[str, Any]]:
-    return [
-        event
-        for event in reversed(ledger.list_events(limit=1000))
-        if event.get("position_id") == position_id
-    ]
+def _read_position(ledger_path: Path, position_id: str) -> dict[str, Any] | None:
+    uri = f"file:{ledger_path.resolve().as_posix()}?mode=ro"
+    connection = sqlite3.connect(uri, uri=True, timeout=5)
+    connection.row_factory = sqlite3.Row
+    try:
+        row = connection.execute(
+            "SELECT * FROM positions WHERE position_id = ?",
+            (position_id,),
+        ).fetchone()
+    finally:
+        connection.close()
+    return dict(row) if row is not None else None
 
 
-def _validate_open_position(ledger: TradeLedger, position_id: str) -> dict[str, Any]:
-    row = ledger.get_position(position_id)
+def _events_for(ledger_path: Path, position_id: str) -> list[dict[str, Any]]:
+    uri = f"file:{ledger_path.resolve().as_posix()}?mode=ro"
+    connection = sqlite3.connect(uri, uri=True, timeout=5)
+    connection.row_factory = sqlite3.Row
+    try:
+        rows = connection.execute(
+            """
+            SELECT id, event_type, position_id, created_at
+            FROM events
+            WHERE position_id = ?
+            ORDER BY id
+            """,
+            (position_id,),
+        ).fetchall()
+    finally:
+        connection.close()
+    return [dict(row) for row in rows]
+
+
+def _validate_open_position(ledger_path: Path, position_id: str) -> dict[str, Any]:
+    row = _read_position(ledger_path, position_id)
     if row is None:
         raise RuntimeError("runner position is missing from TradeLedger")
     if row.get("status") != "OPEN":
         raise RuntimeError("runner position is not OPEN in TradeLedger")
     if row.get("strategy") != FAST_STRATEGY:
         raise RuntimeError("runner position is not FAST_MOMENTUM")
-    events = _events_for(ledger, position_id)
+    events = _events_for(ledger_path, position_id)
     opens = [event for event in events if event.get("event_type") == "FAST_MOMENTUM_OPEN"]
     if not opens:
         raise RuntimeError("FAST_MOMENTUM_OPEN event is missing")
@@ -141,7 +167,8 @@ def advance(*, state_path: Path, ledger_path: Path) -> dict[str, Any]:
     if state.get("passed") is True:
         return state
 
-    ledger = TradeLedger(ledger_path)
+    if not ledger_path.is_file():
+        raise RuntimeError("TradeLedger database does not exist")
     phase = str(state.get("phase") or "WAITING_FOR_OPEN")
 
     if phase == "WAITING_FOR_OPEN":
@@ -158,8 +185,8 @@ def advance(*, state_path: Path, ledger_path: Path) -> dict[str, Any]:
             _atomic_write(state_path, state)
             return state
 
-        row = _validate_open_position(ledger, position_id)
-        events = _events_for(ledger, position_id)
+        row = _validate_open_position(ledger_path, position_id)
+        events = _events_for(ledger_path, position_id)
         before_event_id = max(int(event["id"]) for event in events)
         state.update(
             {
@@ -191,7 +218,7 @@ def advance(*, state_path: Path, ledger_path: Path) -> dict[str, Any]:
             _atomic_write(state_path, state)
             return state
 
-        _validate_open_position(ledger, position_id)
+        _validate_open_position(ledger_path, position_id)
         state.update(
             {
                 "phase": "WAITING_FOR_MARK_CLOSE",
@@ -234,7 +261,7 @@ def advance(*, state_path: Path, ledger_path: Path) -> dict[str, Any]:
         if not position_id:
             raise RuntimeError("restart proof state is missing positionId")
         before_event_id = int(state.get("beforeRestartEventId") or 0)
-        events = _events_for(ledger, position_id)
+        events = _events_for(ledger_path, position_id)
         post_restart = [event for event in events if int(event["id"]) > before_event_id]
         mark_seen = any(
             event.get("event_type") == "FAST_MOMENTUM_MARK" for event in post_restart
@@ -242,7 +269,7 @@ def advance(*, state_path: Path, ledger_path: Path) -> dict[str, Any]:
         close_seen = any(
             event.get("event_type") == "FAST_MOMENTUM_CLOSE" for event in post_restart
         )
-        row = ledger.get_position(position_id)
+        row = _read_position(ledger_path, position_id)
         if row is not None and row.get("status") == "CLOSED":
             close_seen = True
 
