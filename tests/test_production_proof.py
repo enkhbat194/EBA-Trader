@@ -52,32 +52,39 @@ def test_reader_strips_secrets_and_session_tokens_but_keeps_masked_key(tmp_path:
     assert result["liveExecutionAllowed"] is False
 
 
-def test_linode_deploy_collects_proof_without_making_it_a_rollback_gate() -> None:
+def test_linode_deploy_collects_proof_without_making_m5_completion_a_gate() -> None:
     install = (ROOT / "scripts/install_linode_runtime.sh").read_text(encoding="utf-8")
     update = (ROOT / "scripts/update_linode_runtime.sh").read_text(encoding="utf-8")
     collector = (ROOT / "scripts/collect_linode_proof.py").read_text(encoding="utf-8")
 
     for script in (install, update):
-        assert '/var/lib/eba-trader' in script
+        assert "/var/lib/eba-trader" in script
         assert 'PROOF_DIR="$STATE_DIR/proofs"' in script
-        assert 'scripts/collect_linode_proof.py' in script
-        assert '--expected-build' in script
+        assert "scripts/collect_linode_proof.py" in script
+        assert "--expected-build" in script
 
-    assert 'SystemMaxUse' in collector
-    assert 'SystemKeepFree' in collector
-    assert 'MaxRetentionSec' in collector
-    assert '/api/demo/autoconnect' in collector
-    assert '/api/research/status' in collector
-    assert '/api/v1/positions' in collector
-    assert '/api/chart' in collector
-    assert 'session token returned by the autoconnect endpoint' in collector
+    assert "SystemMaxUse" in collector
+    assert "SystemKeepFree" in collector
+    assert "MaxRetentionSec" in collector
+    assert "/api/demo/autoconnect" in collector
+    assert "/api/research/status" in collector
+    assert "/api/v1/positions" in collector
+    assert "/api/chart" in collector
+    assert "session token returned by the autoconnect endpoint" in collector
+    assert "m5-real-ablation-latest.json" in collector
+    assert "eba-m5-real-ablation.timer" in collector
+    assert '"edgeClaimAllowed": False' in collector
+    assert '"promotionAuthority": False' in collector
+    assert '"m5RealAblation": _m5_ablation_status()' in collector
+    assert 'proof["m5RealAblation"]["safe"]' in collector
+    assert 'proof["m5RealAblation"]["phase"] == "COMPLETE"' not in collector
 
 
 def test_research_ui_renders_production_proof_read_only() -> None:
     source = (ROOT / "web/research_ui.js").read_text(encoding="utf-8")
 
-    assert 'Linode runtime verification' in source
-    assert 'productionSmokePassed' in source
-    assert 'demoReconnect' in source
-    assert 'productionPositionsProof' in source
-    assert 'systemctl' not in source
+    assert "Linode runtime verification" in source
+    assert "productionSmokePassed" in source
+    assert "demoReconnect" in source
+    assert "productionPositionsProof" in source
+    assert "systemctl" not in source

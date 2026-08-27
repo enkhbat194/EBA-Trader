@@ -4,65 +4,62 @@ _Last handoff prepared: 2026-08-27 (Asia/Ulaanbaatar)_
 
 ## What was completed
 
-- PR #40 merged at `8876bc22b59f236e8df038440aaa6116c5d1afdf`.
-- #40 codified production journald limits, persistent research DB/dataset/evidence paths, bounded research worker/timer, `eba-m5-real-ablation`, initial Delta/CVD gate set and the one-command real development runner.
-- The production PWA now reports server build `8876bc2`, confirming #40 reached the active Linode runtime.
-- The user entered a real Binance Demo key/secret through the PWA. The UI reports the credential is encrypted and saved securely on Linode; the saved secret is not returned to the browser.
-- PR #41 implements lifecycle policy v2:
-  - current path is `GENERATED -> BACKTESTED -> ROBUSTNESS_VERIFIED -> OOS_VERIFIED -> PAPER_CANDIDATE -> ...`;
-  - legacy pre-OOS rows can migrate safely to v2;
-  - legacy post-OOS rows stay policy v1/frozen and must enter `RETEST_REQUIRED` before v2 re-entry;
-  - robustness fan-out requires v2 `BACKTESTED`;
-  - a passed robustness verdict can promote only to `ROBUSTNESS_VERIFIED`, never directly to OOS;
-  - migration tests cover legacy SQLite schema/state handling.
-- PR #41 pre-continuity head passed full Python regression, Ruff, shell syntax, deployment contract, Linode runtime checks and continuity guard.
+- PR #41 lifecycle policy v2 merged at `32a39c57cb9c86bd2b956ea670fa3031229d0efc` with robustness-before-OOS and legacy migration safeguards.
+- PR #42 external public smoke merged at `a1425c5eb0e839bed4645f4a31bd95512c8d1995`; exact deployed build passed Demo vault/autoconnect, Chart, Positions and Research checks.
+- PR #43 production proof + passive Fast restart watcher merged at `4a46a0fbec7d20007bda9061572756841de190c6`. The watcher waits for a natural Fast paper OPEN, restarts `eba-web.service` once, requires the same position to recover and then waits for MARK/CLOSE. It never manufactures a trade.
+- PR #44 legacy carry active-entry retirement merged at `0df5f4d9a7ce054b1a2b65002b9329ba0c8143aa`.
+- Exact #44 production proof passed: production smoke, encrypted Demo reconnect, Chart, Positions, frozen OOS lock and real-execution lock.
+- PR #45 candidate implements the first automatic real M5 development ablation:
+  - BTCUSDT Binance USD-M, 1m;
+  - fixed 2026-08-01 00:00Z -> 04:00Z development window;
+  - existing verified candle/aggTrade feature builder and deterministic M4 ablation queue;
+  - bounded systemd oneshot/timer with 40% CPU quota, 700 MB memory ceiling and 45-minute timeout;
+  - idempotent retry/no-op marker under persistent research storage;
+  - immutable candle-baseline vs Delta/CVD comparison report;
+  - sanitized production-proof state;
+  - `edgeClaimAllowed=false`, `promotionAuthority=false`, frozen OOS closed and live execution locked.
+- PR #45 pre-continuity head passed full regression, Ruff, shell syntax, deployment contract, active Linode runtime and continuity checks.
 
 ## Current project state
 
-- GitHub `main` is authoritative; Linode is the sole active runtime target.
-- M4 research foundation is complete; M5 Strategy Factory/order-flow research remains active.
-- Runtime paper state stays in `/var/lib/eba-trader/eba_trader.db`.
-- Research state stays under `/var/lib/eba-trader/research/` and remains separate from runtime `TradeLedger`.
-- Fast Momentum remains paper-only.
-- Binance Demo credential persistence has real production save proof; no-paste reconnect after a real restart is still unproven.
+- GitHub `main` is authoritative; Linode is the active runtime target.
+- M4 is complete; M5 order-flow/Strategy Factory work is active.
+- Fast Momentum is the sole active production paper engine and uses restart-safe SQLite state.
+- Legacy carry remains compatibility/historical code only and cannot create new production entries by default.
+- Binance Demo credentials are encrypted on Linode and have real no-paste application/service restart reconnect proof.
+- Runtime `TradeLedger` and research DB/dataset/evidence storage remain separate.
 - Real-money execution remains locked.
-- Frozen OOS remains locked until a strategy passes lifecycle-v2 robustness evidence.
+- Frozen OOS remains locked.
 
 ## Still pending / not proven
 
-- Final continuity-updated PR #41 CI and squash merge.
-- Direct server-internal proof that the #40 journald drop-in, persistent research paths and `eba-research-worker.timer` are active.
-- Standalone Chart / Positions / Research production smoke.
-- Demo no-paste reconnect after a real app/server restart.
-- Active Fast Momentum `OPEN -> restart recovery -> MARK/CLOSE` production proof.
-- Older carry paper engine audit and explicit persist-or-retire decision.
-- Real BTCUSDT USD-M development dataset and candle-only vs Delta/CVD evidence run.
-- Stacked imbalance, absorption, exhaustion and price/delta-divergence candidate features.
-- LOB depth reconstruction remains a separate future sequence-sensitive data plane.
+- Final reconciled PR #45 CI + merge + exact production deploy proof.
+- Actual terminal result of the first automated real BTCUSDT M5 development dataset/batch. Do not claim Delta/CVD edge before the report exists and is inspected.
+- Natural Fast Momentum `OPEN -> restart -> same-position recovery -> MARK -> CLOSE` production proof. The passive watcher is installed but its market-dependent proof may still be waiting for a qualifying OPEN.
+- Stacked imbalance, absorption, exhaustion and price/delta divergence candidates come only after the first real executed-trade run is verified.
+- LOB depth reconstruction remains a separate later sequence-sensitive data plane.
+- Fresh-install provisioning of the new M5 autorun timer should be added later through a separately audited small change; the current Linode upgrade path already provisions it.
 
 ## Important decisions / constraints
 
-- GitHub main + Linode is canonical; Replit/Render backend paths are deprecated.
 - API secrets never go to Git, chat or browser persistent storage.
-- Persistent research state lives outside `/opt/Eba-Trader` so research cannot dirty the auto-deploy checkout.
+- Persistent research state lives outside `/opt/Eba-Trader`.
 - Journald limits are a host-safety invariant.
-- The research worker is bounded and research-only; it has no exchange/OOS authority.
-- Order-flow executed trades and resting LOB liquidity are separate data domains.
-- Spot and USD-M futures data must not be mixed inside a perpetual ablation.
+- Research workers and ablation jobs have no exchange-order or frozen-OOS authority.
+- Executed-trade order flow and resting LOB liquidity are separate domains.
+- Spot and USD-M futures data are not silently mixed.
 - Same-candle still-forming footprint data cannot enter a candle decision.
-- Development wins/ranking are not promotion evidence.
+- Development wins/rankings are not promotion evidence.
 - Deterministic risk retains veto authority.
 
 ## Next exact task
 
-1. Re-run required CI on the final #41 continuity-updated head and squash-merge if all gates remain green.
-2. Verify #40 server-internal runtime contract on Linode.
-3. Finish Chart / Positions / Research production smoke.
-4. Verify Demo no-paste reconnect and Fast Momentum active-position restart recovery during a real restart window.
-5. Audit the carry paper engine and choose persist/recover vs explicit retirement.
-6. Run a real BTCUSDT USD-M development-only window through `scripts/run_m5_real_ablation.sh` outside frozen OOS.
-7. Compare immutable candle-only vs Delta/CVD evidence under identical costs; do not open frozen OOS unless v2 robustness evidence passes.
-8. Only after the real executed-trade pipeline is proven, add stacked imbalance/absorption/exhaustion candidates; LOB stays separate.
+1. Re-run required CI on the final PR #45 continuity-updated head and squash-merge only if all gates stay green.
+2. Verify the exact #45 merge on public production and confirm the M5 autorun timer is provisioned.
+3. Observe the sanitized M5 marker until COMPLETE or a real failure; repair actual runtime/data problems if exposed.
+4. Inspect immutable candle-only vs Delta/CVD evidence as development evidence only.
+5. Observe the passive Fast restart watcher until a natural qualifying paper position completes the restart/recovery/MARK/CLOSE proof.
+6. Then implement stacked imbalance, absorption/exhaustion and divergence research candidates; keep LOB separate.
 
 ## Notes for the next AI session
 

@@ -17,6 +17,7 @@ RESEARCH_ROOT = Path("/var/lib/eba-trader/research")
 RESEARCH_DATASETS = RESEARCH_ROOT / "datasets"
 RESEARCH_EVIDENCE = RESEARCH_ROOT / "evidence"
 RESEARCH_DB = RESEARCH_ROOT / "eba_research.db"
+M5_ABLATION_PROOF = RESEARCH_ROOT / "m5-real-ablation-latest.json"
 RUNTIME_API = "http://127.0.0.1:8765"
 WEB_API = "http://127.0.0.1:8000"
 
@@ -115,9 +116,99 @@ def _service_contract() -> dict[str, Any]:
             "eba-web.service",
             "eba-auto-update.timer",
             "eba-research-worker.timer",
+            "eba-m5-real-ablation.timer",
         )
     }
     return {"passed": all(units.values()), "units": units}
+
+
+def _m5_ablation_status() -> dict[str, Any]:
+    timer_active = _unit_active("eba-m5-real-ablation.timer")
+    base: dict[str, Any] = {
+        "provisioned": timer_active,
+        "timerActive": timer_active,
+        "available": M5_ABLATION_PROOF.is_file(),
+        "phase": "WAITING",
+        "safe": True,
+        "frozenOosOpened": False,
+        "liveExecutionAllowed": False,
+        "edgeClaimAllowed": False,
+        "promotionAuthority": False,
+    }
+    if not M5_ABLATION_PROOF.is_file():
+        return base
+
+    try:
+        payload = json.loads(M5_ABLATION_PROOF.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return {
+            **base,
+            "available": True,
+            "phase": "INVALID",
+            "safe": False,
+            "error": str(exc)[:240],
+        }
+    if not isinstance(payload, dict):
+        return {
+            **base,
+            "available": True,
+            "phase": "INVALID",
+            "safe": False,
+            "error": "M5 autorun marker is not a JSON object",
+        }
+
+    allowed = {
+        "schema",
+        "phase",
+        "updatedAt",
+        "windowId",
+        "start",
+        "end",
+        "reportPath",
+        "exitCode",
+        "batchId",
+        "workflowId",
+        "treatmentCount",
+        "allTerminal",
+        "allExperimentsPassed",
+        "evidenceComplete",
+        "edgeClaimAllowed",
+        "promotionAuthority",
+        "frozenOosOpened",
+        "liveExecutionAllowed",
+    }
+    sanitized = {key: payload.get(key) for key in allowed if key in payload}
+    phase = str(payload.get("phase") or "UNKNOWN").upper()
+    frozen_opened = payload.get("frozenOosOpened")
+    live_allowed = payload.get("liveExecutionAllowed")
+    edge_allowed = payload.get("edgeClaimAllowed", False)
+    promotion_authority = payload.get("promotionAuthority", False)
+    locks_safe = (
+        frozen_opened is False
+        and live_allowed is False
+        and edge_allowed is False
+        and promotion_authority is False
+    )
+    complete_safe = True
+    if phase == "COMPLETE":
+        complete_safe = (
+            payload.get("allTerminal") is True
+            and payload.get("evidenceComplete") is True
+        )
+    sanitized.update(
+        {
+            "provisioned": timer_active,
+            "timerActive": timer_active,
+            "available": True,
+            "phase": phase,
+            "safe": bool(locks_safe and complete_safe),
+            "edgeClaimAllowed": False,
+            "promotionAuthority": False,
+            "frozenOosOpened": frozen_opened,
+            "liveExecutionAllowed": live_allowed,
+        }
+    )
+    return sanitized
 
 
 def _local_api_contract(expected_build: str | None) -> dict[str, Any]:
@@ -242,6 +333,7 @@ def collect(*, expected_build: str | None = None) -> dict[str, Any]:
         "journald": _journald_contract(),
         "researchRuntime": _research_contract(),
         "services": _service_contract(),
+        "m5RealAblation": _m5_ablation_status(),
         "localApi": _local_api_contract(expected_build),
         "demoReconnect": _demo_reconnect_contract(),
         "chart": _chart_contract(),
@@ -254,6 +346,7 @@ def collect(*, expected_build: str | None = None) -> dict[str, Any]:
         proof["journald"]["passed"],
         proof["researchRuntime"]["passed"],
         proof["services"]["passed"],
+        proof["m5RealAblation"]["safe"],
         proof["localApi"]["passed"],
     )
     proof["localContractPassed"] = all(required_local)

@@ -18,6 +18,7 @@ FEE_BPS="4.0"
 SLIPPAGE_BPS="1.5"
 START=""
 END=""
+RESULT_JSON=""
 
 usage() {
   cat <<'EOF'
@@ -37,6 +38,7 @@ Options:
   --fee-bps <n>          Default 4.0
   --slippage-bps <n>     Default 1.5
   --gates-json <path>    Default config/m5_orderflow_gate_set_v1.json
+  --result-json <path>   Write immutable sanitized comparison report after workers finish
 EOF
 }
 
@@ -53,6 +55,7 @@ while [[ $# -gt 0 ]]; do
     --fee-bps) FEE_BPS="$2"; shift 2 ;;
     --slippage-bps) SLIPPAGE_BPS="$2"; shift 2 ;;
     --gates-json) GATES_JSON="$2"; shift 2 ;;
+    --result-json) RESULT_JSON="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -135,7 +138,18 @@ $REPO_DIR/.venv/bin/eba-research-worker \
   --lease-seconds 900 \
   --retry-delay-seconds 60
 
+if [[ -n "$RESULT_JSON" ]]; then
+  mkdir -p "$(dirname "$RESULT_JSON")"
+  $REPO_DIR/.venv/bin/python -m eba_trader.m5_ablation_report \
+    --db "$RESEARCH_DB" \
+    --batch-json "$QUEUE_JSON" \
+    --output "$RESULT_JSON"
+fi
+
 echo "M5 real development ablation run complete."
 echo "Research DB: $RESEARCH_DB"
 echo "Evidence root: $EVIDENCE_ROOT"
+if [[ -n "$RESULT_JSON" ]]; then
+  echo "Comparison report: $RESULT_JSON"
+fi
 echo "Frozen OOS was not opened; real execution remains locked."
