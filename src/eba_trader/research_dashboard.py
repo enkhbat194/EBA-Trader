@@ -152,13 +152,12 @@ def _safe_report_map(value: Any) -> dict[str, Any]:
         normalized = key.replace("_", "").replace("-", "").lower()
         if any(part in normalized for part in _BLOCKED_REPORT_KEY_PARTS):
             continue
-        if isinstance(item, bool):
-            result[key] = item
-        elif isinstance(item, int):
-            result[key] = item
-        elif isinstance(item, float) and math.isfinite(item):
-            result[key] = item
-        elif isinstance(item, str) and len(item) <= 256:
+        safe_scalar = (
+            isinstance(item, (bool, int))
+            or (isinstance(item, float) and math.isfinite(item))
+            or (isinstance(item, str) and len(item) <= 256)
+        )
+        if safe_scalar:
             result[key] = item
     return result
 
