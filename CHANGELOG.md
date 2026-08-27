@@ -17,7 +17,9 @@
 - External exact-build public production smoke automation (#42).
 - Sanitized production proof and passive natural Fast OPEN restart watcher (#43).
 - Legacy carry active-entry retirement; Fast Momentum is the sole active production paper engine (#44).
-- PR #45 candidate: bounded/idempotent first real BTCUSDT M5 development autorun, immutable candle-baseline vs Delta/CVD comparison report and sanitized autorun production-proof state.
+- Fixed-window Delta/CVD development autorun, immutable comparison report and sanitized production M5 evidence.
+- PR #56: deterministic stacked/diagonal imbalance, true-price-bucket adjacency, zero-volume protection, feature-dataset v2, legacy replay compatibility, allowlisted stacked gate and bounded thresholds `1/2/3`.
+- PR #57: stacked-specific immutable Linode fixed-window report and hardened external proof that rejects stale Delta-only evidence.
 
 ### Changed
 - GitHub `main` + Linode is canonical; Replit/Render backend paths are deprecated.
@@ -28,16 +30,17 @@
 - Long-running research state lives under `/var/lib/eba-trader/research/...`, outside the Git checkout.
 - Current lifecycle path is `GENERATED -> BACKTESTED -> ROBUSTNESS_VERIFIED -> OOS_VERIFIED -> ...`; direct current-policy `BACKTESTED -> OOS_VERIFIED` is forbidden.
 - Legacy carry cannot open new production paper positions by default; compatibility/history code remains read-only/close-compatible.
-- PR #45 development comparison output explicitly has no edge-claim or lifecycle-promotion authority.
+- Development comparison output explicitly has no edge-claim or lifecycle-promotion authority.
+- The completed stacked candidate is retained as development evidence/infrastructure, but does not displace the earlier Delta `0.2` result on return/expectancy; the next M5 candidate family is absorption/exhaustion.
 
 ### Operations
 - Public HTTPS PWA access is production-active.
 - PR #40 production recovery reduced runaway log usage and made journald/research runtime state repository-managed.
 - A real Binance Demo credential is encrypted/saved on Linode.
-- External runner proof for `a1425c5...` confirmed saved Demo no-paste autoconnect, Chart, Positions and Research after deployment restart.
-- PR #44 merge `0df5f4d9a7ce054b1a2b65002b9329ba0c8143aa` reached production and passed exact-build production smoke, Demo reconnect, Chart, Positions, frozen-OOS lock and real-execution lock.
-- Passive Fast restart watcher is installed but its market-dependent `OPEN -> restart -> same-position recovery -> MARK -> CLOSE` proof is not complete until a natural qualifying position occurs.
-- PR #45 candidate schedules a small 2026-08-01 00:00Z-04:00Z USD-M development batch after deploy, bounded by 40% CPU, 700 MB memory and 45 minutes.
+- Exact functional main `738ed32e557045abb6b738c7f5236962ee3dd516` passed Linode production bundle, runtime checks, public production smoke and hardened external stacked proof.
+- External stacked proof run `33070015871` completed successfully at `2026-08-27T12:08:54Z`.
+- The immutable stacked report is `/var/lib/eba-trader/research/evidence/m5-stacked-imbalance-ablation-20260801T000000Z-20260801T040000Z.json`.
+- Stacked batch `abl_232b7cb262de90363283356d` is terminal, all experiments passed and evidence-complete.
 
 ### Safety / research controls
 - Arbitrary AI-generated production code is not an approved M5 strategy-generation path.
@@ -46,9 +49,38 @@
 - Development screening/ranking/ablation results do not open frozen OOS or execution.
 - Persistent research workers are resource-bounded and have no exchange-order authority.
 - Legacy post-OOS policy-v1 strategies are promotion-frozen until explicit retest/v2 re-entry.
-- PR #45 comparison report records `developmentComparisonOnly=true`, `edgeClaimAllowed=false`, `promotionAuthority=false`, `frozenOosOpened=false`, and `liveExecutionAllowed=false`.
+- Comparison reports record `developmentComparisonOnly=true`, `edgeClaimAllowed=false`, `promotionAuthority=false`, `frozenOosOpened=false`, and `liveExecutionAllowed=false`.
 - API secrets are not committed to Git, browser persistent storage or chat.
 - Real-money Binance order submission remains locked.
+
+---
+
+## 2026-08-27 — Stacked / diagonal imbalance implementation and fixed-window proof
+
+### Implementation
+- PR #56 resumed the already-started `m5-stacked-imbalance-feature` branch instead of restarting it.
+- Corrected diagonal logic so only exact `price_step` neighbors can form an imbalance; missing buckets break stacks rather than creating false adjacency.
+- Added deterministic bullish/bearish diagonal comparisons, longest consecutive stacks, signed stacked score and zero-volume protection.
+- Added causal feature-dataset schema v2 while preserving legacy v1 Delta/CVD replay.
+- Added allowlisted `of_stacked_imbalance` consumption, fail-closed legacy-data behavior and bounded thresholds `1/2/3`.
+- Added deterministic directionality, zero-volume, missing-bucket, replay, schema, causal-availability, adapter and gate-version tests.
+- PR #56 merged to `d15c29895d39ae6db5fabea4895daf7ad5facfa6` after exact-head required CI passed.
+- PR #57 preserved the prior Delta/CVD report, moved the Linode one-shot autorun to the stacked gate set and required a separate stacked-specific immutable report.
+- External proof now requires exactly three stacked treatments with thresholds `1/2/3`; stale Delta-only evidence cannot satisfy the milestone.
+- PR #57 merged to functional main `738ed32e557045abb6b738c7f5236962ee3dd516` after exact-head required CI passed.
+
+### Validation
+- Main `738ed32e...` passed Linode production bundle, Linode runtime checks and public production smoke.
+- Hardened external proof run `33070015871` passed on exact main and verified HTTPS, encrypted Demo reconnect, Chart, Positions, Fast restart proof, stacked-specific report path, terminal/evidence-complete batch, thresholds `1/2/3`, Frozen OOS closed and real execution locked.
+- Batch `abl_232b7cb262de90363283356d`; workflow dataset `m5ds_ca555c0ee588e17847d4c477`.
+- Candle-only control reproduced the prior baseline exactly: return ~`-0.42445%`, 4 trades, 25% win rate, drawdown ~`-0.42445%`, expectancy `-10.6112`, cost `43.9048`.
+- Best stacked threshold `1`: return ~`-0.12408%`, 2 trades, 50% win rate, drawdown ~`-0.24164%`, expectancy `-6.2041`, cost `21.9825`; absolute baseline loss reduction ~`70.77%`.
+- Thresholds `2/3`: return ~`-0.13709%`, 1 trade, 0% win rate, drawdown ~`-0.13709%`, expectancy `-13.7091`, cost `10.9947`.
+
+### Interpretation
+- Threshold `1` materially filters the candle baseline but does not beat the prior Delta `0.2` treatment on return or expectancy. Its absolute loss is about 2.93% larger than Delta's, although drawdown is slightly smaller and cost is marginally lower.
+- Thresholds `2/3` mainly suppress exposure; the remaining trade loses and expectancy is worse.
+- No stacked edge claim or lifecycle promotion is authorized. Absorption/exhaustion is the next controlled candidate family.
 
 ---
 
@@ -58,13 +90,12 @@
 - #42 added exact-build public HTTPS smoke verification.
 - #43 added sanitized server production proof plus a passive Fast OPEN restart watcher that never manufactures a trade.
 - #44 retired the browser/in-memory carry strategy from active production entry authority while preserving compatibility/history surfaces.
-- #45 candidate adds an idempotent systemd-driven real BTCUSDT M5 development batch and immutable comparison artifact.
+- Initial M5 autorun work added an idempotent systemd-driven real BTCUSDT development batch and immutable comparison artifact.
 
 ### Validation
 - #44 passed full regression, Ruff, shell syntax, deployment contract, active Linode runtime and continuity checks before merge.
-- Exact production build `0df5f4d9...` later passed external production smoke, Demo reconnect, Chart, Positions and both OOS/live locks.
-- #45 pre-continuity head passed full regression, Ruff, shell syntax, deployment contract, active Linode runtime and continuity checks.
-- No Delta/CVD edge claim exists until actual development evidence is produced and even then development comparison alone has no promotion authority.
+- Exact production builds subsequently passed external production smoke, Demo reconnect, Chart, Positions and both OOS/live locks.
+- First Delta/CVD M5 batch completed and was interpreted as development-only evidence.
 
 ---
 
