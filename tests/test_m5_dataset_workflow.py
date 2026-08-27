@@ -9,13 +9,15 @@ from eba_trader.candle_acquisition import (
     CandleVenue,
     load_candle_acquisition,
 )
+from eba_trader.history import parse_utc
 from eba_trader.m5_dataset_workflow import build_usdm_orderflow_feature_dataset
+from eba_trader.m5_study_policy import DEFAULT_M5_STUDY_POLICY
 from eba_trader.orderflow_acquisition import USDM_AGG_TRADES_URL
 from eba_trader.orderflow_feature_dataset import load_orderflow_feature_csv
 
 STEP = 60_000
-START = 180_000
-END = 360_000
+START = parse_utc("2026-08-01T00:00:00Z")
+END = START + 3 * STEP
 
 
 def _kline(open_ms: int, price: float) -> list[object]:
@@ -100,6 +102,8 @@ def test_real_feature_workflow_is_usdm_causal_and_replay_deterministic(tmp_path)
     assert first_path == second_path
     assert first.venue == CandleVenue.USD_M_FUTURES.value
     assert first.symbol == "BTCUSDT"
+    assert first.study_policy_id == DEFAULT_M5_STUDY_POLICY.policy_id
+    assert first.study_phase == "development"
     assert first.dataset_ref.startswith("m5_orderflow_dev/features/")
     assert not Path(first.dataset_ref).is_absolute()
     assert first_path.is_file()
@@ -165,3 +169,24 @@ def test_feature_workflow_rejects_unsafe_namespace_and_bad_window(tmp_path) -> N
         build_usdm_orderflow_feature_dataset(**{**kwargs, "start_ms": START + 1})
     with pytest.raises(ValueError, match="price_bucket must be positive"):
         build_usdm_orderflow_feature_dataset(**{**kwargs, "price_bucket": 0.0})
+
+
+def test_feature_workflow_rejects_m5_oos_before_any_network_request(tmp_path) -> None:
+    candle_calls: list[tuple[str, dict[str, object]]] = []
+    orderflow_calls: list[tuple[str, dict[str, object]]] = []
+    start = DEFAULT_M5_STUDY_POLICY.frozen_oos_start_ms + STEP
+
+    with pytest.raises(RuntimeError, match="sealed M5 frozen OOS"):
+        build_usdm_orderflow_feature_dataset(
+            symbol="BTCUSDT",
+            interval="1m",
+            start_ms=start,
+            end_ms=start + 3 * STEP,
+            price_bucket=1.0,
+            dataset_root=tmp_path,
+            candle_request_json=_candle_request(candle_calls),
+            orderflow_request_json=_orderflow_request(orderflow_calls),
+        )
+
+    assert candle_calls == []
+    assert orderflow_calls == []
