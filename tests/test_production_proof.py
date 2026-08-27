@@ -87,6 +87,11 @@ def test_external_proof_workflow_logs_only_sanitized_runtime_phases() -> None:
     assert 'proof.get("m5RealAblation")' in workflow
     assert 'proof.get("fastRestart")' in workflow
     assert '"m5RealAblationPhase"' in workflow
+    assert '"m5ExitCode"' in workflow
+    assert '"m5AllTerminal"' in workflow
+    assert '"m5AllExperimentsPassed"' in workflow
+    assert '"m5EvidenceComplete"' in workflow
+    assert '"m5ReportPath"' in workflow
     assert '"fastRestartPhase"' in workflow
     assert "apiSecret" not in workflow
     assert "sessionToken" not in workflow
