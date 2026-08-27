@@ -46,6 +46,16 @@ jobs:
                   raise RuntimeError(f"{path} returned non-object JSON")
               return payload
 
+          def sanitized_diagnostics(proof):
+              return {
+                  "journald": proof.get("journald"),
+                  "researchRuntime": proof.get("researchRuntime"),
+                  "services": proof.get("services"),
+                  "m5RealAblation": proof.get("m5RealAblation"),
+                  "localApi": proof.get("localApi"),
+                  "fastRestart": proof.get("fastRestart"),
+              }
+
           while time.time() < deadline:
               try:
                   app = get_json("/api/app-info")
@@ -77,10 +87,22 @@ jobs:
                   }
                   failed = [name for name, passed in checks.items() if not passed]
                   if failed:
-                      last_error = "failed checks: " + ", ".join(failed)
+                      diagnostics = json.dumps(
+                          sanitized_diagnostics(proof),
+                          sort_keys=True,
+                          separators=(",", ":"),
+                      )
+                      last_error = (
+                          "failed checks: "
+                          + ", ".join(failed)
+                          + "; sanitized diagnostics: "
+                          + diagnostics[:2400]
+                      )
                       time.sleep(20)
                       continue
 
+                  m5 = proof.get("m5RealAblation") or {}
+                  fast_restart = proof.get("fastRestart") or {}
                   print(
                       json.dumps(
                           {
@@ -90,6 +112,10 @@ jobs:
                               "demoReconnect": True,
                               "chart": True,
                               "positions": True,
+                              "m5RealAblationPhase": m5.get("phase", "UNKNOWN"),
+                              "m5RealAblationSafe": m5.get("safe") is True,
+                              "fastRestartPhase": fast_restart.get("phase", "UNKNOWN"),
+                              "fastRestartPassed": fast_restart.get("passed") is True,
                               "frozenOosLocked": True,
                               "realExecutionLocked": True,
                           },
@@ -98,7 +124,7 @@ jobs:
                   )
                   raise SystemExit(0)
               except (OSError, ValueError, RuntimeError, urllib.error.URLError) as exc:
-                  last_error = str(exc)[:300]
+                  last_error = str(exc)[:3000]
                   time.sleep(20)
 
           raise SystemExit(f"production proof timed out: {last_error}")
