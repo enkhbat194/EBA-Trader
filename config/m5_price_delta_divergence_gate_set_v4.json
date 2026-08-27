@@ -1,0 +1,8 @@
+{
+  "schema": "m5_orderflow_gate_set_v4",
+  "gates": [
+    {"price_delta_divergence_threshold": 0.01},
+    {"price_delta_divergence_threshold": 0.05},
+    {"price_delta_divergence_threshold": 0.1}
+  ]
+}
