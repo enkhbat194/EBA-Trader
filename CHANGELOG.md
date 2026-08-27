@@ -20,27 +20,34 @@
 - Fixed-window Delta/CVD development autorun, immutable comparison report and sanitized production M5 evidence.
 - PR #56: deterministic stacked/diagonal imbalance, true-price-bucket adjacency, zero-volume protection, feature-dataset v2, legacy replay compatibility, allowlisted stacked gate and bounded thresholds `1/2/3`.
 - PR #57: stacked-specific immutable Linode fixed-window report and hardened external proof that rejects stale Delta-only evidence.
+- PR #59: causal absorption/exhaustion executed-flow response proxies, feature-dataset v3, fail-closed physical-column requirements, bounded research gates and deterministic causal regression coverage.
+- PR #60: response-specific fixed-window Linode report and external proof that requires exact absorption/exhaustion treatments and rejects stale stacked evidence.
+- `docs/M5_ABSORPTION_EXHAUSTION.md` records the exact response-feature implementation, production proof, metrics and interpretation.
 
 ### Changed
 - GitHub `main` + Linode is canonical; Replit/Render backend paths are deprecated.
 - Footprint/order-flow remains an experimental feature family, not assumed edge.
 - BTCUSDT perpetual comparisons require USD-M candles and USD-M executed order flow end-to-end.
-- Ablation arms share the same aligned dataset and execution assumptions; only allowlisted order-flow filters differ.
+- Ablation arms share the same aligned dataset and execution assumptions; only bounded allowlisted order-flow filters differ.
 - Binance Demo credentials validate before encrypted write and never return the saved secret to browser JavaScript.
 - Long-running research state lives under `/var/lib/eba-trader/research/...`, outside the Git checkout.
 - Current lifecycle path is `GENERATED -> BACKTESTED -> ROBUSTNESS_VERIFIED -> OOS_VERIFIED -> ...`; direct current-policy `BACKTESTED -> OOS_VERIFIED` is forbidden.
 - Legacy carry cannot open new production paper positions by default; compatibility/history code remains read-only/close-compatible.
 - Development comparison output explicitly has no edge-claim or lifecycle-promotion authority.
-- The completed stacked candidate is retained as development evidence/infrastructure, but does not displace the earlier Delta `0.2` result on return/expectancy; the next M5 candidate family is absorption/exhaustion.
+- Versioned order-flow datasets now progress v1 Delta/CVD -> v2 stacked/diagonal -> v3 absorption/exhaustion response proxies.
+- Newer feature gates fail closed when required physical versioned columns are absent; legacy data cannot silently substitute zero values.
+- Zero-trade development arms are not interpreted as profitable edge merely because loss/drawdown are zero.
+- Delta `0.2` remains the least-negative tested arm on the current four-hour development window; stacked and absorption reduce baseline loss but do not beat Delta on return/expectancy, while the tested exhaustion thresholds suppress all entries.
+- Next M5 candidate is price/delta divergence.
 
 ### Operations
 - Public HTTPS PWA access is production-active.
 - PR #40 production recovery reduced runaway log usage and made journald/research runtime state repository-managed.
 - A real Binance Demo credential is encrypted/saved on Linode.
-- Exact functional main `738ed32e557045abb6b738c7f5236962ee3dd516` passed Linode production bundle, runtime checks, public production smoke and hardened external stacked proof.
-- External stacked proof run `33070015871` completed successfully at `2026-08-27T12:08:54Z`.
-- The immutable stacked report is `/var/lib/eba-trader/research/evidence/m5-stacked-imbalance-ablation-20260801T000000Z-20260801T040000Z.json`.
-- Stacked batch `abl_232b7cb262de90363283356d` is terminal, all experiments passed and evidence-complete.
+- Exact response-proof main `a49790838064769768fe4ca9fe500f6ed941ba82` passed Linode production bundle, runtime checks, public production smoke and hardened external response proof.
+- External response proof run `33081041663` completed successfully at `2026-08-27T14:24:41Z`.
+- Immutable response report: `/var/lib/eba-trader/research/evidence/m5-absorption-exhaustion-ablation-20260801T000000Z-20260801T040000Z.json`.
+- Response batch `abl_c9bf89e7fb1dd4971345d87d` is terminal, all experiments passed and evidence-complete.
 
 ### Safety / research controls
 - Arbitrary AI-generated production code is not an approved M5 strategy-generation path.
@@ -50,8 +57,35 @@
 - Persistent research workers are resource-bounded and have no exchange-order authority.
 - Legacy post-OOS policy-v1 strategies are promotion-frozen until explicit retest/v2 re-entry.
 - Comparison reports record `developmentComparisonOnly=true`, `edgeClaimAllowed=false`, `promotionAuthority=false`, `frozenOosOpened=false`, and `liveExecutionAllowed=false`.
+- Executed-trade absorption/exhaustion are explicitly proxies; they do not claim direct visibility into resting/hidden LOB liquidity.
 - API secrets are not committed to Git, browser persistent storage or chat.
 - Real-money Binance order submission remains locked.
+
+---
+
+## 2026-08-27 — Absorption / exhaustion implementation and fixed-window proof
+
+### Implementation
+- PR #59 added causal absorption/exhaustion response-proxy calculations from normalized Binance USD-M executed trades.
+- Feature-dataset schema v3 carries the response fields; legacy datasets without physical v3 columns fail closed when a response gate is requested.
+- Added bounded absorption/exhaustion gate support and deterministic directionality, boundary, zero/low-volume, replay/input-order and no-future-leakage regression coverage.
+- PR #59 merged as `a48fdb6a7845390cf3dcad9f5e649d4b716a12b1` after exact-head required CI passed.
+- PR #60 preserved prior Delta/CVD and stacked immutable reports, switched the bounded Linode fixed-window proof to response gates, and wrote a separate response report.
+- External proof now requires exactly absorption thresholds `0.10/0.20` and exhaustion thresholds `0.01/0.03`; stale stacked evidence cannot satisfy the milestone.
+- PR #60 merged as `a49790838064769768fe4ca9fe500f6ed941ba82` after exact-head required CI passed.
+
+### Validation
+- Exact main `a49790838064769768fe4ca9fe500f6ed941ba82` passed Linode production bundle, Linode runtime checks and public production smoke.
+- Hardened external proof run `33081041663` passed and verified exact build, HTTPS, encrypted Demo reconnect, Chart, Positions, Fast restart proof, terminal/evidence-complete response report, exact four response treatments, Frozen OOS closed and real execution locked.
+- Batch: `abl_c9bf89e7fb1dd4971345d87d`; workflow dataset: `m5ds_eadc90a3c97b12f599de21fa`.
+- Candle-only baseline reproduced the prior comparison: return ~`-0.42445%`, 4 trades, 25% win rate, drawdown ~`-0.42445%`, expectancy `-10.6112`, cost `43.9048`.
+- Absorption thresholds `0.10/0.20` both produced return ~`-0.16740%`, 1 trade, 0% win rate, drawdown ~`-0.16740%`, expectancy `-16.7400`, cost `10.9930`; absolute baseline loss reduction ~`60.56%`.
+- Exhaustion thresholds `0.01/0.03` both produced 0 trades, 0 exposure, 0 cost and 0 return.
+
+### Interpretation
+- Absorption materially reduced baseline exposure/loss but did not beat prior Delta `0.2` or stacked threshold `1` on return or expectancy; the one remaining trade lost.
+- Exhaustion's zero-trade result is not profitable-edge evidence; those thresholds were simply too restrictive on this development window.
+- No response-feature edge claim or lifecycle promotion is authorized. Price/delta divergence is the next controlled candidate family.
 
 ---
 
@@ -66,7 +100,7 @@
 - Added deterministic directionality, zero-volume, missing-bucket, replay, schema, causal-availability, adapter and gate-version tests.
 - PR #56 merged to `d15c29895d39ae6db5fabea4895daf7ad5facfa6` after exact-head required CI passed.
 - PR #57 preserved the prior Delta/CVD report, moved the Linode one-shot autorun to the stacked gate set and required a separate stacked-specific immutable report.
-- External proof now requires exactly three stacked treatments with thresholds `1/2/3`; stale Delta-only evidence cannot satisfy the milestone.
+- External proof requires exactly three stacked treatments with thresholds `1/2/3`; stale Delta-only evidence cannot satisfy the milestone.
 - PR #57 merged to functional main `738ed32e557045abb6b738c7f5236962ee3dd516` after exact-head required CI passed.
 
 ### Validation
@@ -78,9 +112,9 @@
 - Thresholds `2/3`: return ~`-0.13709%`, 1 trade, 0% win rate, drawdown ~`-0.13709%`, expectancy `-13.7091`, cost `10.9947`.
 
 ### Interpretation
-- Threshold `1` materially filters the candle baseline but does not beat the prior Delta `0.2` treatment on return or expectancy. Its absolute loss is about 2.93% larger than Delta's, although drawdown is slightly smaller and cost is marginally lower.
+- Threshold `1` materially filters the candle baseline but does not beat prior Delta `0.2` on return or expectancy.
 - Thresholds `2/3` mainly suppress exposure; the remaining trade loses and expectancy is worse.
-- No stacked edge claim or lifecycle promotion is authorized. Absorption/exhaustion is the next controlled candidate family.
+- No stacked edge claim or lifecycle promotion is authorized.
 
 ---
 
