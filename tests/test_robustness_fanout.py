@@ -84,7 +84,7 @@ def test_fanout_is_bounded_deterministic_and_idempotent(tmp_path: Path) -> None:
     ]
 
 
-def test_fanout_requires_backtested_strategy(tmp_path: Path) -> None:
+def test_fanout_requires_v2_backtested_pre_oos_state(tmp_path: Path) -> None:
     store = ResearchStore(tmp_path / "research.db")
     store.register_strategy_version(
         strategy_id="STR-G",
@@ -94,9 +94,28 @@ def test_fanout_requires_backtested_strategy(tmp_path: Path) -> None:
     )
     planner = RobustnessFanoutPlanner(store, ExperimentQueue(store))
 
-    with pytest.raises(RuntimeError, match="passed development screening"):
+    with pytest.raises(RuntimeError, match="requires BACKTESTED"):
         planner.create_batch(
             strategy_id="STR-G",
+            strategy_version=1,
+            dataset_ref="btc.csv",
+            plan=_plan(),
+        )
+
+
+def test_fanout_cannot_be_reopened_after_robustness_promotion(tmp_path: Path) -> None:
+    store, queue = _backtested_store(tmp_path)
+    store.record_transition(
+        strategy_id="STR-R",
+        strategy_version=1,
+        current=StrategyLifecycle.ROBUSTNESS_VERIFIED,
+        reason="test robustness pass",
+        evidence_ref="robustness-verdict:test",
+    )
+
+    with pytest.raises(RuntimeError, match="requires BACKTESTED"):
+        RobustnessFanoutPlanner(store, queue).create_batch(
+            strategy_id="STR-R",
             strategy_version=1,
             dataset_ref="btc.csv",
             plan=_plan(),

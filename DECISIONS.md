@@ -77,16 +77,13 @@ Cheap screening, development comparison and survivor ranking are triage only. A 
 ### Status
 Accepted.
 
-## 2026-08-26 — Lifecycle ordering mismatch must be reconciled before automated frozen OOS
+## 2026-08-26 — Lifecycle ordering mismatch required deliberate reconciliation
 
 ### Decision
-Do not bypass the current code path `GENERATED -> BACKTESTED -> OOS_VERIFIED -> ROBUSTNESS_VERIFIED` even though accepted research methodology wants robustness before opening frozen OOS. The model must be deliberately redesigned/migrated/tested first.
-
-### Related implementation
-`src/eba_trader/lifecycle.py`
+Do not bypass the historical code path `GENERATED -> BACKTESTED -> OOS_VERIFIED -> ROBUSTNESS_VERIFIED`. Accepted methodology requires robustness before frozen OOS, so storage semantics and transition rules had to be migrated deliberately rather than changing enum order in place.
 
 ### Status
-Open architectural issue; automated frozen OOS remains locked.
+Resolved by the lifecycle-policy-v2 design below; historical policy v1 remains readable but promotion-frozen.
 
 ## 2026-08-26 — Linode auto-deploy can self-heal HTTPS without making CA/DNS part of rollback
 
@@ -146,7 +143,7 @@ Accepted and merged in PR #35.
 The PWA may accept a Binance **Demo** key/secret once for test-before-save encrypted persistence. The secret is never returned to browser JavaScript, written to browser persistent storage, committed to Git or pasted into chat. Live/non-Binance credentials are outside this milestone.
 
 ### Status
-Accepted and merged in PR #36. Real production save/reconnect verification remains pending.
+Accepted and merged in PR #36. Real production save is now observed in the PWA; no-paste reconnect after a real restart remains pending.
 
 ## 2026-08-27 — Linode deployment recovery is fail-closed and stays outside PWA authority
 
@@ -175,7 +172,7 @@ Application rollback does not intentionally remove this policy because disk-exha
 The original manual-only fix left rebuild/new-server continuity risk after a ~18 GB logging incident. Reproducible provisioning closes that gap.
 
 ### Status
-Accepted; implemented in PR #40. Production deployment verification remains pending.
+Accepted and merged in PR #40. Production PWA build `8876bc2` proves #40 deployed; direct server-internal verification of the actual journald values remains pending.
 
 ## 2026-08-27 — Long-running Linode research state lives outside the Git checkout
 
@@ -188,7 +185,7 @@ Existing Linode env files are upgraded idempotently with default research paths 
 The auto-deployer correctly refuses dirty checkouts. Research artifacts inside `/opt/Eba-Trader` would turn valid research work into a deployment blocker.
 
 ### Status
-Accepted; implemented in PR #40. Production deployment verification remains pending.
+Accepted and merged in PR #40. Direct server-internal path/timer proof remains pending.
 
 ## 2026-08-27 — Persistent research worker is bounded and has no promotion/execution authority
 
@@ -199,7 +196,7 @@ The Linode research worker is a oneshot queue consumer triggered approximately o
 24/7 research automation is useful only if resource usage and authority are explicitly bounded on the 1 GB Nanode runtime.
 
 ### Status
-Accepted; implemented in PR #40.
+Accepted and merged in PR #40.
 
 ## 2026-08-27 — Real M5 ablation execution fails closed before queue emission
 
@@ -208,15 +205,34 @@ Accepted; implemented in PR #40.
 
 The versioned initial Delta/CVD gate set is an experiment policy, not a promotion policy. The one-command runner may build, queue and execute M4 research jobs but cannot open frozen OOS or execution.
 
+### Status
+Accepted and merged in PR #40. First real development run remains pending.
+
+## 2026-08-27 — Lifecycle policy v2 requires robustness before frozen OOS
+
+### Decision
+New/current research uses lifecycle policy v2:
+
+`GENERATED -> BACKTESTED -> ROBUSTNESS_VERIFIED -> OOS_VERIFIED -> PAPER_CANDIDATE -> PAPER_VERIFIED -> DEMO_CANDIDATE -> DEMO_VERIFIED -> SHADOW_VERIFIED -> MICRO_LIVE_ELIGIBLE -> LIVE_ELIGIBLE -> LIVE_ACTIVE`
+
+A v2 strategy cannot transition directly from `BACKTESTED` to `OOS_VERIFIED`. Robustness fan-out requires v2 `BACKTESTED`, and an immutable passing robustness verdict may promote only to `ROBUSTNESS_VERIFIED`. OOS still requires a separate later evidence-bearing transition.
+
+### Legacy migration rule
+Existing M4 SQLite rows predate lifecycle policy versioning. They are not silently reinterpreted:
+
+- legacy `GENERATED`, `BACKTESTED` and `RETEST_REQUIRED` rows may adopt v2 safely because they have not already consumed frozen OOS under the old order;
+- legacy rows at `OOS_VERIFIED` or later remain policy v1 and promotion-frozen;
+- a legacy post-OOS row must enter `RETEST_REQUIRED`, explicitly upgrade to v2, produce fresh development evidence to return to `BACKTESTED`, then pass fresh robustness before OOS can be opened again.
+
 ### Reason
-The real experiment path must preserve the same provenance/leakage/safety guarantees already enforced by the underlying M4/M5 components when composed operationally on Linode.
+Changing enum order alone would make persisted `OOS_VERIFIED` records appear valid under a different methodology. Policy versioning preserves historical meaning, prevents silent state reinterpretation and enforces robustness-before-OOS prospectively.
 
 ### Related implementation
-- `src/eba_trader/m5_ablation_cli.py`
-- `config/m5_orderflow_gate_set_v1.json`
-- `scripts/run_m5_real_ablation.sh`
-- `deploy/systemd/eba-research-worker.*`
-- `docs/M5_REAL_ABLATION_RUNTIME.md`
+- `src/eba_trader/lifecycle.py`
+- `src/eba_trader/research_store.py`
+- `src/eba_trader/robustness_fanout.py`
+- `src/eba_trader/robustness_verdict.py`
+- lifecycle and legacy-migration regression tests
 
 ### Status
-Accepted; implemented in PR #40. First real development run remains pending.
+Accepted design; implemented and CI-green in PR #41 candidate. Frozen OOS remains locked until actual v2 robustness evidence exists.

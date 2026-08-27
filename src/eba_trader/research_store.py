@@ -8,7 +8,12 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-from .lifecycle import LifecycleTransition, StrategyLifecycle
+from .lifecycle import (
+    CURRENT_LIFECYCLE_POLICY_VERSION,
+    LEGACY_LIFECYCLE_POLICY_VERSION,
+    LifecycleTransition,
+    StrategyLifecycle,
+)
 
 DEFAULT_RESEARCH_DB_PATH = Path("artifacts/research/eba_research.db")
 
@@ -66,10 +71,14 @@ class ResearchStore:
         finally:
             connection.close()
 
+    @staticmethod
+    def _column_names(connection: sqlite3.Connection, table: str) -> set[str]:
+        return {str(row["name"]) for row in connection.execute(f"PRAGMA table_info({table})")}
+
     def _initialize(self) -> None:
         with self._connection() as connection:
             connection.executescript(
-                """
+                f"""
                 CREATE TABLE IF NOT EXISTS strategies (
                     strategy_id TEXT PRIMARY KEY,
                     name TEXT NOT NULL,
@@ -83,6 +92,8 @@ class ResearchStore:
                     strategy_id TEXT NOT NULL,
                     version INTEGER NOT NULL CHECK (version > 0),
                     lifecycle_state TEXT NOT NULL,
+                    lifecycle_policy_version INTEGER NOT NULL
+                        DEFAULT {CURRENT_LIFECYCLE_POLICY_VERSION},
                     spec_json TEXT NOT NULL,
                     spec_sha256 TEXT NOT NULL,
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -98,10 +109,10 @@ class ResearchStore:
                     strategy_version INTEGER NOT NULL,
                     stage TEXT NOT NULL,
                     status TEXT NOT NULL,
-                    parameters_json TEXT NOT NULL DEFAULT '{}',
+                    parameters_json TEXT NOT NULL DEFAULT '{{}}',
                     dataset_ref TEXT,
                     evidence_ref TEXT,
-                    metrics_json TEXT NOT NULL DEFAULT '{}',
+                    metrics_json TEXT NOT NULL DEFAULT '{{}}',
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     completed_at TEXT,
                     FOREIGN KEY(strategy_id, strategy_version)
@@ -116,6 +127,8 @@ class ResearchStore:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     strategy_id TEXT NOT NULL,
                     strategy_version INTEGER NOT NULL,
+                    policy_version INTEGER NOT NULL
+                        DEFAULT {CURRENT_LIFECYCLE_POLICY_VERSION},
                     previous_state TEXT NOT NULL,
                     current_state TEXT NOT NULL,
                     reason TEXT NOT NULL,
@@ -128,8 +141,89 @@ class ResearchStore:
 
                 CREATE INDEX IF NOT EXISTS idx_lifecycle_strategy
                     ON lifecycle_history(strategy_id, strategy_version, id);
+
+                CREATE TABLE IF NOT EXISTS lifecycle_policy_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    strategy_id TEXT NOT NULL,
+                    strategy_version INTEGER NOT NULL,
+                    previous_version INTEGER NOT NULL,
+                    current_version INTEGER NOT NULL,
+                    reason TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(strategy_id, strategy_version)
+                        REFERENCES strategy_versions(strategy_id, version)
+                        ON DELETE CASCADE
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_lifecycle_policy_strategy
+                    ON lifecycle_policy_history(strategy_id, strategy_version, id);
                 """
             )
+
+            # Existing M4 databases predate policy versioning. Mark them v1 rather than
+            # silently assigning the new v2 semantics to stored OOS/robustness states.
+            if "lifecycle_policy_version" not in self._column_names(
+                connection, "strategy_versions"
+            ):
+                connection.execute(
+                    """
+                    ALTER TABLE strategy_versions
+                    ADD COLUMN lifecycle_policy_version INTEGER NOT NULL DEFAULT 1
+                    """
+                )
+            if "policy_version" not in self._column_names(connection, "lifecycle_history"):
+                connection.execute(
+                    """
+                    ALTER TABLE lifecycle_history
+                    ADD COLUMN policy_version INTEGER NOT NULL DEFAULT 1
+                    """
+                )
+
+            # Legacy strategies that never reached OOS can safely adopt v2 in place. Any
+            # v1 row at OOS_VERIFIED or later remains v1/frozen and requires explicit retest.
+            safe_states = (
+                StrategyLifecycle.GENERATED.value,
+                StrategyLifecycle.BACKTESTED.value,
+                StrategyLifecycle.RETEST_REQUIRED.value,
+            )
+            placeholders = ",".join("?" for _ in safe_states)
+            rows = connection.execute(
+                f"""
+                SELECT strategy_id, version
+                FROM strategy_versions
+                WHERE lifecycle_policy_version = ?
+                  AND lifecycle_state IN ({placeholders})
+                """,
+                (LEGACY_LIFECYCLE_POLICY_VERSION, *safe_states),
+            ).fetchall()
+            for row in rows:
+                connection.execute(
+                    """
+                    UPDATE strategy_versions
+                    SET lifecycle_policy_version = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE strategy_id = ? AND version = ?
+                    """,
+                    (
+                        CURRENT_LIFECYCLE_POLICY_VERSION,
+                        row["strategy_id"],
+                        row["version"],
+                    ),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO lifecycle_policy_history(
+                        strategy_id, strategy_version, previous_version,
+                        current_version, reason
+                    ) VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        row["strategy_id"],
+                        row["version"],
+                        LEGACY_LIFECYCLE_POLICY_VERSION,
+                        CURRENT_LIFECYCLE_POLICY_VERSION,
+                        "Automatic safe migration before any legacy frozen-OOS state",
+                    ),
+                )
 
     def register_strategy_version(
         self,
@@ -196,13 +290,15 @@ class ResearchStore:
             connection.execute(
                 """
                 INSERT INTO strategy_versions(
-                    strategy_id, version, lifecycle_state, spec_json, spec_sha256
-                ) VALUES (?, ?, ?, ?, ?)
+                    strategy_id, version, lifecycle_state, lifecycle_policy_version,
+                    spec_json, spec_sha256
+                ) VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
                     strategy_id,
                     version,
                     StrategyLifecycle.GENERATED.value,
+                    CURRENT_LIFECYCLE_POLICY_VERSION,
                     spec_json,
                     spec_sha256,
                 ),
@@ -238,7 +334,8 @@ class ResearchStore:
         with self._connection() as connection:
             row = connection.execute(
                 """
-                SELECT lifecycle_state FROM strategy_versions
+                SELECT lifecycle_state, lifecycle_policy_version
+                FROM strategy_versions
                 WHERE strategy_id = ? AND version = ?
                 """,
                 (strategy_id, strategy_version),
@@ -247,11 +344,13 @@ class ResearchStore:
                 raise KeyError(f"Unknown strategy version {strategy_id} v{strategy_version}")
 
             previous = StrategyLifecycle(row["lifecycle_state"])
+            policy_version = int(row["lifecycle_policy_version"])
             transition = LifecycleTransition(
                 previous=previous,
                 current=current,
                 reason=reason,
                 evidence_ref=evidence_ref,
+                policy_version=policy_version,
             )
             connection.execute(
                 """
@@ -264,13 +363,14 @@ class ResearchStore:
             connection.execute(
                 """
                 INSERT INTO lifecycle_history(
-                    strategy_id, strategy_version, previous_state,
+                    strategy_id, strategy_version, policy_version, previous_state,
                     current_state, reason, evidence_ref
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     strategy_id,
                     strategy_version,
+                    policy_version,
                     previous.value,
                     current.value,
                     reason,
@@ -278,6 +378,75 @@ class ResearchStore:
                 ),
             )
         return transition
+
+    def upgrade_lifecycle_policy_v2(
+        self,
+        *,
+        strategy_id: str,
+        strategy_version: int,
+        reason: str,
+    ) -> dict[str, Any]:
+        reason = reason.strip()
+        if not reason:
+            raise ValueError("lifecycle policy upgrade reason is required")
+        with self._connection() as connection:
+            row = connection.execute(
+                """
+                SELECT lifecycle_state, lifecycle_policy_version
+                FROM strategy_versions
+                WHERE strategy_id = ? AND version = ?
+                """,
+                (strategy_id, strategy_version),
+            ).fetchone()
+            if row is None:
+                raise KeyError(f"Unknown strategy version {strategy_id} v{strategy_version}")
+            previous_version = int(row["lifecycle_policy_version"])
+            if previous_version == CURRENT_LIFECYCLE_POLICY_VERSION:
+                record = self.get_strategy_version(strategy_id, strategy_version)
+                if record is None:  # pragma: no cover
+                    raise RuntimeError("strategy disappeared during policy upgrade")
+                return record
+            if previous_version != LEGACY_LIFECYCLE_POLICY_VERSION:
+                raise RuntimeError(f"unsupported lifecycle policy v{previous_version}")
+
+            state = StrategyLifecycle(row["lifecycle_state"])
+            safe_states = {
+                StrategyLifecycle.GENERATED,
+                StrategyLifecycle.BACKTESTED,
+                StrategyLifecycle.RETEST_REQUIRED,
+            }
+            if state not in safe_states:
+                raise RuntimeError(
+                    "legacy post-OOS strategy must enter RETEST_REQUIRED before policy v2 upgrade"
+                )
+            connection.execute(
+                """
+                UPDATE strategy_versions
+                SET lifecycle_policy_version = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE strategy_id = ? AND version = ?
+                """,
+                (CURRENT_LIFECYCLE_POLICY_VERSION, strategy_id, strategy_version),
+            )
+            connection.execute(
+                """
+                INSERT INTO lifecycle_policy_history(
+                    strategy_id, strategy_version, previous_version,
+                    current_version, reason
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    strategy_id,
+                    strategy_version,
+                    previous_version,
+                    CURRENT_LIFECYCLE_POLICY_VERSION,
+                    reason,
+                ),
+            )
+
+        record = self.get_strategy_version(strategy_id, strategy_version)
+        if record is None:  # pragma: no cover
+            raise RuntimeError("strategy disappeared during policy upgrade")
+        return record
 
     def create_experiment(
         self,
@@ -374,6 +543,7 @@ class ResearchStore:
         data = dict(row)
         data["spec"] = json.loads(data.pop("spec_json"))
         data["lifecycle_state"] = StrategyLifecycle(data["lifecycle_state"])
+        data["lifecycle_policy_version"] = int(data["lifecycle_policy_version"])
         return data
 
     @staticmethod

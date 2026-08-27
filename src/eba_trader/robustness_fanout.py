@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from .lifecycle import StrategyLifecycle
+from .lifecycle import CURRENT_LIFECYCLE_POLICY_VERSION, StrategyLifecycle
 from .research_evidence import canonical_json, sha256_text
 from .research_queue import ExperimentQueue
 from .research_store import ResearchStore
@@ -101,7 +101,7 @@ class RobustnessBatch:
 
 
 class RobustnessFanoutPlanner:
-    """Create bounded parameter-neighborhood and cost-stress queue work without promotion."""
+    """Create bounded pre-OOS parameter-neighborhood and cost-stress queue work."""
 
     def __init__(self, store: ResearchStore, queue: ExperimentQueue) -> None:
         self.store = store
@@ -160,12 +160,11 @@ class RobustnessFanoutPlanner:
         strategy = self.store.get_strategy_version(strategy_id, strategy_version)
         if strategy is None:
             raise KeyError(f"Unknown strategy version {strategy_id} v{strategy_version}")
-        if strategy["lifecycle_state"] not in {
-            StrategyLifecycle.BACKTESTED,
-            StrategyLifecycle.OOS_VERIFIED,
-        }:
+        if strategy["lifecycle_policy_version"] != CURRENT_LIFECYCLE_POLICY_VERSION:
+            raise RuntimeError("robustness fan-out requires current lifecycle policy v2")
+        if strategy["lifecycle_state"] is not StrategyLifecycle.BACKTESTED:
             raise RuntimeError(
-                "robustness fan-out requires a strategy that already passed development screening"
+                "robustness fan-out requires BACKTESTED before frozen OOS is reachable"
             )
 
         spec = strategy["spec"]
@@ -181,6 +180,7 @@ class RobustnessFanoutPlanner:
             "strategy_id": strategy_id,
             "strategy_version": strategy_version,
             "strategy_spec_sha256": strategy["spec_sha256"],
+            "lifecycle_policy_version": strategy["lifecycle_policy_version"],
             "dataset_ref": dataset_ref,
             "plan_id": plan.plan_id,
             "plan_sha256": plan.definition_sha256,
