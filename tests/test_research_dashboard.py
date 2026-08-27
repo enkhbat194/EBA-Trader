@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
 
@@ -17,6 +18,53 @@ def _write_continuity(root: Path) -> None:
         "- [x] Build causal feature dataset.\n"
         "- [ ] Run controlled candle-vs-footprint ablation.\n\n"
         "## NEXT\n\n- [ ] Later task.\n",
+        encoding="utf-8",
+    )
+
+
+def _write_m5_report(path: Path, *, schema: str = "m5_real_ablation_report_v1") -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "schema": schema,
+                "batchId": "abl-test",
+                "workflowId": "wf-test",
+                "stage": "m5_orderflow_ablation_dev",
+                "treatmentCount": 1,
+                "allTerminal": True,
+                "allExperimentsPassed": True,
+                "evidenceComplete": True,
+                "developmentComparisonOnly": True,
+                "edgeClaimAllowed": False,
+                "promotionAuthority": False,
+                "frozenOosOpened": False,
+                "liveExecutionAllowed": False,
+                "baseline": {
+                    "experimentId": "EXP-BASE",
+                    "strategyId": "STR-BASE",
+                    "strategyVersion": 1,
+                    "status": "passed",
+                    "parameters": {"fast": 8, "apiSecret": "must-not-leak"},
+                    "metrics": {"netReturn": 1.25, "tradeCount": 10},
+                    "evidenceRef": "/private/evidence/base.json",
+                    "completedAt": "2026-08-27T09:00:00Z",
+                },
+                "treatments": [
+                    {
+                        "experimentId": "EXP-DELTA",
+                        "strategyId": "STR-DELTA",
+                        "strategyVersion": 1,
+                        "status": "passed",
+                        "parameters": {"deltaRatioMin": 0.2},
+                        "metrics": {"netReturn": 1.75, "tradeCount": 8},
+                        "metricDeltaVsBaseline": {"netReturn": 0.5, "tradeCount": -2},
+                        "evidenceRef": "/private/evidence/delta.json",
+                        "completedAt": "2026-08-27T09:01:00Z",
+                    }
+                ],
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -92,3 +140,73 @@ def test_status_reads_existing_research_db_without_mutating_it(tmp_path: Path) -
     assert store["experimentStatus"] == {"passed": 1, "queued": 1}
     assert store["lifecycleStatus"] == {"backtested": 1}
     assert db_path.stat().st_size == before_size
+
+
+def test_status_exposes_only_sanitized_m5_report_summary(tmp_path: Path) -> None:
+    _write_continuity(tmp_path)
+    evidence_root = tmp_path / "evidence"
+    report_path = evidence_root / "m5-report.json"
+    _write_m5_report(report_path)
+    proof = {"m5RealAblation": {"reportPath": str(report_path)}}
+
+    status = build_research_status(
+        root=tmp_path,
+        db_path=tmp_path / "missing.db",
+        production_proof=proof,
+        evidence_root=evidence_root,
+    )
+
+    report = status["m5Report"]
+    assert report["available"] is True
+    assert report["batchId"] == "abl-test"
+    assert report["allTerminal"] is True
+    assert report["evidenceComplete"] is True
+    assert report["edgeClaimAllowed"] is False
+    assert report["promotionAuthority"] is False
+    assert report["frozenOosOpened"] is False
+    assert report["liveExecutionAllowed"] is False
+    assert report["baseline"]["metrics"]["netReturn"] == 1.25
+    assert "apiSecret" not in report["baseline"]["parameters"]
+    assert "evidenceRef" not in report["baseline"]
+    treatment = report["treatments"][0]
+    assert treatment["metricDeltaVsBaseline"]["netReturn"] == 0.5
+    assert "evidenceRef" not in treatment
+
+
+def test_status_rejects_m5_report_outside_evidence_root(tmp_path: Path) -> None:
+    _write_continuity(tmp_path)
+    evidence_root = tmp_path / "evidence"
+    evidence_root.mkdir()
+    report_path = tmp_path / "outside.json"
+    _write_m5_report(report_path)
+    proof = {"m5RealAblation": {"reportPath": str(report_path)}}
+
+    status = build_research_status(
+        root=tmp_path,
+        db_path=tmp_path / "missing.db",
+        production_proof=proof,
+        evidence_root=evidence_root,
+    )
+
+    assert status["m5Report"]["available"] is False
+    assert status["m5Report"]["reason"] == "report_path_rejected"
+    assert status["m5Report"]["liveExecutionAllowed"] is False
+
+
+def test_status_rejects_unknown_m5_report_schema(tmp_path: Path) -> None:
+    _write_continuity(tmp_path)
+    evidence_root = tmp_path / "evidence"
+    report_path = evidence_root / "m5-report.json"
+    _write_m5_report(report_path, schema="unexpected_schema")
+    proof = {"m5RealAblation": {"reportPath": str(report_path)}}
+
+    status = build_research_status(
+        root=tmp_path,
+        db_path=tmp_path / "missing.db",
+        production_proof=proof,
+        evidence_root=evidence_root,
+    )
+
+    assert status["m5Report"]["available"] is False
+    assert status["m5Report"]["reason"] == "report_schema_rejected"
+    assert status["m5Report"]["edgeClaimAllowed"] is False

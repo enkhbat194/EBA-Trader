@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import math
 import os
 import re
 import sqlite3
@@ -10,6 +12,19 @@ from .production_proof import read_production_proof
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_RESEARCH_DB = PROJECT_ROOT / "artifacts" / "research" / "eba_research.db"
+DEFAULT_RESEARCH_EVIDENCE_ROOT = Path("/var/lib/eba-trader/research/evidence")
+M5_REPORT_SCHEMA = "m5_real_ablation_report_v1"
+_BLOCKED_REPORT_KEY_PARTS = (
+    "apikey",
+    "apisecret",
+    "authorization",
+    "bearer",
+    "credential",
+    "password",
+    "secret",
+    "signature",
+    "token",
+)
 
 
 def _read_text(root: Path, name: str) -> str:
@@ -116,10 +131,135 @@ def _research_db_summary(path: Path) -> dict[str, Any]:
     return summary
 
 
+def _report_unavailable(reason: str) -> dict[str, Any]:
+    return {
+        "available": False,
+        "reason": reason,
+        "developmentComparisonOnly": True,
+        "edgeClaimAllowed": False,
+        "promotionAuthority": False,
+        "frozenOosOpened": False,
+        "liveExecutionAllowed": False,
+    }
+
+
+def _safe_report_map(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    result: dict[str, Any] = {}
+    for raw_key, item in value.items():
+        key = str(raw_key)
+        normalized = key.replace("_", "").replace("-", "").lower()
+        if any(part in normalized for part in _BLOCKED_REPORT_KEY_PARTS):
+            continue
+        safe_scalar = (
+            isinstance(item, (bool, int))
+            or (isinstance(item, float) and math.isfinite(item))
+            or (isinstance(item, str) and len(item) <= 256)
+        )
+        if safe_scalar:
+            result[key] = item
+    return result
+
+
+def _safe_report_arm(value: Any, *, include_delta: bool = False) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    arm = {
+        "experimentId": value.get("experimentId"),
+        "strategyId": value.get("strategyId"),
+        "strategyVersion": value.get("strategyVersion"),
+        "status": value.get("status"),
+        "parameters": _safe_report_map(value.get("parameters")),
+        "metrics": _safe_report_map(value.get("metrics")),
+        "completedAt": value.get("completedAt"),
+    }
+    if include_delta:
+        arm["metricDeltaVsBaseline"] = _safe_report_map(
+            value.get("metricDeltaVsBaseline")
+        )
+    return arm
+
+
+def read_m5_report_summary(
+    production_proof: dict[str, Any],
+    *,
+    evidence_root: str | Path | None = None,
+) -> dict[str, Any]:
+    marker = production_proof.get("m5RealAblation")
+    if not isinstance(marker, dict):
+        return _report_unavailable("marker_unavailable")
+    report_path_raw = marker.get("reportPath")
+    if not isinstance(report_path_raw, str) or not report_path_raw.strip():
+        return _report_unavailable("report_path_unavailable")
+
+    configured_root = (
+        evidence_root
+        or os.getenv("EBA_RESEARCH_EVIDENCE_DIR", "").strip()
+        or DEFAULT_RESEARCH_EVIDENCE_ROOT
+    )
+    try:
+        root = Path(configured_root).resolve()
+        report_path = Path(report_path_raw).resolve()
+        report_path.relative_to(root)
+    except (OSError, RuntimeError, ValueError):
+        return _report_unavailable("report_path_rejected")
+    if report_path.suffix != ".json" or not report_path.is_file():
+        return _report_unavailable("report_unavailable")
+
+    try:
+        payload = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return _report_unavailable("report_invalid")
+    if not isinstance(payload, dict) or payload.get("schema") != M5_REPORT_SCHEMA:
+        return _report_unavailable("report_schema_rejected")
+
+    safety_contract = (
+        payload.get("developmentComparisonOnly") is True
+        and payload.get("edgeClaimAllowed") is False
+        and payload.get("promotionAuthority") is False
+        and payload.get("frozenOosOpened") is False
+        and payload.get("liveExecutionAllowed") is False
+    )
+    if not safety_contract:
+        return _report_unavailable("report_safety_rejected")
+
+    treatments_raw = payload.get("treatments")
+    treatments = (
+        [
+            _safe_report_arm(item, include_delta=True)
+            for item in treatments_raw
+            if isinstance(item, dict)
+        ]
+        if isinstance(treatments_raw, list)
+        else []
+    )
+    return {
+        "available": True,
+        "schema": M5_REPORT_SCHEMA,
+        "batchId": payload.get("batchId"),
+        "workflowId": payload.get("workflowId"),
+        "stage": payload.get("stage"),
+        "treatmentCount": payload.get("treatmentCount"),
+        "allTerminal": payload.get("allTerminal") is True,
+        "allExperimentsPassed": payload.get("allExperimentsPassed") is True,
+        "evidenceComplete": payload.get("evidenceComplete") is True,
+        "baseline": _safe_report_arm(payload.get("baseline")),
+        "treatments": treatments,
+        "developmentComparisonOnly": True,
+        "edgeClaimAllowed": False,
+        "promotionAuthority": False,
+        "frozenOosOpened": False,
+        "liveExecutionAllowed": False,
+    }
+
+
 def build_research_status(
     *,
     root: str | Path = PROJECT_ROOT,
     db_path: str | Path | None = None,
+    production_proof: dict[str, Any] | None = None,
+    evidence_root: str | Path | None = None,
 ) -> dict[str, Any]:
     """Build the read-only Research / AI Lab status payload for the PWA."""
 
@@ -131,6 +271,7 @@ def build_research_status(
         or os.getenv("EBA_RESEARCH_DB", "").strip()
         or project_root / "artifacts" / "research" / "eba_research.db"
     )
+    proof = production_proof if production_proof is not None else read_production_proof()
 
     return {
         "ok": True,
@@ -153,7 +294,8 @@ def build_research_status(
             "executionAssumptions": "shared dataset / fees / slippage / EMA exits",
         },
         "researchStore": _research_db_summary(chosen_db),
-        "productionProof": read_production_proof(),
+        "productionProof": proof,
+        "m5Report": read_m5_report_summary(proof, evidence_root=evidence_root),
         "locks": {
             "frozenOos": True,
             "realExecution": True,
