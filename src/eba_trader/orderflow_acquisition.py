@@ -72,6 +72,7 @@ class AggregateTradeDownload:
     end_ms: int
     payloads: tuple[dict[str, Any], ...]
     requests: tuple[RequestProvenance, ...]
+    source_endpoint: str | None = None
 
     @property
     def records(self) -> tuple[AggregateTradeRecord, ...]:
@@ -273,6 +274,7 @@ def fetch_binance_agg_trades(
         end_ms=end_ms,
         payloads=tuple(record_payload(record) for record in records),
         requests=tuple(provenance),
+        source_endpoint=endpoint,
     )
 
 
@@ -358,6 +360,7 @@ def repair_missing_id_ranges(
         end_ms=download.end_ms,
         payloads=tuple(record_payload(record) for record in repaired_records),
         requests=tuple(provenance),
+        source_endpoint=download.source_endpoint or endpoint,
     )
 
 
@@ -386,7 +389,7 @@ def write_acquisition_manifest(
         dataset_id=dataset.dataset_id,
         symbol=download.symbol,
         venue=download.venue.value,
-        endpoint=ENDPOINTS[download.venue],
+        endpoint=download.source_endpoint or ENDPOINTS[download.venue],
         requested_start_ms=download.start_ms,
         requested_end_ms=download.end_ms,
         record_count=dataset.record_count,
