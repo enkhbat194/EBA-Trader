@@ -1,7 +1,7 @@
 # EBA Trader — Project State
 
 _Last reconciled: 2026-08-27 (Asia/Ulaanbaatar)_
-_Current implementation frontier: PR #40 `m5-real-ablation-cli`; GitHub `main` remains authoritative after merge._
+_Current implementation frontier: PR #41 lifecycle policy v2; GitHub `main` remains authoritative after merge._
 
 This is the primary cross-chat continuation summary. Actual current implementation/config/tests and Git history override stale text.
 
@@ -16,14 +16,15 @@ Operate EBA Trader as a restart-safe 24/7 Linode paper/research system, build a 
 - Continuity system: **INSTALLED / ENFORCED IN CI**.
 - Deterministic order-flow ablation orchestration: **MERGED in #34**.
 - Venue-matched real USD-M feature-dataset workflow: **MERGED in #35**.
-- Encrypted one-time Binance Demo credential persistence: **MERGED in #36**.
+- Encrypted one-time Binance Demo credential persistence: **MERGED in #36 / real production save now observed**.
 - Linode auto-update recovery/diagnostics: **MERGED in #37 / production-verified**.
 - Binance market-data log-flood fix: **MERGED in #38 / production-verified**.
 - Continuity reconciliation through production recovery: **MERGED in #39**.
-- Persistent research runtime + verified real-ablation runner: **IMPLEMENTED in PR #40; production deployment/run proof pending**.
-- Current research frontier: deploy PR #40, build a real BTCUSDT USD-M development dataset outside frozen OOS, execute candle-only vs Delta/CVD through M4, then evaluate evidence without promotion.
+- Persistent research runtime + real-ablation CLI/runner + repo-managed journald policy: **MERGED in #40** at `8876bc22b59f236e8df038440aaa6116c5d1afdf`; production PWA reports build `8876bc2`.
+- Lifecycle policy v2 robustness-before-OOS migration: **IMPLEMENTED/CI-GREEN in PR #41 candidate; merge pending**.
+- Current research frontier: complete #41, then run a real BTCUSDT USD-M development dataset outside frozen OOS and execute candle-only vs Delta/CVD through M4.
 - Real-money execution: **LOCKED**.
-- Frozen OOS automation: **LOCKED pending lifecycle-order reconciliation**.
+- Frozen OOS automation: **LOCKED until a strategy passes v2 robustness evidence**.
 
 ## Source of truth and active infrastructure
 
@@ -32,13 +33,13 @@ Operate EBA Trader as a restart-safe 24/7 Linode paper/research system, build a 
 - Active runtime target: Akamai/Linode Nanode 1 GB, Singapore 2, Ubuntu 24.04 LTS
 - Server repository path: `/opt/Eba-Trader`
 - Persistent runtime DB: `/var/lib/eba-trader/eba_trader.db`
-- Persistent research DB after PR #40 deployment: `/var/lib/eba-trader/research/eba_research.db`
+- Persistent research DB: `/var/lib/eba-trader/research/eba_research.db`
 - Persistent research datasets: `/var/lib/eba-trader/research/datasets`
 - Persistent research evidence: `/var/lib/eba-trader/research/evidence`
 - Market-data service: `eba-binance-data.service`
 - Runtime API service: `eba-runtime-api.service` on `127.0.0.1:8765`
 - PWA/web service: `eba-web.service` on `127.0.0.1:8000` behind nginx/Let's Encrypt HTTPS
-- Research worker after PR #40 deployment: bounded `eba-research-worker.service` + timer
+- Bounded research worker: `eba-research-worker.service` + timer
 - Public PWA: `https://eba-trader-172-236-150-62.sslip.io/`
 - Auto deploy: `eba-auto-update.timer`; exact `origin/main`, dirty-checkout refusal, health checks, rollback and persistent diagnostics are implemented.
 - Replit/Render: deprecated backend/runtime paths.
@@ -62,54 +63,34 @@ PRs #20-#24 provide immutable strategy versions, deterministic experiment IDs, r
 - #34 deterministic one-control-to-many-treatment ablation orchestration.
 - #35 verified venue-matched USD-M candle + order-flow feature-dataset workflow.
 - #36 encrypted one-time Binance Demo credential vault.
-- #40 implementation adds persistent research runtime and the real development ablation execution surface.
+- #40 persistent research runtime, bounded worker, repo-managed journald policy and real development ablation CLI/runner.
+- #41 candidate lifecycle policy v2 with robustness-before-OOS and legacy-state migration.
 
 Current enabled executed-trade features are buy/sell volume, delta, delta ratio, CVD and POC price. Stacked imbalance, absorption, exhaustion and LOB depth imbalance remain unimplemented/unapproved as edge features.
 
-## PR #40 implementation reality
+## Production research/runtime reality
 
-### Reproducible host protection
+### Host protection and persistent research
 
-The manual production journald policy is now versioned as `deploy/journald/eba-trader.conf`:
+The production policy is versioned as `deploy/journald/eba-trader.conf`:
 
 - `SystemMaxUse=250M`
 - `SystemKeepFree=1G`
 - `MaxRetentionSec=7day`
 
-Both install and update paths provision the drop-in. It is treated as a host-safety invariant so application rollback does not intentionally remove the disk-protection policy.
+Long-running research state lives under `/var/lib/eba-trader/research` rather than the Git checkout. The bounded worker runs at most eight jobs per invocation with CPU 50% and memory 512 MB limits. Runtime `TradeLedger` remains separate.
 
-### Persistent research control plane
+### Verified real-ablation surface
 
-Long-running research state is moved outside the Git checkout under `/var/lib/eba-trader/research`. This prevents valid research artifacts from dirtying `/opt/Eba-Trader` and blocking fail-closed auto-update. Runtime `TradeLedger` remains separate.
+`eba-m5-real-ablation` verifies workflow/data hashes, USD-M venue, symbol/interval/time range, dataset containment and frozen-OOS separation before emitting deterministic #34 development experiments. `scripts/run_m5_real_ablation.sh` performs verified dataset build -> deterministic queue -> bounded worker/evidence. This path is development-only and has no exchange/OOS authority.
 
-An existing Linode environment file is upgraded idempotently with research path defaults without overwriting explicit operator values.
+### Lifecycle policy v2
 
-### Bounded worker
+PR #41 changes the current research promotion order to:
 
-`eba-research-worker.timer` runs a oneshot research worker approximately once per minute. Each invocation is bounded to eight jobs, CPU quota 50% and memory 512 MB, with write access limited to the persistent research namespace. It only consumes queued research jobs and has no OOS/exchange authority.
+`GENERATED -> BACKTESTED -> ROBUSTNESS_VERIFIED -> OOS_VERIFIED -> PAPER_CANDIDATE -> ...`
 
-### Verified real-ablation queue CLI
-
-`eba-m5-real-ablation` verifies before queue emission:
-
-- PR #35 workflow schema;
-- USD-M futures venue;
-- symbol/interval/time-range consistency;
-- relative `dataset_ref` containment under the configured dataset root;
-- feature CSV existence and SHA-256;
-- matching feature manifest and SHA;
-- no overlap with the frozen first-cycle OOS range;
-- allowlisted Delta/CVD gate fields only.
-
-It then emits the existing deterministic #34 development ablation batch into M4 and reports machine-readable experiment IDs. The stage is fixed to `m5_orderflow_ablation_dev`; frozen OOS and live execution remain false.
-
-### One-command development runner
-
-`scripts/run_m5_real_ablation.sh` performs:
-
-`verified USD-M feature build -> verified deterministic ablation queue -> exact emitted job count through M4 worker/evidence`
-
-using the persistent research paths and a process lock. The first versioned gate set includes a permissive Delta-ratio sanity arm plus bounded Delta/CVD treatments. These are hypotheses, not promotion thresholds.
+Key migration rule: old M4 databases are not silently reinterpreted. Legacy pre-OOS rows may migrate safely to v2; legacy rows already at OOS or later remain policy v1/frozen and must enter `RETEST_REQUIRED` before v2 re-entry. A passed robustness verdict may promote only `BACKTESTED -> ROBUSTNESS_VERIFIED`; it cannot open OOS itself.
 
 ## Runtime / PWA
 
@@ -128,34 +109,28 @@ Confirmed on 2026-08-26/27:
 - persisted Fast Paper History and trade detail/chart;
 - #37 auto-update recovery on real Linode;
 - #38 deployment with active market-data service and no raw per-tick INFO flood;
-- old log cleanup, reducing root disk from ~90.1% used to ~21% and `/var/log` to ~162M.
+- old log cleanup, reducing root disk from ~90.1% used to ~21% and `/var/log` to ~162M;
+- PWA reports server build `8876bc2`, confirming #40 reached the active Linode runtime;
+- Binance Demo credential UI reports a real key encrypted and saved securely on Linode.
 
 Still pending:
 
-- PR #40 production deployment verification (journald policy, research paths, research-worker timer);
+- direct server-internal proof of the #40 journald drop-in, research paths and research-worker timer;
 - real BTCUSDT USD-M development dataset + actual candle-only vs Delta/CVD evidence run;
 - standalone Chart / Positions / Research screen smoke;
-- one real Binance Demo credential save followed by no-paste reconnect;
+- no-paste Demo reconnect after a real restart;
 - active Fast Momentum position surviving service/server restart and later MARK/CLOSE;
 - audit/disposition of the older carry paper engine.
 
-## Known architecture issue
-
-Current machine lifecycle is:
-
-`GENERATED -> BACKTESTED -> OOS_VERIFIED -> ROBUSTNESS_VERIFIED -> PAPER_CANDIDATE -> ...`
-
-Accepted research methodology requires robustness before opening frozen OOS. Automated frozen OOS remains locked until a deliberate lifecycle redesign/migration/test changes this; no manual bypass is allowed.
-
 ## Immediate Next
 
-1. Finish PR #40 final CI and merge only when all gates pass.
-2. Verify Linode auto-deployed the merged package and that journald/research-worker/persistent research state are active.
+1. Finish PR #41 continuity update, re-run required CI and squash merge only when all gates pass.
+2. Verify the #40 server-internal runtime contract.
 3. Execute one real BTCUSDT USD-M development-only window outside frozen OOS through `scripts/run_m5_real_ablation.sh`.
-4. Inspect immutable M4 evidence; require the permissive treatment sanity invariant and compare Delta/CVD treatments under identical costs.
-5. Add a deterministic comparison/verdict artifact if the real pipeline is sound; do not open frozen OOS.
-6. Redesign lifecycle ordering with migration/tests so robustness precedes frozen OOS.
-7. Continue remaining production proofs and carry-engine audit in parallel.
+4. Inspect immutable M4 evidence and compare candle-only vs Delta/CVD under identical costs.
+5. Add a deterministic comparison/verdict artifact if the real pipeline is sound; do not open frozen OOS unless v2 robustness evidence passes.
+6. Finish Chart / Positions / Research smoke, Demo no-paste reconnect and active-position restart recovery proof.
+7. Audit/retire-or-persist the carry paper engine.
 8. Only after real executed-trade evidence, add stacked imbalance/absorption/exhaustion candidates; LOB remains a separate later data plane.
 
 ## Important constraints
@@ -176,9 +151,9 @@ Accepted research methodology requires robustness before opening frozen OOS. Aut
 
 ## Validation status
 
-- PR #40 pre-continuity head passed full Python regression, Ruff, shell syntax, deployment contract, Linode runtime checks and continuity guard after the import-format correction.
-- Final continuity-updated PR #40 head must pass the same required CI before squash merge.
-- PR #40 has not yet been production-run on Linode, so no real Delta/CVD edge claim exists yet.
+- PR #40 merged after full Python regression, Ruff, shell syntax, deployment contract, Linode runtime checks and continuity guard passed.
+- PR #41 code + migration tests have passed full Python regression, Ruff, shell syntax, deployment contract, Linode runtime checks and continuity guard before final continuity edits.
+- No real Delta/CVD edge claim exists yet; the empirical development run remains pending.
 
 ## Continuity system
 
