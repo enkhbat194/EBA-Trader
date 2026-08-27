@@ -4,62 +4,73 @@ _Last handoff prepared: 2026-08-27 (Asia/Ulaanbaatar)_
 
 ## What was completed
 
-- PR #41 lifecycle policy v2 merged at `32a39c57cb9c86bd2b956ea670fa3031229d0efc` with robustness-before-OOS and legacy migration safeguards.
-- PR #42 external public smoke merged at `a1425c5eb0e839bed4645f4a31bd95512c8d1995`; exact deployed build passed Demo vault/autoconnect, Chart, Positions and Research checks.
-- PR #43 production proof + passive Fast restart watcher merged at `4a46a0fbec7d20007bda9061572756841de190c6`. The watcher waits for a natural Fast paper OPEN, restarts `eba-web.service` once, requires the same position to recover and then waits for MARK/CLOSE. It never manufactures a trade.
-- PR #44 legacy carry active-entry retirement merged at `0df5f4d9a7ce054b1a2b65002b9329ba0c8143aa`.
-- Exact #44 production proof passed: production smoke, encrypted Demo reconnect, Chart, Positions, frozen OOS lock and real-execution lock.
-- PR #45 candidate implements the first automatic real M5 development ablation:
-  - BTCUSDT Binance USD-M, 1m;
-  - fixed 2026-08-01 00:00Z -> 04:00Z development window;
-  - existing verified candle/aggTrade feature builder and deterministic M4 ablation queue;
-  - bounded systemd oneshot/timer with 40% CPU quota, 700 MB memory ceiling and 45-minute timeout;
-  - idempotent retry/no-op marker under persistent research storage;
-  - immutable candle-baseline vs Delta/CVD comparison report;
-  - sanitized production-proof state;
-  - `edgeClaimAllowed=false`, `promotionAuthority=false`, frozen OOS closed and live execution locked.
-- PR #45 pre-continuity head passed full regression, Ruff, shell syntax, deployment contract, active Linode runtime and continuity checks.
+- M4 strategy-platform/evidence foundation remains complete and authoritative.
+- Production recovery/logging work remains deployed, including bounded journald and disabled per-tick Binance INFO logging.
+- Encrypted one-time Binance Demo credential persistence/reconnect remains production verified; secrets are never returned to browser JavaScript.
+- Fast Momentum remains the sole active production paper engine; legacy carry cannot create new production entries.
+- PR #51 **Use verified Binance archive for historical M5 order flow** merged at `1c1b683b7bfc9dd62cff9d96fcb3160213cd2595`.
+  - Root cause repaired: the fixed `2026-08-01T00:00:00Z -> 04:00:00Z` M5 development window was too old for the Binance USD-M REST `aggTrades` path and returned HTTP 400.
+  - The fixed window was preserved for reproducibility rather than shifted to recent data.
+  - Historical USD-M order flow now comes from official Binance public daily `aggTrades` archives with `.CHECKSUM` SHA-256 verification.
+  - Archive ZIPs are streamed to temporary storage and only the exact requested `[start,end)` window is retained for the research dataset.
+  - Cross-midnight acquisition supports the prior closed-footprint minute required by causal alignment.
+  - Actual archive provenance is preserved in immutable acquisition evidence; recent REST acquisition remains available for recent data.
+  - Historical archive data fails closed on checksum mismatch, malformed archive/rows, gaps, or an empty requested window.
+- PR #52 **Harden production proof for terminal M5 evidence** merged at `7e24df486839c92f9c324cbd910efc00dfe7bc4d`.
+  - External production proof can no longer pass merely because the exact application build deployed while an old M5 FAILED/RUNNING marker remains.
+  - It now waits for `phase=COMPLETE`, `safe=true`, `allTerminal=true`, `evidenceComplete=true`, frozen OOS closed, and live execution locked.
+- Exact production build `7e24df486839c92f9c324cbd910efc00dfe7bc4d` passed the hardened external proof and public production smoke.
+- The first real fixed-window BTCUSDT USD-M M5 development ablation completed successfully:
+  - phase: `COMPLETE`
+  - safe: `true`
+  - all terminal: `true`
+  - all experiments passed: `true`
+  - evidence complete: `true`
+  - batch: `abl_6c4a8eeb83a662894a3f2816`
+  - report: `/var/lib/eba-trader/research/evidence/m5-real-ablation-20260801T000000Z-20260801T040000Z.json`
+  - frozen OOS stayed locked and real execution stayed locked.
+- Fast restart production proof is also reported `PASS` by the exact-build external proof.
 
 ## Current project state
 
 - GitHub `main` is authoritative; Linode is the active runtime target.
-- M4 is complete; M5 order-flow/Strategy Factory work is active.
-- Fast Momentum is the sole active production paper engine and uses restart-safe SQLite state.
-- Legacy carry remains compatibility/historical code only and cannot create new production entries by default.
-- Binance Demo credentials are encrypted on Linode and have real no-paste application/service restart reconnect proof.
+- Current verified production build: `7e24df486839c92f9c324cbd910efc00dfe7bc4d`.
+- M4 is complete.
+- M5 Strategy Factory/order-flow foundation is active, and the first real candle-control vs Delta/CVD development batch has now completed with immutable evidence.
+- This development result is **not** frozen-OOS proof, lifecycle promotion, or permission for real trading.
 - Runtime `TradeLedger` and research DB/dataset/evidence storage remain separate.
 - Real-money execution remains locked.
 - Frozen OOS remains locked.
 
 ## Still pending / not proven
 
-- Final reconciled PR #45 CI + merge + exact production deploy proof.
-- Actual terminal result of the first automated real BTCUSDT M5 development dataset/batch. Do not claim Delta/CVD edge before the report exists and is inspected.
-- Natural Fast Momentum `OPEN -> restart -> same-position recovery -> MARK -> CLOSE` production proof. The passive watcher is installed but its market-dependent proof may still be waiting for a qualifying OPEN.
-- Stacked imbalance, absorption, exhaustion and price/delta divergence candidates come only after the first real executed-trade run is verified.
+- Inspect the immutable per-treatment metrics from batch `abl_6c4a8eeb83a662894a3f2816` before making any claim that Delta/CVD adds incremental edge over the candle-only control.
+- Add stacked/diagonal imbalance, absorption/exhaustion, and price/delta divergence candidates only after the first report is interpreted as development evidence.
 - LOB depth reconstruction remains a separate later sequence-sensitive data plane.
-- Fresh-install provisioning of the new M5 autorun timer should be added later through a separately audited small change; the current Linode upgrade path already provisions it.
+- Fresh-install provisioning of the M5 autorun timer remains a separately audited small follow-up if not already covered by the fresh-install path.
+- Do not open frozen OOS automatically and do not unlock real execution.
 
 ## Important decisions / constraints
 
-- API secrets never go to Git, chat or browser persistent storage.
+- API secrets never go to Git, chat, logs, or browser persistent storage.
 - Persistent research state lives outside `/opt/Eba-Trader`.
 - Journald limits are a host-safety invariant.
 - Research workers and ablation jobs have no exchange-order or frozen-OOS authority.
 - Executed-trade order flow and resting LOB liquidity are separate domains.
 - Spot and USD-M futures data are not silently mixed.
 - Same-candle still-forming footprint data cannot enter a candle decision.
+- Historical fixed-window research must remain reproducible; do not silently roll the window forward to work around provider retention limits.
+- Historical archive integrity must be cryptographically verified and gaps fail closed.
 - Development wins/rankings are not promotion evidence.
 - Deterministic risk retains veto authority.
 
 ## Next exact task
 
-1. Re-run required CI on the final PR #45 continuity-updated head and squash-merge only if all gates stay green.
-2. Verify the exact #45 merge on public production and confirm the M5 autorun timer is provisioned.
-3. Observe the sanitized M5 marker until COMPLETE or a real failure; repair actual runtime/data problems if exposed.
-4. Inspect immutable candle-only vs Delta/CVD evidence as development evidence only.
-5. Observe the passive Fast restart watcher until a natural qualifying paper position completes the restart/recovery/MARK/CLOSE proof.
-6. Then implement stacked imbalance, absorption/exhaustion and divergence research candidates; keep LOB separate.
+1. Read the immutable report for batch `abl_6c4a8eeb83a662894a3f2816` and compare candle-only control vs Delta/CVD treatments using the recorded fees/slippage and screening metrics.
+2. Record the interpretation explicitly as **development evidence only**; no frozen-OOS opening or lifecycle promotion.
+3. If the first report is structurally sound, add stacked/diagonal footprint imbalance candidates with causal definitions and regression tests.
+4. Then add absorption/exhaustion and price/delta divergence candidates, keeping cheap screening and M4 evidence gates deterministic.
+5. Keep LOB reconstruction as a separate later data plane and keep real execution locked.
 
 ## Notes for the next AI session
 
