@@ -16,6 +16,7 @@ from .candle_acquisition import (
 )
 from .history import INTERVAL_MS, parse_utc
 from .holdout_guard import assert_not_first_cycle_oos_overlap
+from .m5_study_policy import DEFAULT_M5_STUDY_POLICY, assert_m5_development_range
 from .orderflow_acquisition import (
     OrderFlowVenue,
     fetch_binance_agg_trades,
@@ -30,7 +31,7 @@ from .orderflow_dataset import OrderFlowDatasetWriter, require_research_ready
 from .orderflow_feature_dataset import materialize_orderflow_feature_dataset
 from .research_evidence import canonical_json, sha256_text
 
-WORKFLOW_SCHEMA = "m5_usdm_feature_build_v1"
+WORKFLOW_SCHEMA = "m5_usdm_feature_build_v2"
 ORDERFLOW_SOURCES = ("rest", "archive")
 
 
@@ -38,6 +39,8 @@ ORDERFLOW_SOURCES = ("rest", "archive")
 class M5FeatureBuildManifest:
     workflow_id: str
     schema: str
+    study_policy_id: str
+    study_phase: str
     symbol: str
     venue: str
     interval: str
@@ -59,6 +62,8 @@ class M5FeatureBuildManifest:
         return {
             "workflow_id": self.workflow_id,
             "schema": self.schema,
+            "study_policy_id": self.study_policy_id,
+            "study_phase": self.study_phase,
             "symbol": self.symbol,
             "venue": self.venue,
             "interval": self.interval,
@@ -118,6 +123,14 @@ def build_usdm_orderflow_feature_dataset(
     required_orderflow_start = start_ms - step
     assert_not_first_cycle_oos_overlap(
         symbol=symbol,
+        interval=interval,
+        start_ms=required_orderflow_start,
+        end_ms=end_ms,
+        context="M5 real USD-M feature dataset build",
+    )
+    assert_m5_development_range(
+        symbol=symbol,
+        venue=OrderFlowVenue.USD_M_FUTURES.value,
         interval=interval,
         start_ms=required_orderflow_start,
         end_ms=end_ms,
@@ -214,8 +227,12 @@ def build_usdm_orderflow_feature_dataset(
     except ValueError as exc:
         raise RuntimeError("feature dataset escaped configured dataset root") from exc
 
+    study_policy_id = DEFAULT_M5_STUDY_POLICY.policy_id
+    study_phase = "development"
     identity = {
         "schema": WORKFLOW_SCHEMA,
+        "study_policy_id": study_policy_id,
+        "study_phase": study_phase,
         "symbol": symbol,
         "venue": OrderFlowVenue.USD_M_FUTURES.value,
         "interval": interval,
@@ -233,6 +250,8 @@ def build_usdm_orderflow_feature_dataset(
     manifest = M5FeatureBuildManifest(
         workflow_id=workflow_id,
         schema=WORKFLOW_SCHEMA,
+        study_policy_id=study_policy_id,
+        study_phase=study_phase,
         symbol=symbol,
         venue=OrderFlowVenue.USD_M_FUTURES.value,
         interval=interval,
@@ -299,7 +318,10 @@ def m5_build_orderflow_dataset_cli() -> None:
                 "manifest": str(path),
                 "venue": manifest.venue,
                 "orderflow_source": args.orderflow_source,
+                "study_policy_id": manifest.study_policy_id,
+                "study_phase": manifest.study_phase,
                 "frozen_oos_opened": False,
+                "m5_frozen_oos_opened": False,
                 "live_execution_allowed": False,
             },
             sort_keys=True,

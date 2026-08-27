@@ -14,6 +14,7 @@ from .m5_ablation import (
     OrderFlowGate,
 )
 from .m5_dataset_workflow import WORKFLOW_SCHEMA
+from .m5_study_policy import DEFAULT_M5_STUDY_POLICY, assert_m5_development_range
 from .orderflow_feature_dataset import (
     FEATURE_DATASET_SCHEMA,
     RESPONSE_FEATURE_DATASET_SCHEMA,
@@ -64,6 +65,8 @@ def _load_verified_workflow(
     required = {
         "workflow_id",
         "schema",
+        "study_policy_id",
+        "study_phase",
         "symbol",
         "venue",
         "interval",
@@ -85,6 +88,10 @@ def _load_verified_workflow(
         raise ValueError("invalid M5 feature workflow manifest fields")
     if workflow["schema"] != WORKFLOW_SCHEMA:
         raise ValueError("unsupported M5 feature workflow schema")
+    if workflow["study_policy_id"] != DEFAULT_M5_STUDY_POLICY.policy_id:
+        raise ValueError("M5 workflow study policy does not match the sealed policy")
+    if workflow["study_phase"] != "development":
+        raise ValueError("normal M5 ablation accepts development workflows only")
     if workflow["venue"] != CandleVenue.USD_M_FUTURES.value:
         raise ValueError("real M5 ablation requires USD-M futures data")
 
@@ -98,6 +105,22 @@ def _load_verified_workflow(
         raise ValueError("workflow start_ms must be an integer")
     if not isinstance(end_ms, int) or isinstance(end_ms, bool) or end_ms <= start_ms:
         raise ValueError("workflow end_ms must be an integer greater than start_ms")
+
+    assert_not_first_cycle_oos_overlap(
+        symbol=symbol,
+        interval=interval,
+        start_ms=start_ms,
+        end_ms=end_ms,
+        context="M5 real order-flow ablation queue",
+    )
+    assert_m5_development_range(
+        symbol=symbol,
+        venue=str(workflow["venue"]),
+        interval=interval,
+        start_ms=start_ms,
+        end_ms=end_ms,
+        context="M5 real order-flow ablation queue",
+    )
 
     dataset_ref = str(workflow["dataset_ref"])
     dataset_path = _resolve_under(dataset_root, dataset_ref, label="dataset_ref")
@@ -151,14 +174,6 @@ def _load_verified_workflow(
             or float(minimum) < 0.0
         ):
             raise ValueError("v4 feature manifest requires divergence_min_total_volume >= 0")
-
-    assert_not_first_cycle_oos_overlap(
-        symbol=symbol,
-        interval=interval,
-        start_ms=start_ms,
-        end_ms=end_ms,
-        context="M5 real order-flow ablation queue",
-    )
     return workflow
 
 
@@ -240,12 +255,15 @@ def emit_real_ablation_batch(
     return {
         "batch_id": batch.batch_id,
         "workflow_id": workflow["workflow_id"],
+        "study_policy_id": workflow["study_policy_id"],
+        "study_phase": workflow["study_phase"],
         "dataset_ref": workflow["dataset_ref"],
         "baseline_experiment_id": batch.baseline_experiment_id,
         "experiment_ids": list(batch.experiment_ids),
         "treatment_count": len(batch.pairs),
         "stage": "m5_orderflow_ablation_dev",
         "frozen_oos_opened": False,
+        "m5_frozen_oos_opened": False,
         "live_execution_allowed": False,
     }
 

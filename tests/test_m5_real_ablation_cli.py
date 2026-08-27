@@ -6,10 +6,13 @@ from pathlib import Path
 
 import pytest
 
+from eba_trader.history import parse_utc
 from eba_trader.m5_ablation_cli import emit_real_ablation_batch
+from eba_trader.m5_dataset_workflow import WORKFLOW_SCHEMA
+from eba_trader.m5_study_policy import DEFAULT_M5_STUDY_POLICY
 from eba_trader.research_evidence import sha256_file
 
-START_MS = 1_704_067_200_000
+START_MS = parse_utc("2026-08-01T00:00:00Z")
 END_MS = START_MS + 600_000
 
 
@@ -18,7 +21,7 @@ def _fixture(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
     feature_dir = dataset_root / "m5_orderflow_dev" / "features"
     feature_dir.mkdir(parents=True)
     dataset = feature_dir / "off_fixture.csv"
-    dataset.write_text("open_time_ms,close\n1704067200000,42000\n", encoding="utf-8")
+    dataset.write_text(f"open_time_ms,close\n{START_MS},42000\n", encoding="utf-8")
     dataset_sha = sha256_file(dataset)
 
     feature_manifest = {
@@ -45,7 +48,9 @@ def _fixture(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
 
     workflow = {
         "workflow_id": "m5ds_fixture",
-        "schema": "m5_usdm_feature_build_v1",
+        "schema": WORKFLOW_SCHEMA,
+        "study_policy_id": DEFAULT_M5_STUDY_POLICY.policy_id,
+        "study_phase": "development",
         "symbol": "BTCUSDT",
         "venue": "usd_m_futures",
         "interval": "1m",
@@ -109,9 +114,12 @@ def test_real_ablation_cli_emits_deterministic_development_jobs(tmp_path: Path) 
 
     assert first == second
     assert first["stage"] == "m5_orderflow_ablation_dev"
+    assert first["study_policy_id"] == DEFAULT_M5_STUDY_POLICY.policy_id
+    assert first["study_phase"] == "development"
     assert first["treatment_count"] == 2
     assert len(first["experiment_ids"]) == 3
     assert first["frozen_oos_opened"] is False
+    assert first["m5_frozen_oos_opened"] is False
     assert first["live_execution_allowed"] is False
 
     with sqlite3.connect(tmp_path / "research.db") as connection:
@@ -160,6 +168,59 @@ def test_real_ablation_cli_rejects_wrong_venue_and_path_escape(tmp_path: Path) -
     workflow["dataset_ref"] = "../escape.csv"
     workflow_path.write_text(json.dumps(workflow), encoding="utf-8")
     with pytest.raises(ValueError, match="escapes the configured dataset root"):
+        emit_real_ablation_batch(
+            workflow_manifest_path=workflow_path,
+            gates_path=gates_path,
+            dataset_root=dataset_root,
+            db_path=tmp_path / "research.db",
+            fast_ema=12,
+            slow_ema=26,
+            initial_cash=10_000.0,
+            fee_bps=4.0,
+            slippage_bps=1.5,
+        )
+
+
+def test_real_ablation_cli_rejects_wrong_policy_phase_and_m5_oos(tmp_path: Path) -> None:
+    dataset_root, workflow_path, gates_path, _ = _fixture(tmp_path)
+    workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
+
+    workflow["study_policy_id"] = "m5policy_wrong"
+    workflow_path.write_text(json.dumps(workflow), encoding="utf-8")
+    with pytest.raises(ValueError, match="does not match the sealed policy"):
+        emit_real_ablation_batch(
+            workflow_manifest_path=workflow_path,
+            gates_path=gates_path,
+            dataset_root=dataset_root,
+            db_path=tmp_path / "research.db",
+            fast_ema=12,
+            slow_ema=26,
+            initial_cash=10_000.0,
+            fee_bps=4.0,
+            slippage_bps=1.5,
+        )
+
+    workflow["study_policy_id"] = DEFAULT_M5_STUDY_POLICY.policy_id
+    workflow["study_phase"] = "oos"
+    workflow_path.write_text(json.dumps(workflow), encoding="utf-8")
+    with pytest.raises(ValueError, match="development workflows only"):
+        emit_real_ablation_batch(
+            workflow_manifest_path=workflow_path,
+            gates_path=gates_path,
+            dataset_root=dataset_root,
+            db_path=tmp_path / "research.db",
+            fast_ema=12,
+            slow_ema=26,
+            initial_cash=10_000.0,
+            fee_bps=4.0,
+            slippage_bps=1.5,
+        )
+
+    workflow["study_phase"] = "development"
+    workflow["start_ms"] = DEFAULT_M5_STUDY_POLICY.frozen_oos_start_ms
+    workflow["end_ms"] = DEFAULT_M5_STUDY_POLICY.frozen_oos_start_ms + 600_000
+    workflow_path.write_text(json.dumps(workflow), encoding="utf-8")
+    with pytest.raises(RuntimeError, match="sealed M5 frozen OOS"):
         emit_real_ablation_batch(
             workflow_manifest_path=workflow_path,
             gates_path=gates_path,
