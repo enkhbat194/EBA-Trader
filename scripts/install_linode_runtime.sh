@@ -18,6 +18,8 @@ API_SERVICE="eba-runtime-api.service"
 WEB_SERVICE="eba-web.service"
 RESEARCH_SERVICE="eba-research-worker.service"
 RESEARCH_TIMER="eba-research-worker.timer"
+FAST_PROOF_SERVICE="eba-fast-restart-proof.service"
+FAST_PROOF_TIMER="eba-fast-restart-proof.timer"
 UPDATE_SERVICE="eba-auto-update.service"
 UPDATE_TIMER="eba-auto-update.timer"
 
@@ -100,21 +102,24 @@ install -m 0644 deploy/systemd/eba-runtime-api.service "/etc/systemd/system/$API
 install -m 0644 deploy/systemd/eba-web.service "/etc/systemd/system/$WEB_SERVICE"
 install -m 0644 deploy/systemd/eba-research-worker.service "/etc/systemd/system/$RESEARCH_SERVICE"
 install -m 0644 deploy/systemd/eba-research-worker.timer "/etc/systemd/system/$RESEARCH_TIMER"
+install -m 0644 deploy/systemd/eba-fast-restart-proof.service "/etc/systemd/system/$FAST_PROOF_SERVICE"
+install -m 0644 deploy/systemd/eba-fast-restart-proof.timer "/etc/systemd/system/$FAST_PROOF_TIMER"
 install -m 0644 deploy/systemd/eba-auto-update.service "/etc/systemd/system/$UPDATE_SERVICE"
 install -m 0644 deploy/systemd/eba-auto-update.timer "/etc/systemd/system/$UPDATE_TIMER"
 systemctl restart systemd-journald
 systemctl daemon-reload
-systemctl reset-failed "$UPDATE_SERVICE" "$RESEARCH_SERVICE" || true
+systemctl reset-failed "$UPDATE_SERVICE" "$RESEARCH_SERVICE" "$FAST_PROOF_SERVICE" || true
 systemctl enable "$DATA_SERVICE" "$API_SERVICE" "$WEB_SERVICE" >/dev/null
-systemctl enable --now "$UPDATE_TIMER" "$RESEARCH_TIMER" >/dev/null
+systemctl enable --now "$UPDATE_TIMER" "$RESEARCH_TIMER" "$FAST_PROOF_TIMER" >/dev/null
 systemctl restart "$DATA_SERVICE" "$API_SERVICE" "$WEB_SERVICE"
-systemctl restart "$UPDATE_TIMER" "$RESEARCH_TIMER"
+systemctl restart "$UPDATE_TIMER" "$RESEARCH_TIMER" "$FAST_PROOF_TIMER"
 
 sleep 2
 systemctl --no-pager --full status "$DATA_SERVICE" || true
 systemctl --no-pager --full status "$API_SERVICE" || true
 systemctl --no-pager --full status "$WEB_SERVICE" || true
 systemctl --no-pager --full status "$RESEARCH_TIMER" || true
+systemctl --no-pager --full status "$FAST_PROOF_TIMER" || true
 systemctl --no-pager --full status "$UPDATE_TIMER" || true
 
 # Public PWA bootstrap is intentionally non-fatal: trading/runtime services must stay up
@@ -139,9 +144,11 @@ echo "Market-data logs: journalctl -u $DATA_SERVICE -f"
 echo "Runtime API logs: journalctl -u $API_SERVICE -f"
 echo "PWA/server logs: journalctl -u $WEB_SERVICE -f"
 echo "Research worker logs: journalctl -u $RESEARCH_SERVICE"
+echo "Fast restart proof logs: journalctl -u $FAST_PROOF_SERVICE"
 echo "Auto-update logs: journalctl -u $UPDATE_SERVICE"
 echo "Auto-update state: /var/lib/eba-trader/deploy-state/last_output.log"
 echo "Production proof: $PROOF_FILE"
+echo "Fast restart proof: $PROOF_DIR/fast-restart.json"
 echo "Research DB: $RESEARCH_DIR/eba_research.db"
 echo "Research datasets: $RESEARCH_DATASET_DIR"
 echo "Research evidence: $RESEARCH_EVIDENCE_DIR"
