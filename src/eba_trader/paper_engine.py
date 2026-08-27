@@ -8,6 +8,7 @@ from typing import Any
 
 MAX_PAPER_CAPITAL_USD = 10_000.0
 DELIVERY_EXIT_BUFFER_MS = 15 * 60 * 1000
+LEGACY_CARRY_PAPER_RETIRED = True
 
 
 @dataclass(slots=True)
@@ -51,18 +52,28 @@ class PaperTrade:
 
 
 class PaperExecutionEngine:
-    """Operational paper-only harness for the existing M18 candidate gate.
+    """Compatibility harness for the retired M18 carry paper engine.
 
-    It never places exchange orders. A single paired position may be opened per
-    Binance Demo session only after the existing `PAPER_CANDIDATE` gate passes.
-    Mark-to-market uses executable close-side VWAP and current Demo commissions.
-    This is engineering validation, not a new profitability claim.
+    Production instances default to ``allow_new_entries=False``. That preserves
+    the legacy state/mark/close surface for diagnostics and regression tests but
+    prevents the browser/session-scoped in-memory engine from competing with the
+    restart-safe Fast Momentum SQLite engine.
+
+    The compatibility engine never places exchange orders. Tests that exercise
+    the historical M18 simulator may opt in explicitly with
+    ``allow_new_entries=True``.
     """
 
-    def __init__(self, *, max_capital_usd: float = MAX_PAPER_CAPITAL_USD) -> None:
+    def __init__(
+        self,
+        *,
+        max_capital_usd: float = MAX_PAPER_CAPITAL_USD,
+        allow_new_entries: bool = False,
+    ) -> None:
         if max_capital_usd <= 0:
             raise ValueError("max_capital_usd must be positive")
         self._max_capital_usd = max_capital_usd
+        self._allow_new_entries = bool(allow_new_entries)
         self._positions: dict[str, PaperPosition] = {}
         self._history: dict[str, list[PaperTrade]] = {}
         self._markers: dict[str, list[dict[str, Any]]] = {}
@@ -81,8 +92,14 @@ class PaperExecutionEngine:
         now_ms = int(time.time() * 1000) if now_ms is None else int(now_ms)
         with self._lock:
             position = self._positions.get(session_key)
+            entry_allowed = bool(allow_entry) and self._allow_new_entries
             event = "NO_ACTION"
-            reason = "NO_PAPER_CANDIDATE" if allow_entry else "ENTRY_SCANNER_STOPPED"
+            if not self._allow_new_entries:
+                reason = "LEGACY_CARRY_RETIRED"
+            elif not allow_entry:
+                reason = "ENTRY_SCANNER_STOPPED"
+            else:
+                reason = "NO_PAPER_CANDIDATE"
 
             if position is not None:
                 mark_reason = self._mark_position(position, snapshot)
@@ -99,7 +116,7 @@ class PaperExecutionEngine:
                     reason = "DELIVERY_SAFETY_EXIT"
                 else:
                     event = "PAPER_MARK"
-            elif allow_entry and snapshot.get("decision") == "PAPER_CANDIDATE":
+            elif entry_allowed and snapshot.get("decision") == "PAPER_CANDIDATE":
                 position, reason = self._open_candidate(snapshot, now_ms)
                 if position is not None:
                     self._positions[session_key] = position
@@ -279,5 +296,7 @@ class PaperExecutionEngine:
             "unrealizedPnlUsd": unrealized,
             "totalPnlUsd": realized + unrealized,
             "maxPaperCapitalUsd": self._max_capital_usd,
+            "newEntriesAllowed": self._allow_new_entries,
+            "legacyCarryRetired": not self._allow_new_entries,
             "liveExecutionAllowed": False,
         }
