@@ -36,13 +36,16 @@ def test_ui_render_exception_is_not_labeled_as_runner_unreachable() -> None:
     assert "ebaApplyRunnerStatus(status)" in guarded_sync
 
 
-def test_current_shipped_javascript_has_no_stale_mt5_position_markup_reference() -> None:
-    shipped = "\n".join(
-        path.read_text(encoding="utf-8")
-        for path in sorted((ROOT / "web").glob("*.js"))
-    )
+def test_trade_detail_position_renderers_are_defined_before_use() -> None:
+    index = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
+    paper_ui = (ROOT / "web" / "paper_ui.js").read_text(encoding="utf-8")
+    trade_detail = (ROOT / "web" / "trade_detail.js").read_text(encoding="utf-8")
 
-    assert "mt5PositionMarkup" not in shipped
+    assert "function paperPositionMarkup(position)" in paper_ui
+    assert "function mt5PositionMarkup(position)" in paper_ui
+    assert "paperPositionMarkup(paperState.openPosition)" in trade_detail
+    assert "mt5Positions.map(mt5PositionMarkup)" in trade_detail
+    assert index.index('./paper_ui.js') < index.index('./trade_detail.js')
 
 
 def test_service_worker_revalidates_assets_instead_of_reseeding_stale_http_cache() -> None:
