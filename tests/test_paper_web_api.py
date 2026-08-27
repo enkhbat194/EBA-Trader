@@ -32,9 +32,54 @@ def _candidate() -> dict:
     }
 
 
-def test_paper_step_state_close_and_disconnect_are_session_scoped(monkeypatch) -> None:
+def test_production_paper_step_cannot_open_retired_carry_position(monkeypatch) -> None:
     store = DemoSessionStore(ttl_seconds=60)
     engine = PaperExecutionEngine()
+    token = store.create(CredentialEnvelope(api_key="demo", api_secret="secret"))
+    monkeypatch.setattr(
+        "eba_trader.web_server.run_demo_fee_snapshot",
+        lambda credentials: _candidate(),
+    )
+
+    stepped = run_paper_step_request(
+        {"sessionToken": token, "allowEntry": True},
+        session_store=store,
+        paper_engine=engine,
+    )
+    assert stepped["paper"]["event"] == "NO_ACTION"
+    assert stepped["paper"]["reason"] == "LEGACY_CARRY_RETIRED"
+    assert stepped["paper"]["openPosition"] is None
+    assert stepped["paper"]["legacyCarryRetired"] is True
+    assert stepped["liveExecutionAllowed"] is False
+
+    state = run_paper_state_request(
+        {"sessionToken": token},
+        session_store=store,
+        paper_engine=engine,
+    )
+    assert state["openPosition"] is None
+    assert state["newEntriesAllowed"] is False
+
+    closed = run_paper_close_request(
+        {"sessionToken": token},
+        session_store=store,
+        paper_engine=engine,
+    )
+    assert closed["paper"]["event"] == "NO_ACTION"
+    assert closed["paper"]["history"] == []
+
+    run_demo_disconnect_request(
+        {"sessionToken": token},
+        session_store=store,
+        paper_engine=engine,
+    )
+    assert store.get(token) is None
+    assert engine.state(token)["history"] == []
+
+
+def test_legacy_engine_can_still_be_exercised_explicitly_for_regression(monkeypatch) -> None:
+    store = DemoSessionStore(ttl_seconds=60)
+    engine = PaperExecutionEngine(allow_new_entries=True)
     token = store.create(CredentialEnvelope(api_key="demo", api_secret="secret"))
     monkeypatch.setattr(
         "eba_trader.web_server.run_demo_fee_snapshot",
@@ -47,14 +92,7 @@ def test_paper_step_state_close_and_disconnect_are_session_scoped(monkeypatch) -
         paper_engine=engine,
     )
     assert stepped["paper"]["event"] == "PAPER_ENTRY"
-    assert stepped["liveExecutionAllowed"] is False
-
-    state = run_paper_state_request(
-        {"sessionToken": token},
-        session_store=store,
-        paper_engine=engine,
-    )
-    assert state["openPosition"] is not None
+    assert stepped["paper"]["legacyCarryRetired"] is False
 
     closed = run_paper_close_request(
         {"sessionToken": token},
@@ -63,11 +101,3 @@ def test_paper_step_state_close_and_disconnect_are_session_scoped(monkeypatch) -
     )
     assert closed["paper"]["event"] == "PAPER_EXIT"
     assert len(closed["paper"]["history"]) == 1
-
-    run_demo_disconnect_request(
-        {"sessionToken": token},
-        session_store=store,
-        paper_engine=engine,
-    )
-    assert store.get(token) is None
-    assert engine.state(token)["history"] == []
