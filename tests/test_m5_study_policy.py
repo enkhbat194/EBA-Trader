@@ -2,16 +2,16 @@ from __future__ import annotations
 
 import pytest
 
-from eba_trader.holdout_guard import assert_not_first_cycle_oos_overlap
 from eba_trader.history import parse_utc
+from eba_trader.holdout_guard import assert_not_first_cycle_oos_overlap
 from eba_trader.m5_study_policy import (
     DEFAULT_M5_DEVELOPMENT_CORPUS,
     DEFAULT_M5_STUDY_POLICY,
     M5_DEVELOPMENT_END_EXCLUSIVE,
     M5_DEVELOPMENT_START,
+    M5_FORWARD_START,
     M5_FROZEN_OOS_END_EXCLUSIVE,
     M5_FROZEN_OOS_START,
-    M5_FORWARD_START,
     M5_INTERVAL,
     M5_SYMBOL,
     M5_VENUE,
