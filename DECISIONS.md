@@ -111,7 +111,7 @@ The candle-only arm and candle+order-flow arm consume the exact same causally al
 A permissive treatment is an invariant/sanity check and should reproduce the candle-only control when its gate does not reject entries.
 
 ### Status
-Accepted in PR #31/#34.
+Accepted in PR #31/#34. Superseded in scope by later allowlisted stacked/response-feature ablation decisions; the same-dataset and identical-execution-assumption invariant remains active.
 
 ## 2026-08-26 — Research / AI Lab is read-only observability
 
@@ -236,3 +236,27 @@ Changing enum order alone would make persisted `OOS_VERIFIED` records appear val
 
 ### Status
 Accepted design; implemented and CI-green in PR #41 candidate. Frozen OOS remains locked until actual v2 robustness evidence exists.
+
+## 2026-08-27 — Stacked/diagonal and response features extend the same causal executed-trade plane
+
+### Decision
+Stacked/diagonal imbalance, absorption and exhaustion may be researched only as deterministic features derived from the already-normalized executed-trade footprint. They do not imply visibility into resting LOB liquidity, iceberg intent, hidden institutional orders or OTC flow.
+
+Stacked comparisons require true adjacent price buckets. Absorption is treated as an executed-flow-versus-price-response **proxy**, and exhaustion as a weakening-executed-flow **proxy**. Required physical feature columns must exist in the versioned dataset; legacy datasets may not silently substitute zero values and claim the gate ran.
+
+### Reason
+These concepts are visually familiar from footprint tools but are not raw observables with a universal formula. Explicit versioned proxy definitions keep research deterministic, backtestable and honest about data limits.
+
+### Status
+Accepted and implemented through PR #56 and PR #59. Feature-dataset schema v3 carries the response proxies; Frozen OOS and real execution remain locked.
+
+## 2026-08-27 — Zero-trade development arms are not profitable-edge evidence
+
+### Decision
+A development treatment that rejects every entry is recorded as a valid terminal experiment but must not be interpreted or ranked as a profitable strategy merely because return, drawdown and costs are zero. Trade count/exposure and expectancy context are mandatory in research interpretation.
+
+### Reason
+The fixed-window exhaustion thresholds `0.01` and `0.03` produced zero trades. Treating “did nothing” as a winning arm would reward over-restrictive gates and corrupt candidate ranking.
+
+### Status
+Accepted after exact Linode absorption/exhaustion proof batch `abl_c9bf89e7fb1dd4971345d87d`.
