@@ -202,6 +202,18 @@ def _require_response_columns(path: Path) -> None:
         )
 
 
+def _require_divergence_columns(path: Path) -> None:
+    required = {
+        "of_bullish_price_delta_divergence",
+        "of_bearish_price_delta_divergence",
+        "of_price_delta_divergence",
+    }
+    if not required <= _csv_fields(path):
+        raise ValueError(
+            "price/delta divergence gate requires a v4 feature CSV with divergence columns"
+        )
+
+
 class EmaTrendV1Adapter:
     """Adapter from an immutable research spec to the existing EMA baseline backtester."""
 
@@ -325,6 +337,7 @@ class EmaOrderFlowV1Adapter:
         "stacked_imbalance_threshold",
         "absorption_threshold",
         "exhaustion_threshold",
+        "price_delta_divergence_threshold",
     }
 
     def run(
@@ -350,10 +363,14 @@ class EmaOrderFlowV1Adapter:
         has_stacked = "stacked_imbalance_threshold" in merged
         has_absorption = "absorption_threshold" in merged
         has_exhaustion = "exhaustion_threshold" in merged
-        if not any((has_delta, has_cvd, has_stacked, has_absorption, has_exhaustion)):
+        has_divergence = "price_delta_divergence_threshold" in merged
+        if not any(
+            (has_delta, has_cvd, has_stacked, has_absorption, has_exhaustion, has_divergence)
+        ):
             raise ValueError(
                 "order-flow adapter requires delta_ratio_threshold, cvd_threshold, "
-                "stacked_imbalance_threshold, absorption_threshold, or exhaustion_threshold"
+                "stacked_imbalance_threshold, absorption_threshold, exhaustion_threshold, "
+                "or price_delta_divergence_threshold"
             )
         delta_threshold = (
             _as_float(merged["delta_ratio_threshold"], name="delta_ratio_threshold")
@@ -378,11 +395,20 @@ class EmaOrderFlowV1Adapter:
             if has_exhaustion
             else None
         )
+        divergence_threshold = (
+            _as_float(
+                merged["price_delta_divergence_threshold"],
+                name="price_delta_divergence_threshold",
+            )
+            if has_divergence
+            else None
+        )
         if stacked_threshold is not None and stacked_threshold < 1:
             raise ValueError("stacked_imbalance_threshold must be >= 1")
         for name, threshold in (
             ("absorption_threshold", absorption_threshold),
             ("exhaustion_threshold", exhaustion_threshold),
+            ("price_delta_divergence_threshold", divergence_threshold),
         ):
             if threshold is not None and not (0.0 < threshold <= 1.0):
                 raise ValueError(f"{name} must be > 0 and <= 1")
@@ -392,6 +418,8 @@ class EmaOrderFlowV1Adapter:
             _require_stacked_columns(path)
         if absorption_threshold is not None or exhaustion_threshold is not None:
             _require_response_columns(path)
+        if divergence_threshold is not None:
+            _require_divergence_columns(path)
         feature_rows = load_orderflow_feature_csv(path)
         candles = validate_interval_window(
             [row.candle for row in feature_rows], interval, start_ms, end_ms
@@ -413,7 +441,12 @@ class EmaOrderFlowV1Adapter:
                 return False
             if absorption_threshold is not None and row.of_absorption < absorption_threshold:
                 return False
-            return exhaustion_threshold is None or row.of_exhaustion >= exhaustion_threshold
+            if exhaustion_threshold is not None and row.of_exhaustion < exhaustion_threshold:
+                return False
+            return (
+                divergence_threshold is None
+                or row.of_price_delta_divergence >= divergence_threshold
+            )
 
         result = run_trend_backtest(
             candles,
@@ -429,6 +462,7 @@ class EmaOrderFlowV1Adapter:
                 "stacked_imbalance_threshold": stacked_threshold,
                 "absorption_threshold": absorption_threshold,
                 "exhaustion_threshold": exhaustion_threshold,
+                "price_delta_divergence_threshold": divergence_threshold,
             }
         )
         consumed = []
@@ -442,6 +476,8 @@ class EmaOrderFlowV1Adapter:
             consumed.append("of_absorption")
         if exhaustion_threshold is not None:
             consumed.append("of_exhaustion")
+        if divergence_threshold is not None:
+            consumed.append("of_price_delta_divergence")
         metadata = {
             "symbol": symbol,
             "interval": interval,
