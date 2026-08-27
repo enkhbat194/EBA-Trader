@@ -38,7 +38,7 @@ This file is the exact cross-chat continuation point. A new AI session must rest
 - Exact-main external production proof passed: public smoke, encrypted Demo reconnect, Chart, Positions, M5 terminal evidence, Fast restart proof, frozen-OOS lock and real-execution lock.
 - The displayed `Released 2026-08-26` value is release metadata; it does not contradict the newer exact build SHA.
 
-## Major completed platform work
+## What was completed
 
 - M4 strategy platform/evidence foundation: complete.
 - Restart-safe experiment queue, immutable evidence, deterministic development screening and robustness contracts: complete.
