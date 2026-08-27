@@ -6,20 +6,20 @@ RESEARCH_ROOT="/var/lib/eba-trader/research"
 EVIDENCE_ROOT="$RESEARCH_ROOT/evidence"
 PROOF_FILE="$RESEARCH_ROOT/m5-real-ablation-latest.json"
 RUN_LOCK="$RESEARCH_ROOT/m5-real-ablation-once.lock"
-GATES_JSON="$REPO_DIR/config/m5_stacked_imbalance_gate_set_v2.json"
-GATE_SET_ID="m5_stacked_imbalance_gate_set_v2"
+GATES_JSON="$REPO_DIR/config/m5_absorption_exhaustion_gate_set_v3.json"
+GATE_SET_ID="m5_orderflow_gate_set_v3"
 START="2026-08-01T00:00:00Z"
 END="2026-08-01T04:00:00Z"
 WINDOW_ID="20260801T000000Z-20260801T040000Z"
-REPORT_FILE="$EVIDENCE_ROOT/m5-stacked-imbalance-ablation-$WINDOW_ID.json"
-LOG_FILE="$RESEARCH_ROOT/m5-stacked-imbalance-ablation-$WINDOW_ID.log"
+REPORT_FILE="$EVIDENCE_ROOT/m5-absorption-exhaustion-ablation-$WINDOW_ID.json"
+LOG_FILE="$RESEARCH_ROOT/m5-absorption-exhaustion-ablation-$WINDOW_ID.log"
 
 if [[ $EUID -ne 0 ]]; then
   echo "Run as root on the Linode runtime." >&2
   exit 1
 fi
 if [[ ! -f "$GATES_JSON" ]]; then
-  echo "Stacked imbalance gate set not found: $GATES_JSON" >&2
+  echo "Absorption/exhaustion gate set not found: $GATES_JSON" >&2
   exit 1
 fi
 
@@ -45,25 +45,33 @@ import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 
+EXPECTED_RESPONSE_GATES = [
+    {"absorption_threshold": 0.1},
+    {"absorption_threshold": 0.2},
+    {"exhaustion_threshold": 0.01},
+    {"exhaustion_threshold": 0.03},
+]
 
-def stacked_thresholds(report: object) -> list[int]:
+
+def response_gates(report: object) -> list[dict[str, float]]:
     if not isinstance(report, dict):
         return []
     treatments = report.get("treatments")
     if not isinstance(treatments, list):
         return []
-    thresholds: list[int] = []
+    gates: list[dict[str, float]] = []
+    allowed = {"absorption_threshold", "exhaustion_threshold"}
     for treatment in treatments:
         if not isinstance(treatment, dict):
             return []
         parameters = treatment.get("parameters")
-        if not isinstance(parameters, dict):
+        if not isinstance(parameters, dict) or len(parameters) != 1 or not set(parameters) <= allowed:
             return []
-        value = parameters.get("stacked_imbalance_threshold")
-        if not isinstance(value, int) or isinstance(value, bool):
+        name, value = next(iter(parameters.items()))
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
             return []
-        thresholds.append(value)
-    return sorted(thresholds)
+        gates.append({name: float(value)})
+    return sorted(gates, key=lambda item: json.dumps(item, sort_keys=True))
 
 
 phase = os.environ["PHASE"]
@@ -77,8 +85,8 @@ payload = {
     "start": os.environ["START"],
     "end": os.environ["END"],
     "gateSet": os.environ["GATE_SET_ID"],
-    "comparisonKind": "stacked_imbalance",
-    "stackedThresholds": [1, 2, 3],
+    "comparisonKind": "absorption_exhaustion",
+    "responseGates": EXPECTED_RESPONSE_GATES,
     "reportPath": str(report_path),
     "edgeClaimAllowed": False,
     "promotionAuthority": False,
@@ -121,7 +129,7 @@ if report_path.is_file():
                 "batchId": report.get("batchId"),
                 "workflowId": report.get("workflowId"),
                 "treatmentCount": report.get("treatmentCount"),
-                "stackedThresholds": stacked_thresholds(report),
+                "responseGates": response_gates(report),
                 "allTerminal": bool(report.get("allTerminal")),
                 "allExperimentsPassed": bool(report.get("allExperimentsPassed")),
                 "evidenceComplete": bool(report.get("evidenceComplete")),
@@ -151,28 +159,48 @@ import json
 import os
 from pathlib import Path
 
+EXPECTED = sorted(
+    [
+        {"absorption_threshold": 0.1},
+        {"absorption_threshold": 0.2},
+        {"exhaustion_threshold": 0.01},
+        {"exhaustion_threshold": 0.03},
+    ],
+    key=lambda item: json.dumps(item, sort_keys=True),
+)
 report = json.loads(Path(os.environ["REPORT_FILE"]).read_text(encoding="utf-8"))
 treatments = report.get("treatments")
-thresholds = []
+gates = []
 if isinstance(treatments, list):
     for treatment in treatments:
         if not isinstance(treatment, dict):
-            thresholds = []
+            gates = []
             break
         parameters = treatment.get("parameters")
-        value = parameters.get("stacked_imbalance_threshold") if isinstance(parameters, dict) else None
-        if not isinstance(value, int) or isinstance(value, bool):
-            thresholds = []
+        if not isinstance(parameters, dict) or len(parameters) != 1:
+            gates = []
             break
-        thresholds.append(value)
+        name, value = next(iter(parameters.items()))
+        if name not in {"absorption_threshold", "exhaustion_threshold"}:
+            gates = []
+            break
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            gates = []
+            break
+        gates.append({name: float(value)})
+gates.sort(key=lambda item: json.dumps(item, sort_keys=True))
 raise SystemExit(
     0
     if report.get("allTerminal") is True
+    and report.get("allExperimentsPassed") is True
     and report.get("evidenceComplete") is True
+    and report.get("developmentComparisonOnly") is True
+    and report.get("edgeClaimAllowed") is False
+    and report.get("promotionAuthority") is False
     and report.get("frozenOosOpened") is False
     and report.get("liveExecutionAllowed") is False
-    and report.get("treatmentCount") == 3
-    and sorted(thresholds) == [1, 2, 3]
+    and report.get("treatmentCount") == 4
+    and gates == EXPECTED
     else 1
 )
 PY
