@@ -19,6 +19,8 @@ API_SERVICE="eba-runtime-api.service"
 WEB_SERVICE="eba-web.service"
 RESEARCH_SERVICE="eba-research-worker.service"
 RESEARCH_TIMER="eba-research-worker.timer"
+FAST_PROOF_SERVICE="eba-fast-restart-proof.service"
+FAST_PROOF_TIMER="eba-fast-restart-proof.timer"
 UPDATE_SERVICE="eba-auto-update.service"
 UPDATE_TIMER="eba-auto-update.timer"
 AUTO_MODE=0
@@ -101,8 +103,18 @@ rollback() {
   install -m 0644 deploy/systemd/eba-web.service "/etc/systemd/system/$WEB_SERVICE" || true
   install -m 0644 deploy/systemd/eba-auto-update.service /etc/systemd/system/eba-auto-update.service || true
   install -m 0644 deploy/systemd/eba-auto-update.timer /etc/systemd/system/eba-auto-update.timer || true
+  if [[ -f deploy/systemd/eba-fast-restart-proof.service && -f deploy/systemd/eba-fast-restart-proof.timer ]]; then
+    install -m 0644 deploy/systemd/eba-fast-restart-proof.service "/etc/systemd/system/$FAST_PROOF_SERVICE" || true
+    install -m 0644 deploy/systemd/eba-fast-restart-proof.timer "/etc/systemd/system/$FAST_PROOF_TIMER" || true
+  else
+    systemctl disable --now "$FAST_PROOF_TIMER" >/dev/null 2>&1 || true
+    rm -f "/etc/systemd/system/$FAST_PROOF_SERVICE" "/etc/systemd/system/$FAST_PROOF_TIMER"
+  fi
   systemctl daemon-reload || true
   systemctl restart "$DATA_SERVICE" "$API_SERVICE" "$WEB_SERVICE" || true
+  if [[ -f "/etc/systemd/system/$FAST_PROOF_TIMER" ]]; then
+    systemctl enable --now "$FAST_PROOF_TIMER" >/dev/null 2>&1 || true
+  fi
   printf '%s\n' "$PREVIOUS_SHA" > "$DEPLOY_STATE/rolled_back_to"
   date -u +%FT%TZ > "$DEPLOY_STATE/failed_at"
   exit "$code"
@@ -156,14 +168,16 @@ install -m 0644 deploy/systemd/eba-runtime-api.service "/etc/systemd/system/$API
 install -m 0644 deploy/systemd/eba-web.service "/etc/systemd/system/$WEB_SERVICE"
 install -m 0644 deploy/systemd/eba-research-worker.service "/etc/systemd/system/$RESEARCH_SERVICE"
 install -m 0644 deploy/systemd/eba-research-worker.timer "/etc/systemd/system/$RESEARCH_TIMER"
+install -m 0644 deploy/systemd/eba-fast-restart-proof.service "/etc/systemd/system/$FAST_PROOF_SERVICE"
+install -m 0644 deploy/systemd/eba-fast-restart-proof.timer "/etc/systemd/system/$FAST_PROOF_TIMER"
 install -m 0644 deploy/systemd/eba-auto-update.service "/etc/systemd/system/$UPDATE_SERVICE"
 install -m 0644 deploy/systemd/eba-auto-update.timer "/etc/systemd/system/$UPDATE_TIMER"
 systemctl daemon-reload
-systemctl reset-failed "$RESEARCH_SERVICE" || true
+systemctl reset-failed "$RESEARCH_SERVICE" "$FAST_PROOF_SERVICE" || true
 systemctl enable "$DATA_SERVICE" "$API_SERVICE" "$WEB_SERVICE" >/dev/null
-systemctl enable --now "$UPDATE_TIMER" "$RESEARCH_TIMER" >/dev/null
+systemctl enable --now "$UPDATE_TIMER" "$RESEARCH_TIMER" "$FAST_PROOF_TIMER" >/dev/null
 systemctl restart "$DATA_SERVICE" "$API_SERVICE" "$WEB_SERVICE"
-systemctl restart "$RESEARCH_TIMER"
+systemctl restart "$RESEARCH_TIMER" "$FAST_PROOF_TIMER"
 
 # Give the processes a short warm-up window, then require both APIs to answer.
 sleep 3
@@ -171,6 +185,7 @@ systemctl is-active --quiet "$DATA_SERVICE"
 systemctl is-active --quiet "$API_SERVICE"
 systemctl is-active --quiet "$WEB_SERVICE"
 systemctl is-active --quiet "$RESEARCH_TIMER"
+systemctl is-active --quiet "$FAST_PROOF_TIMER"
 curl --fail --silent --max-time 5 http://127.0.0.1:8765/health >/dev/null
 curl --fail --silent --max-time 5 http://127.0.0.1:8000/api/health >/dev/null
 
