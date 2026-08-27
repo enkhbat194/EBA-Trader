@@ -29,6 +29,13 @@ def _finite(value: float, *, name: str) -> float:
     return result
 
 
+def _positive_unit(value: float, *, name: str) -> float:
+    result = _finite(value, name=name)
+    if not (0.0 < result <= 1.0):
+        raise ValueError(f"{name} must be > 0 and <= 1")
+    return result
+
+
 def _positive_int(value: int, *, name: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
         raise ValueError(f"{name} must be an integer >= 1")
@@ -40,16 +47,20 @@ class OrderFlowGate:
     delta_ratio_threshold: float | None = None
     cvd_threshold: float | None = None
     stacked_imbalance_threshold: int | None = None
+    absorption_threshold: float | None = None
+    exhaustion_threshold: float | None = None
 
     def parameters(self) -> dict[str, float | int]:
         if (
             self.delta_ratio_threshold is None
             and self.cvd_threshold is None
             and self.stacked_imbalance_threshold is None
+            and self.absorption_threshold is None
+            and self.exhaustion_threshold is None
         ):
             raise ValueError(
                 "order-flow gate requires delta_ratio_threshold, cvd_threshold, "
-                "or stacked_imbalance_threshold"
+                "stacked_imbalance_threshold, absorption_threshold, or exhaustion_threshold"
             )
         result: dict[str, float | int] = {}
         if self.delta_ratio_threshold is not None:
@@ -63,6 +74,16 @@ class OrderFlowGate:
             result["stacked_imbalance_threshold"] = _positive_int(
                 self.stacked_imbalance_threshold,
                 name="stacked_imbalance_threshold",
+            )
+        if self.absorption_threshold is not None:
+            result["absorption_threshold"] = _positive_unit(
+                self.absorption_threshold,
+                name="absorption_threshold",
+            )
+        if self.exhaustion_threshold is not None:
+            result["exhaustion_threshold"] = _positive_unit(
+                self.exhaustion_threshold,
+                name="exhaustion_threshold",
             )
         return result
 
