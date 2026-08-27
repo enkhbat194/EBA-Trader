@@ -6,6 +6,8 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from .production_proof import read_production_proof
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_RESEARCH_DB = PROJECT_ROOT / "artifacts" / "research" / "eba_research.db"
 
@@ -151,6 +153,7 @@ def build_research_status(
             "executionAssumptions": "shared dataset / fees / slippage / EMA exits",
         },
         "researchStore": _research_db_summary(chosen_db),
+        "productionProof": read_production_proof(),
         "locks": {
             "frozenOos": True,
             "realExecution": True,
