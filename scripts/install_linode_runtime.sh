@@ -4,6 +4,8 @@ set -euo pipefail
 REPO_DIR="/opt/Eba-Trader"
 ENV_DIR="/etc/eba-trader"
 STATE_DIR="/var/lib/eba-trader"
+PROOF_DIR="$STATE_DIR/proofs"
+PROOF_FILE="$PROOF_DIR/latest.json"
 RESEARCH_DIR="$STATE_DIR/research"
 RESEARCH_DATASET_DIR="$RESEARCH_DIR/datasets"
 RESEARCH_EVIDENCE_DIR="$RESEARCH_DIR/evidence"
@@ -35,6 +37,7 @@ mkdir -p \
   "$ENV_DIR" \
   "$STATE_DIR" \
   "$STATE_DIR/deploy-state" \
+  "$PROOF_DIR" \
   "$CREDENTIAL_DIR" \
   "$RESEARCH_DATASET_DIR" \
   "$RESEARCH_EVIDENCE_DIR" \
@@ -43,6 +46,7 @@ chmod 700 "$ENV_DIR" "$CREDENTIAL_DIR"
 chmod 750 \
   "$STATE_DIR" \
   "$STATE_DIR/deploy-state" \
+  "$PROOF_DIR" \
   "$RESEARCH_DIR" \
   "$RESEARCH_DATASET_DIR" \
   "$RESEARCH_EVIDENCE_DIR"
@@ -120,6 +124,15 @@ if [[ -f scripts/bootstrap_linode_public_https.sh ]]; then
     echo "Public HTTPS bootstrap deferred; auto-update will retry." >&2
 fi
 
+# Persist a sanitized first-run proof. Demo/chart network failures remain observational;
+# host/runtime health is independently visible and no secret/session token is stored.
+if [[ -f scripts/collect_linode_proof.py ]]; then
+  CURRENT_SHA="$(git rev-parse HEAD)"
+  .venv/bin/python scripts/collect_linode_proof.py \
+    --output "$PROOF_FILE" \
+    --expected-build "$CURRENT_SHA" >/dev/null 2>&1 || true
+fi
+
 echo
 echo "EBA Trader Linode runtime installed."
 echo "Market-data logs: journalctl -u $DATA_SERVICE -f"
@@ -128,6 +141,7 @@ echo "PWA/server logs: journalctl -u $WEB_SERVICE -f"
 echo "Research worker logs: journalctl -u $RESEARCH_SERVICE"
 echo "Auto-update logs: journalctl -u $UPDATE_SERVICE"
 echo "Auto-update state: /var/lib/eba-trader/deploy-state/last_output.log"
+echo "Production proof: $PROOF_FILE"
 echo "Research DB: $RESEARCH_DIR/eba_research.db"
 echo "Research datasets: $RESEARCH_DATASET_DIR"
 echo "Research evidence: $RESEARCH_EVIDENCE_DIR"
