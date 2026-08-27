@@ -1,0 +1,8 @@
+{
+  "schema": "m5_orderflow_gate_set_v2",
+  "gates": [
+    {"stacked_imbalance_threshold": 1},
+    {"stacked_imbalance_threshold": 2},
+    {"stacked_imbalance_threshold": 3}
+  ]
+}
