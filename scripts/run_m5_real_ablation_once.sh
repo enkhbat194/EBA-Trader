@@ -28,18 +28,20 @@ write_marker() {
   local phase="$1"
   local exit_code="${2:-0}"
   PHASE="$phase" EXIT_CODE="$exit_code" PROOF_FILE="$PROOF_FILE" REPORT_FILE="$REPORT_FILE" \
-    START="$START" END="$END" WINDOW_ID="$WINDOW_ID" \
+    LOG_FILE="$LOG_FILE" START="$START" END="$END" WINDOW_ID="$WINDOW_ID" \
     "$REPO_DIR/.venv/bin/python" - <<'PY'
 from __future__ import annotations
 
 import json
 import os
+import re
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 
 phase = os.environ["PHASE"]
 report_path = Path(os.environ["REPORT_FILE"])
+log_path = Path(os.environ["LOG_FILE"])
 payload = {
     "schema": "m5_real_ablation_autorun_v1",
     "phase": phase,
@@ -48,11 +50,36 @@ payload = {
     "start": os.environ["START"],
     "end": os.environ["END"],
     "reportPath": str(report_path),
+    "edgeClaimAllowed": False,
+    "promotionAuthority": False,
     "frozenOosOpened": False,
     "liveExecutionAllowed": False,
 }
 if phase == "FAILED":
     payload["exitCode"] = int(os.environ["EXIT_CODE"])
+    if log_path.is_file():
+        try:
+            text = log_path.read_text(encoding="utf-8", errors="replace")[-12000:]
+        except OSError:
+            text = ""
+        stages = re.findall(r"EBA_M5_STAGE=([a-z_]+)", text)
+        if stages:
+            payload["failureStage"] = stages[-1]
+        text = re.sub(r"EBA_M5_STAGE=[a-z_]+", " ", text)
+        text = re.sub(
+            r"(?i)(api[_-]?(?:key|secret)|authorization|bearer|token|password|signature)"
+            r"(\s*[:=]\s*)([^\s,;]+)",
+            r"\1\2[REDACTED]",
+            text,
+        )
+        text = re.sub(
+            r"(?i)([?&](?:signature|apiKey|token|secret)=)[^&\s]+",
+            r"\1[REDACTED]",
+            text,
+        )
+        summary = " ".join(text.split())[-1600:]
+        if summary:
+            payload["errorSummary"] = summary
 if report_path.is_file():
     try:
         report = json.loads(report_path.read_text(encoding="utf-8"))
