@@ -152,7 +152,10 @@ def verify_demo_autoconnect(base_url: str, *, attempts: int = 3) -> None:
             result = _request_json(base_url, "/api/demo/autoconnect", payload={})
             last_message = str(result.get("message") or result.get("state") or "unknown")
             if result.get("ok") is True:
-                _require(result.get("configured") is True, "autoconnect lost saved Demo configuration")
+                _require(
+                    result.get("configured") is True,
+                    "autoconnect lost saved Demo configuration",
+                )
                 _require(
                     result.get("credentialMode") == "encrypted_server_vault",
                     "autoconnect did not load the encrypted Demo vault",
@@ -208,7 +211,8 @@ def verify_chart(base_url: str) -> None:
     _require(isinstance(candles, list) and len(candles) >= 10, "chart returned too few candles")
     times = [int(item["time"]) for item in candles if isinstance(item, dict) and "time" in item]
     _require(len(times) == len(candles), "chart candle timestamps are incomplete")
-    _require(all(left < right for left, right in zip(times, times[1:], strict=False)), "chart candles are not strictly ordered")
+    ordered = all(left < right for left, right in zip(times, times[1:], strict=False))
+    _require(ordered, "chart candles are not strictly ordered")
 
 
 def run_public_production_smoke(
