@@ -43,6 +43,20 @@ class PriceLevelFlow:
 
 
 @dataclass(frozen=True, slots=True)
+class DiagonalImbalanceStacks:
+    buy_levels: int
+    sell_levels: int
+
+    @property
+    def signed_score(self) -> int:
+        if self.buy_levels > self.sell_levels:
+            return self.buy_levels
+        if self.sell_levels > self.buy_levels:
+            return -self.sell_levels
+        return 0
+
+
+@dataclass(frozen=True, slots=True)
 class FootprintFeatures:
     start_ms: int
     end_ms: int
@@ -125,6 +139,83 @@ class TradeFlowAggregator:
         value = Decimal(str(price))
         steps = (value / self._bucket).to_integral_value(rounding=ROUND_FLOOR)
         return steps * self._bucket
+
+
+def _max_true_run(flags: tuple[bool, ...]) -> int:
+    best = 0
+    current = 0
+    for flag in flags:
+        if flag:
+            current += 1
+            best = max(best, current)
+        else:
+            current = 0
+    return best
+
+
+def diagonal_imbalance_stacks(
+    levels: tuple[PriceLevelFlow, ...] | list[PriceLevelFlow],
+    *,
+    price_step: float,
+    ratio_threshold: float = 3.0,
+    min_volume: float = 0.0,
+) -> DiagonalImbalanceStacks:
+    """Return consecutive executed-flow diagonal imbalance levels.
+
+    Buy imbalance compares aggressive buy volume at a price level with aggressive sell
+    volume exactly one configured price bucket lower. Sell imbalance mirrors that
+    comparison against aggressive buy volume exactly one bucket higher. Missing buckets
+    break a stack instead of being silently treated as adjacent. Both compared cells must
+    contain more than ``min_volume`` so an empty diagonal cell cannot manufacture an
+    infinite imbalance. This is executed-trade footprint evidence only; it is not resting
+    LOB liquidity.
+    """
+
+    if not math.isfinite(price_step) or price_step <= 0.0:
+        raise ValueError("price_step must be finite and > 0")
+    if not math.isfinite(ratio_threshold) or ratio_threshold <= 1.0:
+        raise ValueError("ratio_threshold must be finite and > 1")
+    if not math.isfinite(min_volume) or min_volume < 0.0:
+        raise ValueError("min_volume must be finite and >= 0")
+
+    ordered = tuple(sorted(levels, key=lambda level: level.price))
+    if len({level.price for level in ordered}) != len(ordered):
+        raise ValueError("price levels must be unique")
+    for level in ordered:
+        if (
+            not math.isfinite(level.price)
+            or not math.isfinite(level.buy_volume)
+            or not math.isfinite(level.sell_volume)
+            or level.buy_volume < 0.0
+            or level.sell_volume < 0.0
+        ):
+            raise ValueError("price-level flow must be finite and non-negative")
+
+    step = Decimal(str(price_step))
+    by_price = {Decimal(str(level.price)): level for level in ordered}
+    buy_flags: list[bool] = []
+    sell_flags: list[bool] = []
+    for level in ordered:
+        price = Decimal(str(level.price))
+        lower = by_price.get(price - step)
+        upper = by_price.get(price + step)
+        buy_flags.append(
+            lower is not None
+            and level.buy_volume > min_volume
+            and lower.sell_volume > min_volume
+            and level.buy_volume >= ratio_threshold * lower.sell_volume
+        )
+        sell_flags.append(
+            upper is not None
+            and level.sell_volume > min_volume
+            and upper.buy_volume > min_volume
+            and level.sell_volume >= ratio_threshold * upper.buy_volume
+        )
+
+    return DiagonalImbalanceStacks(
+        buy_levels=_max_true_run(tuple(buy_flags)),
+        sell_levels=_max_true_run(tuple(sell_flags)),
+    )
 
 
 def cumulative_delta(

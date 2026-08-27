@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,7 +16,12 @@ from .orderflow_dataset import (
 )
 from .research_evidence import canonical_json, sha256_file, sha256_text
 
-FEATURE_DATASET_SCHEMA = "m5_orderflow_feature_dataset_v1"
+FEATURE_DATASET_SCHEMA = "m5_orderflow_feature_dataset_v2"
+LEGACY_FEATURE_DATASET_SCHEMA = "m5_orderflow_feature_dataset_v1"
+SUPPORTED_FEATURE_DATASET_SCHEMAS = {
+    LEGACY_FEATURE_DATASET_SCHEMA,
+    FEATURE_DATASET_SCHEMA,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,6 +34,9 @@ class OrderFlowFeatureRow:
     of_cvd: float
     of_poc_price: float | None
     footprint_available_at_ms: int
+    of_stacked_buy_levels: int = 0
+    of_stacked_sell_levels: int = 0
+    of_stacked_imbalance: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +49,8 @@ class OrderFlowFeatureDatasetManifest:
     end_ms: int
     row_count: int
     price_bucket: float
+    imbalance_ratio: float
+    imbalance_min_volume: float
     venue: str
     acquisition_id: str
     candle_sha256: str
@@ -58,6 +69,8 @@ class OrderFlowFeatureDatasetManifest:
             "end_ms": self.end_ms,
             "row_count": self.row_count,
             "price_bucket": self.price_bucket,
+            "imbalance_ratio": self.imbalance_ratio,
+            "imbalance_min_volume": self.imbalance_min_volume,
             "venue": self.venue,
             "acquisition_id": self.acquisition_id,
             "candle_sha256": self.candle_sha256,
@@ -111,6 +124,8 @@ def materialize_orderflow_feature_dataset(
     end_ms: int,
     price_bucket: float,
     output_root: str | Path,
+    imbalance_ratio: float = 3.0,
+    imbalance_min_volume: float = 0.0,
 ) -> OrderFlowFeatureDatasetManifest:
     symbol = symbol.strip().upper()
     if not symbol:
@@ -119,6 +134,10 @@ def materialize_orderflow_feature_dataset(
         raise ValueError(f"Unsupported interval: {interval}")
     if price_bucket <= 0:
         raise ValueError("price_bucket must be positive")
+    if not math.isfinite(imbalance_ratio) or imbalance_ratio <= 1.0:
+        raise ValueError("imbalance_ratio must be finite and > 1")
+    if not math.isfinite(imbalance_min_volume) or imbalance_min_volume < 0.0:
+        raise ValueError("imbalance_min_volume must be finite and >= 0")
     step = INTERVAL_MS[interval]
     if start_ms < step:
         raise ValueError("start_ms must allow one prior footprint window")
@@ -153,6 +172,8 @@ def materialize_orderflow_feature_dataset(
     footprints = FootprintDatasetBuilder(
         window_ms=step,
         price_bucket=price_bucket,
+        imbalance_ratio=imbalance_ratio,
+        imbalance_min_volume=imbalance_min_volume,
     ).build(
         records,
         start_ms=required_start,
@@ -175,6 +196,9 @@ def materialize_orderflow_feature_dataset(
             of_cvd=item.footprint.cumulative_delta,
             of_poc_price=item.footprint.poc_price,
             footprint_available_at_ms=item.available_at_ms,
+            of_stacked_buy_levels=item.footprint.stacked_buy_levels,
+            of_stacked_sell_levels=item.footprint.stacked_sell_levels,
+            of_stacked_imbalance=item.footprint.stacked_imbalance,
         )
         for item in aligned
     )
@@ -191,6 +215,8 @@ def materialize_orderflow_feature_dataset(
             "start_ms": start_ms,
             "end_ms": end_ms,
             "price_bucket": price_bucket,
+            "imbalance_ratio": imbalance_ratio,
+            "imbalance_min_volume": imbalance_min_volume,
             "candle_sha256": sha256_file(candle_file),
             "orderflow_dataset_id": orderflow_manifest.dataset_id,
             "orderflow_records_sha256": orderflow_manifest.records_sha256,
@@ -211,6 +237,8 @@ def materialize_orderflow_feature_dataset(
         end_ms=end_ms,
         row_count=len(rows),
         price_bucket=price_bucket,
+        imbalance_ratio=imbalance_ratio,
+        imbalance_min_volume=imbalance_min_volume,
         venue=str(acquisition["venue"]),
         acquisition_id=str(acquisition["acquisition_id"]),
         candle_sha256=sha256_file(candle_file),
@@ -244,6 +272,9 @@ def _write_feature_csv(rows: tuple[OrderFlowFeatureRow, ...], path: Path) -> Non
         "of_delta_ratio",
         "of_cvd",
         "of_poc_price",
+        "of_stacked_buy_levels",
+        "of_stacked_sell_levels",
+        "of_stacked_imbalance",
         "footprint_available_at_ms",
     ]
     with path.open("w", newline="", encoding="utf-8") as handle:
@@ -268,6 +299,9 @@ def _write_feature_csv(rows: tuple[OrderFlowFeatureRow, ...], path: Path) -> Non
                     "of_delta_ratio": row.of_delta_ratio,
                     "of_cvd": row.of_cvd,
                     "of_poc_price": "" if row.of_poc_price is None else row.of_poc_price,
+                    "of_stacked_buy_levels": row.of_stacked_buy_levels,
+                    "of_stacked_sell_levels": row.of_stacked_sell_levels,
+                    "of_stacked_imbalance": row.of_stacked_imbalance,
                     "footprint_available_at_ms": row.footprint_available_at_ms,
                 }
             )
@@ -277,7 +311,7 @@ def load_orderflow_feature_csv(path: str | Path) -> tuple[OrderFlowFeatureRow, .
     rows: list[OrderFlowFeatureRow] = []
     with Path(path).open("r", newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
-        required = {
+        legacy_fields = {
             "open_time_ms",
             "open",
             "high",
@@ -295,8 +329,19 @@ def load_orderflow_feature_csv(path: str | Path) -> tuple[OrderFlowFeatureRow, .
             "of_poc_price",
             "footprint_available_at_ms",
         }
-        if set(reader.fieldnames or ()) != required:
+        stacked_fields = {
+            "of_stacked_buy_levels",
+            "of_stacked_sell_levels",
+            "of_stacked_imbalance",
+        }
+        actual_fields = set(reader.fieldnames or ())
+        supported_fields = {
+            frozenset(legacy_fields),
+            frozenset(legacy_fields | stacked_fields),
+        }
+        if actual_fields not in supported_fields:
             raise ValueError("invalid order-flow feature CSV columns")
+        has_stacked = stacked_fields <= actual_fields
         for payload in reader:
             poc_text = payload["of_poc_price"].strip()
             candle = Candle(
@@ -323,6 +368,15 @@ def load_orderflow_feature_csv(path: str | Path) -> tuple[OrderFlowFeatureRow, .
                     of_cvd=float(payload["of_cvd"]),
                     of_poc_price=float(poc_text) if poc_text else None,
                     footprint_available_at_ms=available_at_ms,
+                    of_stacked_buy_levels=(
+                        int(payload["of_stacked_buy_levels"]) if has_stacked else 0
+                    ),
+                    of_stacked_sell_levels=(
+                        int(payload["of_stacked_sell_levels"]) if has_stacked else 0
+                    ),
+                    of_stacked_imbalance=(
+                        int(payload["of_stacked_imbalance"]) if has_stacked else 0
+                    ),
                 )
             )
     validate_interval_window(

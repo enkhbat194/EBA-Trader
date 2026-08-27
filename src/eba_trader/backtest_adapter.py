@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import math
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -178,6 +179,18 @@ def _resolved_trend_config(
     }
 
 
+def _require_stacked_columns(path: Path) -> None:
+    with path.open("r", newline="", encoding="utf-8") as handle:
+        fields = set(csv.DictReader(handle).fieldnames or ())
+    required = {
+        "of_stacked_buy_levels",
+        "of_stacked_sell_levels",
+        "of_stacked_imbalance",
+    }
+    if not required <= fields:
+        raise ValueError("stacked imbalance gate requires a v2 feature CSV with stacked columns")
+
+
 class EmaTrendV1Adapter:
     """Adapter from an immutable research spec to the existing EMA baseline backtester."""
 
@@ -291,13 +304,14 @@ class EmaFeatureBaselineV1Adapter:
 
 
 class EmaOrderFlowV1Adapter:
-    """EMA crossover with a causal footprint gate at the candidate entry bar open."""
+    """EMA crossover with causal closed-footprint gates at candidate entry bar open."""
 
     name = "ema_orderflow_v1"
     version = "1"
     _CONFIG_FIELDS = EmaTrendV1Adapter._CONFIG_FIELDS | {
         "delta_ratio_threshold",
         "cvd_threshold",
+        "stacked_imbalance_threshold",
     }
 
     def run(
@@ -320,8 +334,12 @@ class EmaOrderFlowV1Adapter:
         config, trade_start_time_ms = _resolve_trend_config(merged)
         has_delta = "delta_ratio_threshold" in merged
         has_cvd = "cvd_threshold" in merged
-        if not has_delta and not has_cvd:
-            raise ValueError("order-flow adapter requires delta_ratio_threshold or cvd_threshold")
+        has_stacked = "stacked_imbalance_threshold" in merged
+        if not has_delta and not has_cvd and not has_stacked:
+            raise ValueError(
+                "order-flow adapter requires delta_ratio_threshold, cvd_threshold, "
+                "or stacked_imbalance_threshold"
+            )
         delta_threshold = (
             _as_float(merged["delta_ratio_threshold"], name="delta_ratio_threshold")
             if has_delta
@@ -330,8 +348,17 @@ class EmaOrderFlowV1Adapter:
         cvd_threshold = (
             _as_float(merged["cvd_threshold"], name="cvd_threshold") if has_cvd else None
         )
+        stacked_threshold = (
+            _as_int(merged["stacked_imbalance_threshold"], name="stacked_imbalance_threshold")
+            if has_stacked
+            else None
+        )
+        if stacked_threshold is not None and stacked_threshold < 1:
+            raise ValueError("stacked_imbalance_threshold must be >= 1")
 
         path = Path(dataset_path)
+        if stacked_threshold is not None:
+            _require_stacked_columns(path)
         feature_rows = load_orderflow_feature_csv(path)
         candles = validate_interval_window(
             [row.candle for row in feature_rows], interval, start_ms, end_ms
@@ -347,7 +374,9 @@ class EmaOrderFlowV1Adapter:
                 raise RuntimeError("order-flow feature is not available at candidate entry")
             if delta_threshold is not None and row.of_delta_ratio < delta_threshold:
                 return False
-            return cvd_threshold is None or row.of_cvd >= cvd_threshold
+            if cvd_threshold is not None and row.of_cvd < cvd_threshold:
+                return False
+            return stacked_threshold is None or row.of_stacked_imbalance >= stacked_threshold
 
         result = run_trend_backtest(
             candles,
@@ -360,6 +389,7 @@ class EmaOrderFlowV1Adapter:
             {
                 "delta_ratio_threshold": delta_threshold,
                 "cvd_threshold": cvd_threshold,
+                "stacked_imbalance_threshold": stacked_threshold,
             }
         )
         consumed = []
@@ -367,6 +397,8 @@ class EmaOrderFlowV1Adapter:
             consumed.append("of_delta_ratio")
         if cvd_threshold is not None:
             consumed.append("of_cvd")
+        if stacked_threshold is not None:
+            consumed.append("of_stacked_imbalance")
         metadata = {
             "symbol": symbol,
             "interval": interval,
