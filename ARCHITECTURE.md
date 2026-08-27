@@ -36,6 +36,9 @@ Akamai/Linode — Ubuntu 24.04 LTS
    |            +--> /var/lib/eba-trader/research/datasets
    |            `--> /var/lib/eba-trader/research/evidence
    |
+   +--> eba-m5-real-ablation.timer
+   |       `--> bounded development-only fixed-window M5 proof
+   |
    +--> eba-auto-update.timer/service
    |       `--> exact origin/main deployment + diagnostics
    |
@@ -112,6 +115,8 @@ These paths are outside `/opt/Eba-Trader`, so long-running research cannot dirty
 
 The systemd research worker is oneshot and bounded: at most eight jobs per invocation, 50% CPU quota, 512 MB memory cap, and filesystem write access limited to the research namespace. The timer runs approximately once per minute and only consumes already queued work.
 
+The fixed-window M5 autorun is also development-only and resource-bounded. It writes only under the research namespace, cannot open frozen OOS and has no exchange-order authority.
+
 ### M5 AI Strategy Factory
 
 ```text
@@ -167,12 +172,28 @@ Causal fixed footprint windows [start,end)
    +--> buy/sell volume
    +--> delta / delta ratio
    +--> CVD
-   `--> POC
+   +--> POC
+   +--> diagonal buy/sell imbalance
+   +--> consecutive stacked imbalance + signed score
+   +--> absorption response proxy
+   `--> exhaustion response proxy
 ```
 
 Closed footprint `[t-step,t)` may be used by the candle opening at `t`; the still-forming footprint `[t,t+step)` cannot be used in that same candle decision.
 
-Current enabled executed-trade feature registry entries are `of_buy_volume`, `of_sell_volume`, `of_delta`, `of_delta_ratio`, `of_cvd`, and `of_poc_price`. Stacked imbalance, absorption and exhaustion remain future candidates. Resting order-book/LOB liquidity is a different sequence-sensitive dataset and must not be inferred from footprint.
+### Versioned feature datasets
+
+The feature dataset evolves only through explicit schema versions and fail-closed compatibility rules:
+
+- **v1** — Delta/CVD-era causal footprint fields.
+- **v2** — adds deterministic diagonal/stacked imbalance fields while preserving legacy v1 replay.
+- **v3** — adds causal absorption/exhaustion response-proxy fields.
+
+If a research gate requires a v2/v3 physical column, a legacy dataset without that column is rejected. The adapter must not silently inject zero and claim the feature was evaluated.
+
+Current enabled executed-trade registry includes the earlier volume/Delta/CVD/POC family plus the implemented stacked/diagonal and absorption/exhaustion research fields. These are experimental research features, not validated alpha.
+
+Absorption/exhaustion are explicitly **executed-flow response proxies**. They do not prove that passive institutional liquidity, iceberg intent, hidden orders or OTC flow was observed. Resting order-book/LOB liquidity remains a separate future sequence-sensitive data plane.
 
 ### Diagnostic logging is not a dataset
 
@@ -180,7 +201,7 @@ Current enabled executed-trade feature registry entries are `of_buy_volume`, `of
 
 ## 6. Real M5 ablation execution path
 
-PR #40 adds the controlled production research path:
+The controlled production research path is:
 
 ```text
 Explicit development-only UTC window
@@ -189,7 +210,7 @@ Explicit development-only UTC window
 eba-build-orderflow-features
    |  verifies venue/range/gaps/provenance/causal alignment
    v
-immutable PR #35 workflow + feature CSV/manifest
+immutable workflow + versioned feature CSV/manifest
    |
    v
 eba-m5-real-ablation
@@ -197,15 +218,27 @@ eba-m5-real-ablation
    |  path containment, SHA-256, feature manifest,
    |  and frozen first-cycle OOS non-overlap
    v
-PR #34 deterministic control + Delta/CVD treatments
+one deterministic candle-only control
+   + bounded allowlisted order-flow treatments
    |
    v
 M4 queue -> bounded worker -> immutable evidence
+   |
+   v
+sanitized comparison report -> exact external production proof
 ```
 
 `scripts/run_m5_real_ablation.sh` composes the build, queue and exact emitted job count into one root-side command with a process lock.
 
-The initial versioned gate set includes a permissive Delta-ratio arm as a sanity invariant plus bounded Delta/CVD hypotheses. It does not define promotion thresholds.
+The one-shot production wrapper pins the development window and an explicit versioned gate set, uses a candidate-specific immutable report path, and records a sanitized marker. External proof requires the expected candidate/gate family so stale evidence from an earlier candidate cannot satisfy a later milestone.
+
+Completed fixed-window development candidate families now include:
+
+- Delta/CVD;
+- stacked/diagonal imbalance;
+- absorption/exhaustion response proxies.
+
+All use the same BTCUSDT USD-M development window and same baseline/execution assumptions for comparability. These outputs are experiment policies/evidence only; they do not define lifecycle-promotion thresholds.
 
 This path is fixed to `m5_orderflow_ablation_dev`; it has no OOS, lifecycle-promotion, Binance Demo-order or real-order authority.
 
@@ -230,7 +263,7 @@ The saved secret is never returned to browser JavaScript and browser persistent 
 
 ### Evidence
 
-Strategy specs/evidence are immutable by version/content hash. Changed specifications require a new version/evidence chain.
+Strategy specs/evidence are immutable by version/content hash. Changed specifications require a new version/evidence chain. Candidate-specific Linode comparison reports are preserved rather than overwritten by later candidate families.
 
 ## 8. Strategy lifecycle policy v2
 
@@ -337,6 +370,9 @@ Actual code/tests/Git history override stale prose, and stale continuity must be
 16. The real-ablation CLI accepts only contained, hash-verified development datasets and cannot open frozen OOS.
 17. Persisted lifecycle states are interpreted only under their recorded lifecycle-policy version.
 18. Policy v2 requires passing robustness evidence before frozen OOS can become eligible.
+19. Missing versioned order-flow feature columns fail closed; legacy datasets cannot silently simulate newer features with zero values.
+20. Zero-trade development arms are not treated as profitable edge simply because return and drawdown are zero.
+21. Executed-flow response proxies are not represented as direct observation of resting/hidden order-book liquidity.
 
 ## 13. Validation direction
 
@@ -355,4 +391,4 @@ Hypothesis
  -> explicit micro-live eligibility
 ```
 
-A profitable-looking backtest or higher development win rate alone is not a production promotion criterion.
+A profitable-looking backtest, a higher development win rate, or a zero-trade loss-avoidance arm alone is not a production promotion criterion.
