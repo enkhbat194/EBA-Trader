@@ -69,6 +69,7 @@ jobs:
                   credential = get_json("/api/demo/credential-status")
                   proof = research.get("productionProof") or {}
                   locks = research.get("locks") or {}
+                  m5 = proof.get("m5RealAblation") or {}
 
                   checks = {
                       "exact_build": build == expected,
@@ -82,6 +83,12 @@ jobs:
                       "demo_reconnect": (proof.get("demoReconnect") or {}).get("passed") is True,
                       "chart": (proof.get("chart") or {}).get("passed") is True,
                       "positions": (proof.get("localApi") or {}).get("positions") is True,
+                      "m5_complete": m5.get("phase") == "COMPLETE",
+                      "m5_safe": m5.get("safe") is True,
+                      "m5_all_terminal": m5.get("allTerminal") is True,
+                      "m5_evidence_complete": m5.get("evidenceComplete") is True,
+                      "m5_frozen_oos_closed": m5.get("frozenOosOpened") is False,
+                      "m5_live_execution_locked": m5.get("liveExecutionAllowed") is False,
                       "frozen_oos_locked": locks.get("frozenOos") is True,
                       "real_execution_locked": locks.get("realExecution") is True,
                   }
@@ -101,7 +108,6 @@ jobs:
                       time.sleep(20)
                       continue
 
-                  m5 = proof.get("m5RealAblation") or {}
                   fast_restart = proof.get("fastRestart") or {}
                   print(
                       json.dumps(
