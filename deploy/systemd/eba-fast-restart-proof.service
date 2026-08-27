@@ -1,0 +1,23 @@
+[Unit]
+Description=EBA Trader Fast Momentum restart persistence proof
+After=eba-web.service eba-runtime-api.service
+Wants=eba-web.service eba-runtime-api.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/Eba-Trader
+EnvironmentFile=-/etc/eba-trader/eba-trader.env
+Environment=EBA_LEDGER_DB=/var/lib/eba-trader/eba_trader.db
+ExecStart=/opt/Eba-Trader/.venv/bin/python /opt/Eba-Trader/scripts/fast_restart_proof.py --state /var/lib/eba-trader/proofs/fast-restart.json --ledger /var/lib/eba-trader/eba_trader.db
+TimeoutStartSec=90
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/eba-trader/proofs
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=eba-fast-restart-proof

@@ -26,6 +26,61 @@
     });
   }
 
+  function ensureProductionProofCard() {
+    if (byId('productionProofCard')) return;
+    const updated = byId('researchUpdated');
+    if (!updated?.parentElement) return;
+    const card = document.createElement('article');
+    card.className = 'section-card';
+    card.id = 'productionProofCard';
+    card.innerHTML = `
+      <div class="section-head">
+        <div><span class="eyebrow">Production proof</span><h3>Linode runtime verification</h3></div>
+        <span class="pill neutral" id="productionProofBadge">WAITING</span>
+      </div>
+      <div class="research-flow">
+        <div class="research-flow-row"><span>Host / journald / services</span><strong id="productionLocalProof">—</strong></div>
+        <div class="research-flow-row"><span>Demo no-paste reconnect</span><strong id="productionDemoProof">—</strong></div>
+        <div class="research-flow-row"><span>Chart smoke</span><strong id="productionChartProof">—</strong></div>
+        <div class="research-flow-row"><span>Positions API</span><strong id="productionPositionsProof">—</strong></div>
+        <div class="research-flow-row"><span>Fast restart recovery</span><strong id="productionFastRestartProof">—</strong></div>
+        <div class="research-flow-row"><span>Last collected</span><strong id="productionProofTime">—</strong></div>
+      </div>`;
+    updated.parentElement.insertBefore(card, updated);
+  }
+
+  function proofText(passed, available = true) {
+    if (!available) return 'WAITING';
+    return passed ? 'PASS' : 'NOT YET';
+  }
+
+  function renderProductionProof(proof) {
+    ensureProductionProofCard();
+    const available = proof?.available === true;
+    const localPassed = proof?.localContractPassed === true;
+    const smokePassed = proof?.productionSmokePassed === true;
+    const demoPassed = proof?.demoReconnect?.passed === true;
+    const chartPassed = proof?.chart?.passed === true;
+    const positionsPassed = proof?.localApi?.positions === true;
+    const fastRestart = proof?.fastRestart || {};
+
+    setText('productionProofBadge', proofText(smokePassed, available));
+    setText('productionLocalProof', proofText(localPassed, available));
+    setText('productionDemoProof', proofText(demoPassed, available));
+    setText('productionChartProof', proofText(chartPassed, available));
+    setText('productionPositionsProof', proofText(positionsPassed, available));
+    setText(
+      'productionFastRestartProof',
+      fastRestart.passed === true ? 'PASS' : (fastRestart.phase || 'WAITING_FOR_OPEN'),
+    );
+    setText('productionProofTime', available ? (proof.collectedAt || '—') : 'Waiting for Linode collector');
+
+    const badge = byId('productionProofBadge');
+    if (badge) {
+      badge.className = smokePassed ? 'pill positive-pill' : 'pill neutral';
+    }
+  }
+
   function render(payload) {
     const progress = payload.progress || {};
     const store = payload.researchStore || {};
@@ -60,6 +115,7 @@
       : 'Research DB is optional on the web runtime; repo continuity still reports the active M5 frontier.');
     renderStatusChips('researchExperimentStatuses', store.experimentStatus);
     renderStatusChips('researchLifecycleStatuses', store.lifecycleStatus);
+    renderProductionProof(payload.productionProof || {});
     setText('researchUpdated', `Status loaded · ${new Date().toLocaleTimeString()}`);
   }
 

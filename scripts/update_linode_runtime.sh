@@ -5,6 +5,8 @@ REPO_DIR="/opt/Eba-Trader"
 ENV_DIR="/etc/eba-trader"
 STATE_DIR="/var/lib/eba-trader"
 DEPLOY_STATE="$STATE_DIR/deploy-state"
+PROOF_DIR="$STATE_DIR/proofs"
+PROOF_FILE="$PROOF_DIR/latest.json"
 RESEARCH_DIR="$STATE_DIR/research"
 RESEARCH_DATASET_DIR="$RESEARCH_DIR/datasets"
 RESEARCH_EVIDENCE_DIR="$RESEARCH_DIR/evidence"
@@ -17,6 +19,8 @@ API_SERVICE="eba-runtime-api.service"
 WEB_SERVICE="eba-web.service"
 RESEARCH_SERVICE="eba-research-worker.service"
 RESEARCH_TIMER="eba-research-worker.timer"
+FAST_PROOF_SERVICE="eba-fast-restart-proof.service"
+FAST_PROOF_TIMER="eba-fast-restart-proof.timer"
 UPDATE_SERVICE="eba-auto-update.service"
 UPDATE_TIMER="eba-auto-update.timer"
 AUTO_MODE=0
@@ -35,6 +39,7 @@ mkdir -p \
   "$ENV_DIR" \
   "$STATE_DIR" \
   "$DEPLOY_STATE" \
+  "$PROOF_DIR" \
   "$CREDENTIAL_DIR" \
   "$RESEARCH_DATASET_DIR" \
   "$RESEARCH_EVIDENCE_DIR" \
@@ -43,9 +48,19 @@ chmod 700 "$ENV_DIR" "$CREDENTIAL_DIR"
 chmod 750 \
   "$STATE_DIR" \
   "$DEPLOY_STATE" \
+  "$PROOF_DIR" \
   "$RESEARCH_DIR" \
   "$RESEARCH_DATASET_DIR" \
   "$RESEARCH_EVIDENCE_DIR"
+
+collect_proof() {
+  local expected_build="$1"
+  if [[ -x .venv/bin/python && -f scripts/collect_linode_proof.py ]]; then
+    .venv/bin/python scripts/collect_linode_proof.py \
+      --output "$PROOF_FILE" \
+      --expected-build "$expected_build" >/dev/null 2>&1 || true
+  fi
+}
 
 # Never deploy over local edits: a dirty runtime checkout is unsafe to auto-reset.
 if [[ -n "$(git status --porcelain)" ]]; then
@@ -64,6 +79,9 @@ if [[ "$CURRENT_SHA" == "$TARGET_SHA" ]]; then
   elif [[ $AUTO_MODE -eq 0 ]]; then
     echo "EBA Trader already up to date: $CURRENT_SHA"
   fi
+  # Refresh sanitized proof even when no deployment is needed. This lets Demo reconnect,
+  # Chart/Positions/Research smoke and host-contract state converge without operator action.
+  collect_proof "$CURRENT_SHA"
   exit 0
 fi
 
@@ -85,8 +103,18 @@ rollback() {
   install -m 0644 deploy/systemd/eba-web.service "/etc/systemd/system/$WEB_SERVICE" || true
   install -m 0644 deploy/systemd/eba-auto-update.service /etc/systemd/system/eba-auto-update.service || true
   install -m 0644 deploy/systemd/eba-auto-update.timer /etc/systemd/system/eba-auto-update.timer || true
+  if [[ -f deploy/systemd/eba-fast-restart-proof.service && -f deploy/systemd/eba-fast-restart-proof.timer ]]; then
+    install -m 0644 deploy/systemd/eba-fast-restart-proof.service "/etc/systemd/system/$FAST_PROOF_SERVICE" || true
+    install -m 0644 deploy/systemd/eba-fast-restart-proof.timer "/etc/systemd/system/$FAST_PROOF_TIMER" || true
+  else
+    systemctl disable --now "$FAST_PROOF_TIMER" >/dev/null 2>&1 || true
+    rm -f "/etc/systemd/system/$FAST_PROOF_SERVICE" "/etc/systemd/system/$FAST_PROOF_TIMER"
+  fi
   systemctl daemon-reload || true
   systemctl restart "$DATA_SERVICE" "$API_SERVICE" "$WEB_SERVICE" || true
+  if [[ -f "/etc/systemd/system/$FAST_PROOF_TIMER" ]]; then
+    systemctl enable --now "$FAST_PROOF_TIMER" >/dev/null 2>&1 || true
+  fi
   printf '%s\n' "$PREVIOUS_SHA" > "$DEPLOY_STATE/rolled_back_to"
   date -u +%FT%TZ > "$DEPLOY_STATE/failed_at"
   exit "$code"
@@ -140,14 +168,16 @@ install -m 0644 deploy/systemd/eba-runtime-api.service "/etc/systemd/system/$API
 install -m 0644 deploy/systemd/eba-web.service "/etc/systemd/system/$WEB_SERVICE"
 install -m 0644 deploy/systemd/eba-research-worker.service "/etc/systemd/system/$RESEARCH_SERVICE"
 install -m 0644 deploy/systemd/eba-research-worker.timer "/etc/systemd/system/$RESEARCH_TIMER"
+install -m 0644 deploy/systemd/eba-fast-restart-proof.service "/etc/systemd/system/$FAST_PROOF_SERVICE"
+install -m 0644 deploy/systemd/eba-fast-restart-proof.timer "/etc/systemd/system/$FAST_PROOF_TIMER"
 install -m 0644 deploy/systemd/eba-auto-update.service "/etc/systemd/system/$UPDATE_SERVICE"
 install -m 0644 deploy/systemd/eba-auto-update.timer "/etc/systemd/system/$UPDATE_TIMER"
 systemctl daemon-reload
-systemctl reset-failed "$RESEARCH_SERVICE" || true
+systemctl reset-failed "$RESEARCH_SERVICE" "$FAST_PROOF_SERVICE" || true
 systemctl enable "$DATA_SERVICE" "$API_SERVICE" "$WEB_SERVICE" >/dev/null
-systemctl enable --now "$UPDATE_TIMER" "$RESEARCH_TIMER" >/dev/null
+systemctl enable --now "$UPDATE_TIMER" "$RESEARCH_TIMER" "$FAST_PROOF_TIMER" >/dev/null
 systemctl restart "$DATA_SERVICE" "$API_SERVICE" "$WEB_SERVICE"
-systemctl restart "$RESEARCH_TIMER"
+systemctl restart "$RESEARCH_TIMER" "$FAST_PROOF_TIMER"
 
 # Give the processes a short warm-up window, then require both APIs to answer.
 sleep 3
@@ -155,6 +185,7 @@ systemctl is-active --quiet "$DATA_SERVICE"
 systemctl is-active --quiet "$API_SERVICE"
 systemctl is-active --quiet "$WEB_SERVICE"
 systemctl is-active --quiet "$RESEARCH_TIMER"
+systemctl is-active --quiet "$FAST_PROOF_TIMER"
 curl --fail --silent --max-time 5 http://127.0.0.1:8765/health >/dev/null
 curl --fail --silent --max-time 5 http://127.0.0.1:8000/api/health >/dev/null
 
@@ -164,6 +195,10 @@ if [[ -f scripts/bootstrap_linode_public_https.sh ]]; then
   bash scripts/bootstrap_linode_public_https.sh || \
     echo "Public HTTPS bootstrap deferred; runtime deployment remains healthy." >&2
 fi
+
+# Collect a sanitized post-restart proof. External Binance/Demo availability does not
+# participate in rollback; local host/runtime failures are already gated above.
+collect_proof "$TARGET_SHA"
 
 trap - ERR
 printf '%s\n' "$TARGET_SHA" > "$DEPLOY_STATE/current_sha"
