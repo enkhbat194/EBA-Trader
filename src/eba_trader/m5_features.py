@@ -58,6 +58,7 @@ DEFAULT_FEATURE_REGISTRY = FeatureRegistry(
         FeatureDefinition("of_stacked_imbalance", FeatureFamily.ORDER_FLOW),
         FeatureDefinition("of_absorption", FeatureFamily.ORDER_FLOW),
         FeatureDefinition("of_exhaustion", FeatureFamily.ORDER_FLOW),
+        FeatureDefinition("of_price_delta_divergence", FeatureFamily.ORDER_FLOW),
         FeatureDefinition("lob_depth_imbalance", FeatureFamily.ORDER_BOOK, enabled=False),
     )
 )
