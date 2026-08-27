@@ -232,15 +232,15 @@ The saved secret is never returned to browser JavaScript and browser persistent 
 
 Strategy specs/evidence are immutable by version/content hash. Changed specifications require a new version/evidence chain.
 
-## 8. Strategy lifecycle and open architecture issue
+## 8. Strategy lifecycle policy v2
 
-Current machine promotion path in `src/eba_trader/lifecycle.py` is:
+Current research promotion policy is versioned. New/current work uses policy v2:
 
 ```text
 GENERATED
  -> BACKTESTED
- -> OOS_VERIFIED
  -> ROBUSTNESS_VERIFIED
+ -> OOS_VERIFIED
  -> PAPER_CANDIDATE
  -> PAPER_VERIFIED
  -> DEMO_CANDIDATE
@@ -251,7 +251,26 @@ GENERATED
  -> LIVE_ACTIVE
 ```
 
-Accepted methodology wants robustness before opening frozen OOS. This mismatch is acknowledged and automated frozen OOS remains locked. A deliberate migration must change lifecycle semantics/storage/tests; manual bypass is prohibited.
+### Robustness-before-OOS authority
+
+- `BACKTESTED -> OOS_VERIFIED` is invalid under policy v2.
+- Robustness fan-out requires policy v2 and exact `BACKTESTED` state.
+- A passing immutable robustness verdict may promote only to `ROBUSTNESS_VERIFIED`.
+- `OOS_VERIFIED` requires a separate later evidence-bearing transition from `ROBUSTNESS_VERIFIED`.
+- The generic research worker, PWA and ablation orchestrator still have no OOS-unlock authority.
+
+### Legacy SQLite migration
+
+Historical M4 databases used policy v1, whose order was `BACKTESTED -> OOS_VERIFIED -> ROBUSTNESS_VERIFIED`. Persisted state cannot be reinterpreted by changing enum order alone.
+
+Policy-v2 migration therefore records `lifecycle_policy_version`:
+
+- legacy `GENERATED`, `BACKTESTED` and `RETEST_REQUIRED` rows may adopt v2 safely because they have not already consumed frozen OOS under the old methodology;
+- legacy rows at `OOS_VERIFIED` or later remain policy v1 and promotion-frozen;
+- a legacy post-OOS row must move to `RETEST_REQUIRED`, explicitly upgrade to v2, return to `BACKTESTED` on fresh development evidence, then pass fresh robustness before OOS can be opened again;
+- lifecycle history records the policy version so historical evidence keeps its original semantics.
+
+Manual state skipping remains prohibited.
 
 ## 9. PWA / API boundary
 
@@ -316,6 +335,8 @@ Actual code/tests/Git history override stale prose, and stale continuity must be
 14. Raw diagnostic logs are not canonical research datasets.
 15. Runtime trade state, research state and encrypted credential state remain separate persistence domains.
 16. The real-ablation CLI accepts only contained, hash-verified development datasets and cannot open frozen OOS.
+17. Persisted lifecycle states are interpreted only under their recorded lifecycle-policy version.
+18. Policy v2 requires passing robustness evidence before frozen OOS can become eligible.
 
 ## 13. Validation direction
 
@@ -324,7 +345,9 @@ Hypothesis
  -> cheap/static screen
  -> development backtest + costs
  -> robustness / walk-forward / perturbation
- -> frozen OOS (after lifecycle order is reconciled)
+ -> ROBUSTNESS_VERIFIED
+ -> frozen OOS
+ -> OOS_VERIFIED
  -> forward paper
  -> restart/recovery proof
  -> exchange Demo
