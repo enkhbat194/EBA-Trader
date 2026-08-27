@@ -11,36 +11,37 @@ This list is ordered by current project priority and must be reconciled with act
 - [x] Verify saved Demo credentials reconnect without re-paste after application/service deployment restart (#42/#43 external proof).
 - [x] Verify standalone Chart / Positions / Research server truth on public production (#42/#43).
 - [x] Retire the older carry paper engine from active production entry authority (#44).
-- [x] Verify exact #44 production build with Demo reconnect, Chart, Positions, frozen-OOS lock and real-execution lock.
 - [x] Install passive Fast Momentum OPEN restart proof watcher (#43).
-- [ ] Wait for a **natural** qualifying Fast Momentum paper OPEN and obtain full `OPEN -> service restart -> same-position recovery -> MARK -> CLOSE` production proof. Do not manufacture a trade.
+- [x] Obtain Fast restart/recovery production proof; latest exact-build external proof reports `fastRestartPhase=PASS` and `fastRestartPassed=true`.
+- [x] Harden exact-build external proof so stale M5 FAILED/RUNNING markers cannot be accepted as successful terminal research proof (#52).
+- [x] Verify exact build `7e24df486839c92f9c324cbd910efc00dfe7bc4d` with public production smoke, Demo reconnect, Chart, Positions, M5 terminal proof, frozen-OOS lock and real-execution lock.
 
 ## NOW — M5 real development ablation
 
-- [x] Historical Binance USD-M `aggTrades` acquisition, sequence repair and integrity gating.
-- [x] Causal closed-footprint/candle alignment and feature-dataset materialization.
+- [x] Historical Binance USD-M `aggTrades` acquisition, sequence/integrity gating and causal alignment.
 - [x] Allowlisted candle-only and order-flow adapters on the exact same aligned dataset.
 - [x] Deterministic one-control-to-many-treatment order-flow ablation orchestration (#34).
 - [x] Venue-matched verified BTCUSDT USD-M feature-dataset workflow (#35).
-- [x] `eba-m5-real-ablation` verified queue emitter + initial Delta/CVD gate set + one-command runner (#40).
+- [x] `eba-m5-real-ablation` verified queue emitter + initial Delta/CVD gate set + bounded one-command/runtime runner (#40/#45).
 - [x] Lifecycle policy v2 requiring robustness before frozen OOS (#41).
-- [x] Add immutable baseline-vs-treatment comparison report with no edge/promotion authority (#45 candidate).
-- [x] Add bounded idempotent Linode autorun for a 2026 development-only BTCUSDT window (#45 candidate).
-- [x] Add sanitized autorun state to production proof without making M5 completion a deploy rollback gate (#45 candidate).
-- [ ] Merge/deploy PR #45 after final reconciled CI remains green.
-- [ ] Confirm `eba-m5-real-ablation.timer` is active on the exact #45 production build.
-- [ ] Let the real `2026-08-01T00:00Z -> 04:00Z` USD-M dataset/experiment batch reach terminal COMPLETE or expose a real failure.
-- [ ] Inspect immutable candle-only vs Delta/CVD metrics/evidence. Treat any improvement as development evidence only; no edge claim or lifecycle promotion.
+- [x] Immutable baseline-vs-treatment comparison report with no edge/promotion authority (#45).
+- [x] Bounded idempotent Linode autorun for the fixed `2026-08-01T00:00Z -> 04:00Z` development window (#45).
+- [x] Diagnose historical REST HTTP 400 without moving the fixed study window.
+- [x] Add official Binance public USD-M daily `aggTrades` archive acquisition with `.CHECKSUM` SHA-256 verification, exact-window filtering and archive provenance (#51).
+- [x] Deploy archive acquisition to production and let the fixed real batch reach terminal `COMPLETE`.
+- [x] Verify batch `abl_6c4a8eeb83a662894a3f2816`: `allTerminal=true`, `allExperimentsPassed=true`, `evidenceComplete=true`.
+- [x] Verify frozen OOS remained closed and real execution remained locked throughout the run.
+- [ ] Inspect immutable candle-only vs Delta/CVD per-treatment metrics in `/var/lib/eba-trader/research/evidence/m5-real-ablation-20260801T000000Z-20260801T040000Z.json`. Treat any improvement as development evidence only; no edge claim or lifecycle promotion.
 
 ## NEXT
 
-- [ ] Add stacked/diagonal footprint imbalance candidates after the first real raw-trade development run is verified.
+- [ ] Add stacked/diagonal footprint imbalance candidates after interpreting the first real raw-trade development report.
 - [ ] Add absorption/exhaustion candidates with causal definitions and tests.
 - [ ] Add price/delta divergence candidates.
 - [ ] Strengthen near-duplicate detection if factory volume requires it.
 - [ ] Add cheap-screen -> development-screen orchestration over generated candidate families.
 - [ ] Persist survivor/ranking evidence without granting lifecycle authority to ranking.
-- [ ] Bring the new M5 autorun timer into the fresh-install script through a separately audited small change; current production upgrade path is already provisioned.
+- [ ] Audit fresh-install provisioning of the M5 autorun timer; add it through a small audited change if the fresh-install path still omits it.
 
 ## LATER
 
@@ -56,7 +57,7 @@ This list is ordered by current project priority and must be reconciled with act
 
 - [ ] Automated frozen-OOS promotion.
   - Architecture blocker is resolved by lifecycle policy v2: `BACKTESTED -> ROBUSTNESS_VERIFIED -> OOS_VERIFIED`.
-  - Remaining gate: immutable passing robustness evidence under v2. No manual bypass.
+  - Remaining gate: immutable passing robustness evidence under v2 and explicit later lifecycle work. No manual bypass.
 
 - [ ] LOB/order-book strategy features.
   - Blocked by: no approved snapshot/diff sequence-integrity reconstruction contract yet.
@@ -76,7 +77,10 @@ This list is ordered by current project priority and must be reconciled with act
 - [x] Venue-matched real USD-M feature-dataset workflow (#35).
 - [x] Encrypted Binance Demo credential persistence (#36).
 - [x] Production recovery/logging hardening (#37-#40).
-- [x] Lifecycle policy v2 robustness-before-OOS (#41, merge `32a39c57cb9c86bd2b956ea670fa3031229d0efc`).
+- [x] Lifecycle policy v2 robustness-before-OOS (#41).
 - [x] External public production smoke and exact-build proof automation (#42).
-- [x] Natural Fast OPEN restart proof watcher (#43, merge `4a46a0fbec7d20007bda9061572756841de190c6`).
-- [x] Legacy carry active-entry retirement (#44, merge `0df5f4d9a7ce054b1a2b65002b9329ba0c8143aa`, production-verified).
+- [x] Natural Fast restart proof watcher and eventual PASS proof (#43 + current production proof).
+- [x] Legacy carry active-entry retirement (#44).
+- [x] Verified historical Binance USD-M public archive path for fixed-window M5 research (#51, merge `1c1b683b7bfc9dd62cff9d96fcb3160213cd2595`).
+- [x] Hardened M5 terminal production proof (#52, merge `7e24df486839c92f9c324cbd910efc00dfe7bc4d`).
+- [x] First real fixed-window M5 development ablation completed with immutable evidence; batch `abl_6c4a8eeb83a662894a3f2816`.
