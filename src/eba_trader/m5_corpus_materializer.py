@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -442,8 +443,8 @@ def materialize_m5_development_corpus(
     if not isinstance(price_bucket, (int, float)) or isinstance(price_bucket, bool):
         raise ValueError("price_bucket must be numeric")
     price_bucket = float(price_bucket)
-    if price_bucket <= 0.0:
-        raise ValueError("price_bucket must be positive")
+    if not math.isfinite(price_bucket) or price_bucket <= 0.0:
+        raise ValueError("price_bucket must be positive and finite")
     namespace = _safe_namespace(namespace)
     orderflow_source = orderflow_source.strip().lower()
     if orderflow_source not in ORDERFLOW_SOURCES:
@@ -451,7 +452,7 @@ def materialize_m5_development_corpus(
     if corpus.policy_id != DEFAULT_M5_STUDY_POLICY.policy_id:
         raise ValueError("M5 corpus materializer requires the sealed study policy")
 
-    dataset_root_path = Path(dataset_root)
+    dataset_root_path = Path(dataset_root).resolve()
     materialization_id = _materialization_id(
         corpus=corpus,
         price_bucket=price_bucket,
