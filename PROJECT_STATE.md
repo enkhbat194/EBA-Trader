@@ -226,6 +226,16 @@ See `docs/M5_ABSORPTION_EXHAUSTION.md` for the exact candidate record.
 - Generic research workers cannot open frozen OOS or exchange execution.
 - Frozen OOS and real-money execution remain locked.
 
+## Validation status
+
+- PR #59 implementation passed required exact-head CI before merge.
+- PR #60 production-proof package passed required exact-head CI before merge.
+- Exact functional main `a49790838064769768fe4ca9fe500f6ed941ba82` passed Linode production bundle, Linode runtime checks, public production smoke and hardened external exact-build proof.
+- External proof run `33081041663` completed successfully and verified response batch `abl_c9bf89e7fb1dd4971345d87d` is terminal, all experiments passed and evidence-complete.
+- The exact response treatments were absorption `0.10/0.20` and exhaustion `0.01/0.03` on the unchanged fixed development window.
+- External proof confirms `developmentComparisonOnly=true`, `edgeClaimAllowed=false`, `promotionAuthority=false`, `frozenOosOpened=false`, and `liveExecutionAllowed=false`.
+- Frozen OOS and real-money execution remain locked.
+
 ## Continuity protocol
 
 Canonical continuation files: `AGENTS.md`, `PROJECT_STATE.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TODO.md`, `CHANGELOG.md`, `SESSION_HANDOFF.md`, `docs/CONTINUITY_PROTOCOL.md`.
