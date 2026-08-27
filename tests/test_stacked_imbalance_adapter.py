@@ -71,20 +71,25 @@ def _spec(adapter: str) -> dict[str, object]:
 
 
 def _write(tmp_path: Path, stacked: int) -> Path:
-    path = tmp_path / "features-v3.csv"
+    path = tmp_path / "features-v4.csv"
     _write_feature_csv(_series(stacked), path)
     return path
 
 
 def test_orderflow_research_features_are_enabled_but_lob_remains_locked() -> None:
-    for name in ("of_stacked_imbalance", "of_absorption", "of_exhaustion"):
+    for name in (
+        "of_stacked_imbalance",
+        "of_absorption",
+        "of_exhaustion",
+        "of_price_delta_divergence",
+    ):
         feature = DEFAULT_FEATURE_REGISTRY.require(name)
         assert feature.family is FeatureFamily.ORDER_FLOW
     with pytest.raises(ValueError, match="not enabled"):
         DEFAULT_FEATURE_REGISTRY.require("lob_depth_imbalance")
 
 
-def test_v3_feature_csv_round_trips_stacked_fields(tmp_path: Path) -> None:
+def test_v4_feature_csv_round_trips_stacked_fields(tmp_path: Path) -> None:
     path = _write(tmp_path, 3)
 
     rows = load_orderflow_feature_csv(path)
@@ -154,8 +159,8 @@ def test_invalid_stacked_threshold_fails_closed(tmp_path: Path, threshold: objec
 
 
 def test_stacked_gate_rejects_legacy_csv_without_stacked_columns(tmp_path: Path) -> None:
-    v3_path = _write(tmp_path, 3)
-    with v3_path.open("r", newline="", encoding="utf-8") as source:
+    v4_path = _write(tmp_path, 3)
+    with v4_path.open("r", newline="", encoding="utf-8") as source:
         reader = csv.DictReader(source)
         payloads = list(reader)
         fields = [
@@ -168,6 +173,9 @@ def test_stacked_gate_rejects_legacy_csv_without_stacked_columns(tmp_path: Path)
                 "of_stacked_imbalance",
                 "of_absorption",
                 "of_exhaustion",
+                "of_bullish_price_delta_divergence",
+                "of_bearish_price_delta_divergence",
+                "of_price_delta_divergence",
             }
         ]
     legacy_path = tmp_path / "features-v1.csv"
@@ -208,7 +216,7 @@ def test_noncausal_stacked_feature_row_is_rejected(tmp_path: Path) -> None:
         of_stacked_sell_levels=first.of_stacked_sell_levels,
         of_stacked_imbalance=first.of_stacked_imbalance,
     )
-    path = tmp_path / "noncausal-v3.csv"
+    path = tmp_path / "noncausal-v4.csv"
     _write_feature_csv(tuple(rows), path)
 
     with pytest.raises(ValueError, match="availability"):
