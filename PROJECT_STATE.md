@@ -1,268 +1,138 @@
 # EBA Trader — Project State
 
-_Last reconciled: 2026-08-28 03:22 (Asia/Ulaanbaatar)_
-_Current implementation frontier: isolated M5 order-flow candidate cycle is closed without an edge claim; chronological M5 study policy and a fresh pre-registered multi-window development corpus are being finalized in PR #63._
+_Last reconciled: 2026-08-28 (Asia/Ulaanbaatar)_
+_Current implementation frontier: production scanner-status hotfix is merged and externally verified; resume the already-open M5 development-corpus materializer PR #64 from its existing diff after refreshing it against actual latest `main`._
 
-This is the primary cross-chat continuation summary. Actual GitHub code, PR/workflow state and production proof override stale prose. A new session must query actual GitHub `main`, open PRs and workflow state before implementation.
+This is the primary cross-chat continuation summary. Actual GitHub code, PR/workflow state and production proof override stale prose. Every new session must query actual GitHub state before editing.
 
 ## Current goal
 
-Operate EBA Trader as a restart-safe 24/7 Linode paper/research system; build a controlled AI Strategy Factory on the M4 evidence platform; discover strategies through deterministic historical simulation/backtest, multi-window development screening, robustness and later frozen-OOS/forward/demo validation; maintain a verified strategy knowledge base; and keep real-money execution locked until the evidence/lifecycle chain permits it.
+Operate EBA Trader as a restart-safe 24/7 Linode paper/research system; keep operator-facing status truthful; build a controlled AI Strategy Factory on the M4 evidence platform; validate hypotheses across pre-registered development windows, robustness, then sealed Frozen OOS/forward/demo stages; keep real-money execution locked until the full evidence chain permits it.
 
 ## Current stage
 
 - Production/runtime foundation: **VERIFIED**.
+- Fast Momentum: **SOLE ACTIVE PRODUCTION PAPER SCANNER**.
+- Scanner-status UI incident: **FIXED / PRODUCTION VERIFIED**.
 - M4 research/evidence platform: **COMPLETE**.
-- M5 AI Strategy Factory/order-flow research: **IN PROGRESS**.
-- Delta/CVD isolated candidate: **COMPLETE / NO EDGE-PROMOTION CLAIM**.
-- Stacked/diagonal imbalance isolated candidate: **COMPLETE / NO EDGE-PROMOTION CLAIM**.
-- Absorption/exhaustion isolated candidate: **COMPLETE / NO EDGE-PROMOTION CLAIM**.
-- Price/Delta divergence isolated candidate: **COMPLETE / NO EDGE-PROMOTION CLAIM**.
-- Original single-window isolated-candidate cycle: **CLOSED**; do not keep tuning new gates on the same four-hour smoke window.
-- M5 chronological study policy + fresh development corpus: **PR #63 IN PROGRESS**.
-- Legacy first-cycle 2025 Frozen OOS: **LOCKED / INDEPENDENT**.
-- New M5 2026 Frozen OOS: **SEALED / NOT ACQUIRED OR OPENED**.
+- M5 isolated order-flow candidate cycle: **CLOSED WITHOUT EDGE CLAIM**.
+- M5 chronological study policy: **MERGED / ENFORCED**.
+- M5 development-corpus materializer: **PR #64 OPEN / IMPLEMENTATION EXISTS; DO NOT RESTART**.
+- Legacy 2025 Frozen OOS: **LOCKED / INDEPENDENT**.
+- M5 2026 Frozen OOS (`2026-08-15 -> 2026-08-22` UTC): **SEALED / NOT ACQUIRED / NOT OPENED**.
 - Real-money execution: **LOCKED**.
 
 ## Canonical repository/runtime
 
 - Repository: `enkhbat194/EBA-Trader`
-- Default/base branch: `main`
-- Latest functional main before PR #63: `a8ddbcbd3d17fa17bebf1ba11b08d11edccd439d`
-- PR #62 price/Delta divergence merge: `a8ddbcbd3d17fa17bebf1ba11b08d11edccd439d`
-- Active branch: `m5-study-policy-corpus`
-- Active PR: `#63 M5: seal chronological study policy and development corpus`
-- PR #63 exact code/test head that first passed all three required workflows: `629a065355db8e6a3642690f99c66630c84617c8`; documentation commits follow and require final exact-head CI before merge.
-- Runtime: Linode Nanode, Ubuntu 24.04 LTS
-- Server repo: `/opt/Eba-Trader`
-- Runtime DB: `/var/lib/eba-trader/eba_trader.db`
-- Research DB: `/var/lib/eba-trader/research/eba_research.db`
-- Research datasets: `/var/lib/eba-trader/research/datasets`
-- Research evidence: `/var/lib/eba-trader/research/evidence`
-- Public PWA: `https://eba-trader-172-236-150-62.sslip.io/`
-- App/server release: `0.12.2 · LINODE-M7`
-- PWA cache: `eba-trader-ui-v15`
-- Auto deploy: `eba-auto-update.timer`
-- Replit/Render backend paths: deprecated.
+- Base branch: `main`
+- Scanner-status hotfix merge/main SHA: `b1afa22fcfa459d2a8a3789291b74a0566041545`
+- Hotfix PR: `#65 Hotfix: keep scanner status truthful when UI rendering fails` — squash merged.
+- Open research PR: `#64 M5: materialize resumable development corpus`.
+- PR #64 branch: `m5-development-corpus-materializer`.
+- PR #64 pre-hotfix head: `39cd2b6dbea75b36307c03cf9080769b49a23123`; it is based on older main and must be compared/refreshed against actual main before further edits, without recreating its existing work.
+- Runtime: Linode Nanode, Ubuntu 24.04 LTS.
+- Server repo: `/opt/Eba-Trader`.
+- Runtime DB: `/var/lib/eba-trader/eba_trader.db`.
+- Research root: `/var/lib/eba-trader/research`.
+- Public PWA: `https://eba-trader-172-236-150-62.sslip.io/`.
+- App/server release label: `0.12.2 · LINODE-M7`.
+- PWA cache family: `eba-trader-ui-v15`.
 
-## Production reality through price/Delta divergence
+## Production scanner-status incident — fixed
 
-Exact main `a8ddbcbd3d17fa17bebf1ba11b08d11edccd439d` passed production bundle, Linode runtime checks and continuity. The exact-build external production proof run `33102562299` completed successfully at `2026-08-27T18:22:09Z`.
+### User-visible symptom
 
-Price/Delta divergence report:
+Settings showed red `Server scanner: UNREACHABLE` while the same page showed `Runtime: LINODE`, `HTTPS READY`, and the correct deployed build. `Last server scans` showed:
 
-`/var/lib/eba-trader/research/evidence/m5-price-delta-divergence-ablation-20260801T000000Z-20260801T040000Z.json`
+`Can't find variable: mt5PositionMarkup`
 
-Batch: `abl_21f419216c4734955d389da6`
+### Confirmed root causes
 
-Workflow dataset: `m5ds_53cd6f3d1a306c26b151362d`
+1. `web/trade_detail.js` called `mt5PositionMarkup(...)` although no such function was defined. It also relied on an undefined legacy `paperPositionMarkup(...)` helper.
+2. Settings runner synchronization treated **any browser-side renderer exception** as if `/api/runner/status` or the server were unreachable. A UI JavaScript bug could therefore create a false red server outage.
+3. Settings relied on legacy aggregate `threadAlive`; Fast Momentum is the active scanner and its authoritative fields are `fastThreadAlive`, `fastRunning`, `fastPaperAvailable`, and `lastFastScanAtMs`.
+4. PWA static assets required stronger revalidation so mixed stale/new JavaScript cannot survive a deploy unnecessarily.
 
-Proof confirmed COMPLETE/safe/terminal/evidence-complete development comparison only, with `edgeClaimAllowed=false`, `promotionAuthority=false`, `frozenOosOpened=false` and `liveExecutionAllowed=false`.
+### Hotfix behavior
 
-Fast Momentum remains the sole active production paper engine. Real exchange execution remains disabled.
+PR #65:
 
-## Research platform
+- defines safe shared `mt5PositionMarkup` and `paperPositionMarkup` before `trade_detail.js` loads;
+- makes Fast Momentum heartbeat the Settings scanner-health truth;
+- reserves `UNREACHABLE` for actual `/api/runner/status` fetch/API failure only;
+- reports browser renderer faults as `UI sync warning` without falsifying server/scanner health;
+- revalidates service-worker/static assets from network and updates cache on successful fetch;
+- adds regression contracts for renderer definition/load order, scanner-health fields, error classification and cache revalidation.
 
-### M4 — complete
+No strategy/risk/order execution behavior was changed by this hotfix.
 
-M4 provides immutable strategy versions, deterministic experiment IDs, restart-safe queue/leases, allowlisted workers, content-addressed evidence, development screening and bounded robustness contracts.
+## M5 research state
 
-Lifecycle policy v2 is:
+The original single four-hour development window (`2026-08-01T00:00Z -> 04:00Z`) was used only for bounded pipeline/candidate proofs. Results were negative and are not promotion evidence:
 
-`GENERATED -> BACKTESTED -> ROBUSTNESS_VERIFIED -> OOS_VERIFIED -> PAPER_CANDIDATE -> PAPER_VERIFIED -> DEMO_CANDIDATE -> DEMO_VERIFIED -> SHADOW_VERIFIED -> MICRO_LIVE_ELIGIBLE -> LIVE_ELIGIBLE -> LIVE_ACTIVE`
+- candle-only baseline: ~`-0.42445%`, 4 trades;
+- best Delta arm (`0.2`): ~`-0.12055%`, 2 trades;
+- best stacked arm (`1`): ~`-0.12408%`, 2 trades;
+- absorption `0.10/0.20`: ~`-0.16740%`, 1 losing trade;
+- exhaustion `0.01/0.03`: 0 trades — not profitable-edge evidence;
+- price/Delta divergence `0.01/0.05/0.10`: identical ~`-0.13709%`, 1 losing trade.
 
-A development result cannot skip robustness and open frozen OOS.
+Do not continue tuning more isolated indicators on that inspected window.
 
-### M5 — current foundation
+The accepted next methodology is the sealed chronological M5 policy:
 
-Completed infrastructure includes:
+- development: `2026-07-01T00:00Z -> 2026-08-15T00:00Z`;
+- M5 Frozen OOS: `2026-08-15T00:00Z -> 2026-08-22T00:00Z`;
+- forward begins after the sealed M5 OOS;
+- 12 fresh, non-overlapping four-hour development windows are pre-registered; the inspected `2026-08-01 00:00Z -> 04:00Z` proof window is excluded.
 
-- constrained strategy DSL / approved feature registry;
-- bounded strategy family generation and duplicate/near-duplicate filtering;
-- Binance USD-M historical aggregate-trade acquisition with checksum/sequence/integrity validation;
-- deterministic causal executed-trade footprint windows;
-- versioned feature datasets and same-dataset candle/order-flow adapters;
-- deterministic one-control-to-many-treatment development ablations;
-- persistent bounded Linode research worker/runtime;
-- immutable candidate comparison reports and external exact-build production proof;
-- read-only research observability in the server/PWA.
+PR #64 already implements the next package: resumable/immutable materialization of those 12 development windows. Do not duplicate it.
 
-Current executed-trade feature path:
+## Safety invariants
 
-- v1: buy/sell volume, Delta, Delta ratio, CVD, POC;
-- v2: diagonal and stacked imbalance;
-- v3: absorption/exhaustion executed-flow response proxies;
-- v4: causal bullish/bearish price/Delta divergence plus signed divergence score.
+- Frozen OOS cannot be opened by normal development acquisition/ablation.
+- Real Binance order execution remains disabled.
+- Development wins/rankings have no lifecycle-promotion authority.
+- Lifecycle v2 requires robustness before OOS.
+- AI-generated hypotheses use constrained/allowlisted structures; arbitrary generated production Python is not an approved execution path.
+- Runtime trading persistence and research DB/datasets/evidence remain separate.
+- Spot and USD-M futures data are never silently mixed.
+- Executed-trade footprint and resting LOB/order-book liquidity remain separate data planes.
+- Tampered/gapped/missing-version research data fails closed.
+- Browser/UI state must not be treated as proof of backend failure when the backend API succeeded.
 
-These are research features, not assumed alpha. Resting L2/LOB liquidity remains a separate future data plane.
+## Validation status
 
-## Original fixed-window evidence — interpreted as smoke/development evidence, not sufficient alpha validation
+Scanner-status hotfix exact PR head `7d6e67ffed44228bec6df093c2041f43cb66b5cf` passed:
 
-All isolated candidates below used the same window:
-
-`2026-08-01T00:00:00Z -> 2026-08-01T04:00:00Z`
-
-### Candle-only baseline
-
-- total return: `-0.004244488397751933` (~`-0.42445%`)
-- final equity: `9957.55511602248`
-- trade count: `4`
-- win rate: `0.25`
-- max drawdown: `-0.004244488397751933`
-- expectancy: `-10.611220994379892`
-- total cost: `43.90484437829747`
-
-### Delta/CVD — best tested Delta threshold 0.2
-
-- return ~`-0.12055%`
-- final equity `9987.9446`
-- 2 trades
-- 50% win rate
-- max drawdown ~`-0.26586%`
-- expectancy `-6.0277`
-- total cost `21.9992`
-- still negative; no promotion authority.
-
-### Stacked imbalance — threshold 1
-
-- return ~`-0.12408%`
-- final equity `9987.5918`
-- 2 trades
-- 50% win rate
-- max drawdown ~`-0.24164%`
-- expectancy `-6.2041`
-- total cost `21.9825`
-- improved baseline but did not beat Delta 0.2; no promotion authority.
-
-### Absorption/exhaustion
-
-Absorption `0.10/0.20` both produced one losing trade:
-
-- return ~`-0.16740%`
-- expectancy ~`-16.74`
-- cost ~`10.993`
-
-Exhaustion `0.01/0.03` produced zero trades. Zero trades are not edge evidence.
-
-### Price/Delta divergence
-
-Thresholds `0.01`, `0.05` and `0.10` all produced the same one losing trade:
-
-- total return: `-0.0013709100484625703` (~`-0.13709%`)
-- final equity: `9986.290899515374`
-- trade count: `1`
-- win rate: `0.0`
-- max drawdown: `-0.0013709100484625703`
-- expectancy: `-13.709100484626106`
-- profit factor: `0.0`
-- exposure: `0.018779342723004695`
-- total cost: `10.994657857876607`
-- baseline return delta: `+0.002873578349289363`
-
-Interpretation: it reduced absolute loss versus candle baseline but did not demonstrate positive return/expectancy and was worse than Delta 0.2 on return/expectancy. No edge/promotion claim.
-
-## Why the research methodology changes now
-
-Four isolated order-flow families have already been inspected on the same four-hour window. Continuing to add/tune feature gates on that same sample would increase adaptive data-snooping risk and can manufacture apparent improvement without generalizable edge.
-
-A second chronology issue was identified: the repository's original first-cycle Frozen OOS covers 2025, while M5 order-flow development already used 2026 data. That 2025 holdout remains historically valid for the older first-cycle policy but cannot honestly serve as a later temporal OOS for M5 after 2026 development.
-
-Therefore M5 gets a separate chronological study policy. The 2025 lock is preserved rather than reinterpreted.
-
-## M5 chronological study policy — PR #63
-
-Domain:
-
-- symbol: `BTCUSDT`
-- venue: Binance USD-M futures
-- interval: `1m`
-- version: `1`
-- deterministic policy identity: `m5policy_*`
-
-Chronology:
-
-- development: `2026-07-01T00:00:00Z -> 2026-08-15T00:00:00Z`
-- new sealed M5 Frozen OOS: `2026-08-15T00:00:00Z -> 2026-08-22T00:00:00Z`
-- forward begins: `2026-08-22T00:00:00Z`
-
-Normal M5 development acquisition has no authority to fetch/read the new OOS. An overlapping request is rejected before any Binance candle/order-flow network request.
-
-The workflow manifest is upgraded to `m5_usdm_feature_build_v2` with immutable `study_policy_id` and `study_phase=development` provenance. Real ablation independently verifies the sealed policy/phase before queue emission.
-
-See `docs/M5_STUDY_POLICY.md`.
-
-## Pre-registered fresh development corpus
-
-The corpus contains 12 non-overlapping four-hour windows and deliberately excludes the already-inspected `2026-08-01 00:00 -> 04:00 UTC` proof window:
-
-1. `2026-07-02 00:00 -> 04:00`
-2. `2026-07-06 08:00 -> 12:00`
-3. `2026-07-10 16:00 -> 20:00`
-4. `2026-07-14 00:00 -> 04:00`
-5. `2026-07-18 08:00 -> 12:00`
-6. `2026-07-22 16:00 -> 20:00`
-7. `2026-07-26 00:00 -> 04:00`
-8. `2026-07-30 08:00 -> 12:00`
-9. `2026-08-03 16:00 -> 20:00`
-10. `2026-08-07 00:00 -> 04:00`
-11. `2026-08-11 08:00 -> 12:00`
-12. `2026-08-14 16:00 -> 20:00`
-
-Corpus identity is deterministic (`m5corpus_*`), window names must be unique, chronology/non-overlap is enforced and corpus fan-out has a hard cap of 24.
-
-## Validation status — PR #63
-
-PR #63 initially exposed two implementation issues and both were corrected before merge:
-
-1. corpus initialization preceded guard-function definition, causing import-time `NameError` — fixed by reordering initialization;
-2. Ruff import-order failure in the new policy test — fixed.
-
-Exact head `629a065355db8e6a3642690f99c66630c84617c8` then passed:
-
-- full Python regression suite;
+- full Python regression;
 - Ruff;
-- shell syntax;
-- deployment contract;
-- Continuity guard;
+- shell/deployment contract;
 - Linode runtime checks;
-- Linode production bundle.
+- continuity guard.
 
-Documentation commits follow that head, so final merge requires a fresh exact-head green CI check. No new M5 OOS data has been acquired/read by this package.
+PR #65 squash-merged as `b1afa22fcfa459d2a8a3789291b74a0566041545`.
 
-## Next exact tasks after PR #63
+Exact-main production validation:
 
-1. Confirm final exact-head PR #63 CI is green and squash-merge only that verified head.
-2. Update actual `main` SHA/continuity after merge.
-3. Add an immutable/resumable **M5 development corpus materializer** that builds the 12 pre-registered windows and records policy ID, corpus ID, workflow IDs, dataset refs and hashes.
-4. Add a **multi-window evaluation aggregator** that requires complete per-window evidence before issuing an aggregate development verdict.
-5. Evaluate existing/Strategy-Factory candidate hypotheses across the fresh corpus under identical fees/slippage and causal contracts.
-6. Treat incomplete/zero-activity/insufficient-trade candidates conservatively; do not reward inactivity as edge.
-7. Only positive development survivors proceed to bounded robustness under lifecycle policy v2.
-8. Do not acquire/open the new M5 Frozen OOS until robustness evidence and an explicit OOS-stage contract authorize it.
-9. Keep L2/LOB reconstruction separate and later.
-10. Keep real exchange execution locked.
+- Linode external exact-build production proof run `33111336161`: **PASS**; verified exact build `b1afa22...`, HTTPS, Demo reconnect, Chart, Positions, Fast restart proof, M5 safety evidence, Frozen OOS closed and real execution locked.
+- Public production smoke run `33111336195`: first attempt hit a transient nginx `/api/chart` HTTP 502 during deploy convergence; rerun attempt 2: **PASS** on the same exact main SHA.
+- Linode runtime and continuity workflows: **PASS**.
 
-## Important constraints
+## Next exact tasks
 
-- No API secrets in Git, chat, logs or browser persistent storage.
-- Deterministic Risk Engine has final veto authority.
-- Runtime, research and credential persistence remain separate domains.
-- Strategy versions/evidence are immutable.
-- AI-generated strategy descriptions cannot execute arbitrary generated Python.
-- Executed-trade order flow and resting LOB liquidity are separate domains.
-- Gapped/tampered historical data fails closed.
-- Spot and USD-M futures are not silently mixed.
-- Same-candle still-forming footprint data cannot enter that candle's decision.
-- Missing versioned feature columns fail closed.
-- Zero-trade treatments are not interpreted as profitable edge.
-- Development rankings/wins are not promotion evidence.
-- Repeated tuning on the original four-hour smoke window is closed.
-- Legacy 2025 Frozen OOS and new M5 2026 Frozen OOS are independent locks.
-- Generic research workers cannot open frozen OOS or exchange execution.
-- Frozen OOS and real-money execution remain locked.
+1. Query actual `main`, open PRs and workflow state; do not assume this file is newer than GitHub reality.
+2. Resume existing PR #64 / `m5-development-corpus-materializer`; compare its diff to actual main and bring the branch forward without discarding/recreating the materializer work.
+3. Run PR #64 exact-head full CI; fix any conflicts/regressions introduced by the scanner hotfix/main advance.
+4. Merge PR #64 only after all required workflows are green.
+5. Deploy exact main and materialize only the 12 pre-registered development windows on Linode; do not acquire/open M5 Frozen OOS.
+6. Verify 12/12 immutable workflow/dataset hashes/provenance and resumable replay behavior.
+7. Build the multi-window evaluator/aggregator and begin Strategy Factory screening across fresh development windows rather than the old single smoke window.
+8. Continue to robustness before any OOS consideration.
 
 ## Continuity protocol
 
 Canonical continuation files: `AGENTS.md`, `PROJECT_STATE.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TODO.md`, `CHANGELOG.md`, `SESSION_HANDOFF.md`, `docs/CONTINUITY_PROTOCOL.md`.
 
-A new chat must read these files, query actual GitHub main/branch/open-PR/workflow state, compare any active branch to main, then continue the next valid task. Work remains sequential: one core architecture/research package at a time -> deterministic tests -> CI/log inspection -> fixes -> PR -> exact-head workflows -> merge -> production/runtime proof as applicable -> continuity update.
+New sessions must read them, then query actual GitHub state. Existing active branch/PR work must be compared and resumed rather than recreated. At meaningful session end, update repo state/handoff with exact commits, CI, production proof, unresolved risks and the next exact action.
