@@ -56,8 +56,8 @@ DEFAULT_FEATURE_REGISTRY = FeatureRegistry(
         FeatureDefinition("of_cvd", FeatureFamily.ORDER_FLOW),
         FeatureDefinition("of_poc_price", FeatureFamily.ORDER_FLOW),
         FeatureDefinition("of_stacked_imbalance", FeatureFamily.ORDER_FLOW),
-        FeatureDefinition("of_absorption", FeatureFamily.ORDER_FLOW, enabled=False),
-        FeatureDefinition("of_exhaustion", FeatureFamily.ORDER_FLOW, enabled=False),
+        FeatureDefinition("of_absorption", FeatureFamily.ORDER_FLOW),
+        FeatureDefinition("of_exhaustion", FeatureFamily.ORDER_FLOW),
         FeatureDefinition("lob_depth_imbalance", FeatureFamily.ORDER_BOOK, enabled=False),
     )
 )
