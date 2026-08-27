@@ -62,15 +62,17 @@ def test_real_ablation_autorun_is_bounded_idempotent_and_development_only() -> N
     assert "Persistent=true" in timer
 
 
-def test_linode_deploy_provisions_m5_autorun_without_touching_oos_lock() -> None:
+def test_linode_install_and_update_provision_m5_autorun_without_oos_authority() -> None:
+    install = (ROOT / "scripts/install_linode_runtime.sh").read_text(encoding="utf-8")
     update = (ROOT / "scripts/update_linode_runtime.sh").read_text(encoding="utf-8")
 
-    assert 'M5_ABLATION_SERVICE="eba-m5-real-ablation.service"' in update
-    assert 'M5_ABLATION_TIMER="eba-m5-real-ablation.timer"' in update
-    assert 'deploy/systemd/eba-m5-real-ablation.service' in update
-    assert 'deploy/systemd/eba-m5-real-ablation.timer' in update
-    assert '"$M5_ABLATION_TIMER"' in update
-    assert "final-oos" not in update.lower()
+    for script in (install, update):
+        assert 'M5_ABLATION_SERVICE="eba-m5-real-ablation.service"' in script
+        assert 'M5_ABLATION_TIMER="eba-m5-real-ablation.timer"' in script
+        assert "deploy/systemd/eba-m5-real-ablation.service" in script
+        assert "deploy/systemd/eba-m5-real-ablation.timer" in script
+        assert '"$M5_ABLATION_TIMER"' in script
+        assert "final-oos" not in script.lower()
 
 
 def test_existing_linode_env_is_upgraded_without_overwrite() -> None:
