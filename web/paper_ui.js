@@ -18,6 +18,27 @@ let paperState = {
 
 const paperEl = (id) => document.getElementById(id);
 
+// Shared position renderers are deliberately defined before trade_detail.js is
+// loaded. trade_detail.js combines Fast, legacy carry and MT5 rows in one list.
+// Keeping these helpers explicit prevents a missing renderer from crashing a
+// successful /api/runner/status refresh and falsely reporting the server offline.
+function paperPositionMarkup(position) {
+  const pnl = Number(position?.unrealizedPnlUsd ?? position?.unrealized_net_usd ?? 0);
+  const symbol = String(position?.symbol || 'BTCUSDT');
+  const side = String(position?.side || 'CARRY');
+  const entry = position?.entry_price ?? position?.spot_entry_vwap ?? null;
+  const entryText = Number.isFinite(Number(entry)) ? formatPrice(entry) : '—';
+  return `<div class="position-row"><div><strong>LEGACY CARRY PAPER · ${escapeHtml(symbol)} ${escapeHtml(side)}</strong><small>Read-only retired engine · Entry ${escapeHtml(entryText)}</small></div><span class="pnl ${pnl >= 0 ? 'positive-text' : 'negative'}">${escapeHtml(formatUsd(pnl))}</span></div>`;
+}
+
+function mt5PositionMarkup(position) {
+  const side = Number(position?.type) === 1 ? 'SELL' : 'BUY';
+  const pnl = Number(position?.profit || 0);
+  const symbol = String(position?.symbol || 'MT5');
+  const volume = position?.volume ?? '—';
+  return `<div class="position-row"><div><strong>${escapeHtml(symbol)} · ${side} ${escapeHtml(volume)}</strong><small>Entry ${escapeHtml(formatPrice(position?.priceOpen))} · Current ${escapeHtml(formatPrice(position?.priceCurrent))}</small></div><span class="pnl ${pnl >= 0 ? 'positive-text' : 'negative'}">${escapeHtml(formatUsd(pnl))}</span></div>`;
+}
+
 function paperTime(ms) {
   const value = Number(ms);
   if (!Number.isFinite(value) || value <= 0) return '—';
