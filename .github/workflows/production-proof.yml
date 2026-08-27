@@ -115,6 +115,8 @@ jobs:
                               "m5RealAblationPhase": m5.get("phase", "UNKNOWN"),
                               "m5RealAblationSafe": m5.get("safe") is True,
                               "m5ExitCode": m5.get("exitCode"),
+                              "m5FailureStage": m5.get("failureStage"),
+                              "m5ErrorSummary": m5.get("errorSummary"),
                               "m5AllTerminal": m5.get("allTerminal"),
                               "m5AllExperimentsPassed": m5.get("allExperimentsPassed"),
                               "m5EvidenceComplete": m5.get("evidenceComplete"),
