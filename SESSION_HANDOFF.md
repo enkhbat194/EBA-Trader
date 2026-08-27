@@ -1,77 +1,154 @@
 # EBA Trader — Session Handoff
 
-_Last handoff prepared: 2026-08-27 (Asia/Ulaanbaatar)_
+_Last handoff prepared: 2026-08-27 17:57 (Asia/Ulaanbaatar)_
+
+## Purpose
+
+This file is the exact cross-chat continuation point. A new AI session must restore project state from GitHub/runtime evidence before coding; it must not restart the project from memory or invent missing state.
+
+## Exact repository state at handoff
+
+- Repository: `enkhbat194/EBA-Trader`
+- Authoritative base branch: `main`
+- Exact `main` SHA: `93e684794cd692bf1534ec46a5c9186bb974bbb9`
+- Open PRs at handoff: `0`
+- Active unmerged research branch: `m5-stacked-imbalance-feature`
+- Active branch head: `ec015d6b54e72d8906cd1e80d299f4d2ed213de1`
+- Active branch relation to main: `3 commits ahead`, `0 behind`
+- Active branch changed source files only:
+  - `src/eba_trader/orderflow.py`
+  - `src/eba_trader/footprint_dataset.py`
+  - `src/eba_trader/orderflow_feature_dataset.py`
+- No PR/CI proof exists yet for the active stacked-imbalance branch. Do not call it complete or production-ready.
+
+## Verified production state
+
+- Active runtime: Linode.
+- Exact verified production build: `93e684794cd692bf1534ec46a5c9186bb974bbb9`.
+- App/server release: `0.12.2 · LINODE-M7`.
+- PWA cache: `eba-trader-ui-v15`.
+- Public HTTPS PWA: `https://eba-trader-172-236-150-62.sslip.io/`.
+- User-visible PWA check at 2026-08-27 17:53 Asia/Ulaanbaatar showed:
+  - Server build `93e6847`
+  - Runtime `LINODE`
+  - `HTTPS READY`
+  - Server scanner `ACTIVE`
+  - Installed UI/server release both `0.12.2 · LINODE-M7`
+  - PWA cache client/server both `eba-trader-ui-v15`
+- Exact-main external production proof passed: public smoke, encrypted Demo reconnect, Chart, Positions, M5 terminal evidence, Fast restart proof, frozen-OOS lock and real-execution lock.
+- The displayed `Released 2026-08-26` value is release metadata; it does not contradict the newer exact build SHA.
 
 ## What was completed
 
-- M4 strategy-platform/evidence foundation remains complete and authoritative.
-- Production recovery/logging work remains deployed, including bounded journald and disabled per-tick Binance INFO logging.
-- Encrypted one-time Binance Demo credential persistence/reconnect remains production verified; secrets are never returned to browser JavaScript.
-- Fast Momentum remains the sole active production paper engine; legacy carry cannot create new production entries.
-- PR #51 **Use verified Binance archive for historical M5 order flow** merged at `1c1b683b7bfc9dd62cff9d96fcb3160213cd2595`.
-  - Root cause repaired: the fixed `2026-08-01T00:00:00Z -> 04:00:00Z` M5 development window was too old for the Binance USD-M REST `aggTrades` path and returned HTTP 400.
-  - The fixed window was preserved for reproducibility rather than shifted to recent data.
-  - Historical USD-M order flow now comes from official Binance public daily `aggTrades` archives with `.CHECKSUM` SHA-256 verification.
-  - Archive ZIPs are streamed to temporary storage and only the exact requested `[start,end)` window is retained for the research dataset.
-  - Cross-midnight acquisition supports the prior closed-footprint minute required by causal alignment.
-  - Actual archive provenance is preserved in immutable acquisition evidence; recent REST acquisition remains available for recent data.
-  - Historical archive data fails closed on checksum mismatch, malformed archive/rows, gaps, or an empty requested window.
-- PR #52 **Harden production proof for terminal M5 evidence** merged at `7e24df486839c92f9c324cbd910efc00dfe7bc4d`.
-  - External production proof can no longer pass merely because the exact application build deployed while an old M5 FAILED/RUNNING marker remains.
-  - It now waits for `phase=COMPLETE`, `safe=true`, `allTerminal=true`, `evidenceComplete=true`, frozen OOS closed, and live execution locked.
-- Exact production build `7e24df486839c92f9c324cbd910efc00dfe7bc4d` passed the hardened external proof and public production smoke.
-- The first real fixed-window BTCUSDT USD-M M5 development ablation completed successfully:
-  - phase: `COMPLETE`
-  - safe: `true`
-  - all terminal: `true`
-  - all experiments passed: `true`
-  - evidence complete: `true`
-  - batch: `abl_6c4a8eeb83a662894a3f2816`
-  - report: `/var/lib/eba-trader/research/evidence/m5-real-ablation-20260801T000000Z-20260801T040000Z.json`
-  - frozen OOS stayed locked and real execution stayed locked.
-- Fast restart production proof is also reported `PASS` by the exact-build external proof.
+- M4 strategy platform/evidence foundation: complete.
+- Restart-safe experiment queue, immutable evidence, deterministic development screening and robustness contracts: complete.
+- Linode auto-update/recovery/logging hardening: deployed.
+- Raw Binance per-tick INFO flood: fixed; market-data subscriptions remain active while per-tick service logging stays disabled/bounded.
+- Persistent runtime/research storage: separate and production-deployed.
+- One-time Binance Demo API credentials: encrypted on Linode; secret never returns to browser JS.
+- Fast Momentum: sole active production paper engine; real orders remain disabled.
+- Historical fixed-window BTCUSDT USD-M executed-trade data: official Binance public archive with SHA-256 checksum verification and causal alignment.
+- First real fixed-window M5 development ablation: terminal COMPLETE with immutable evidence.
+- Sanitized M5 report metrics: exposed through production Research API/proof on `main` SHA `93e684794cd...`.
 
-## Current project state
+## First real M5 development result — interpreted
 
-- GitHub `main` is authoritative; Linode is the active runtime target.
-- Current verified production build: `7e24df486839c92f9c324cbd910efc00dfe7bc4d`.
-- M4 is complete.
-- M5 Strategy Factory/order-flow foundation is active, and the first real candle-control vs Delta/CVD development batch has now completed with immutable evidence.
-- This development result is **not** frozen-OOS proof, lifecycle promotion, or permission for real trading.
-- Runtime `TradeLedger` and research DB/dataset/evidence storage remain separate.
-- Real-money execution remains locked.
-- Frozen OOS remains locked.
+Batch: `abl_6c4a8eeb83a662894a3f2816`
 
-## Still pending / not proven
+Fixed development window: `2026-08-01T00:00:00Z -> 2026-08-01T04:00:00Z`.
 
-- Inspect the immutable per-treatment metrics from batch `abl_6c4a8eeb83a662894a3f2816` before making any claim that Delta/CVD adds incremental edge over the candle-only control.
-- Add stacked/diagonal imbalance, absorption/exhaustion, and price/delta divergence candidates only after the first report is interpreted as development evidence.
-- LOB depth reconstruction remains a separate later sequence-sensitive data plane.
-- Fresh-install provisioning of the M5 autorun timer remains a separately audited small follow-up if not already covered by the fresh-install path.
-- Do not open frozen OOS automatically and do not unlock real execution.
+Candle-only baseline:
 
-## Important decisions / constraints
+- total return: `-0.004244488397751933` (~`-0.42445%`)
+- final equity: `9957.55511602248`
+- trade count: `4`
+- win rate: `0.25`
+- max drawdown: `-0.004244488397751933`
+- expectancy: `-10.611220994379892`
+- total cost: `43.90484437829747`
 
-- API secrets never go to Git, chat, logs, or browser persistent storage.
-- Persistent research state lives outside `/opt/Eba-Trader`.
-- Journald limits are a host-safety invariant.
-- Research workers and ablation jobs have no exchange-order or frozen-OOS authority.
-- Executed-trade order flow and resting LOB liquidity are separate domains.
-- Spot and USD-M futures data are not silently mixed.
-- Same-candle still-forming footprint data cannot enter a candle decision.
-- Historical fixed-window research must remain reproducible; do not silently roll the window forward to work around provider retention limits.
-- Historical archive integrity must be cryptographically verified and gaps fail closed.
-- Development wins/rankings are not promotion evidence.
-- Deterministic risk retains veto authority.
+Best observed tested Delta treatment: `delta_ratio_threshold=0.2`
+
+- total return: `-0.0012055415604976805` (~`-0.12055%`)
+- final equity: `9987.944584395023`
+- trade count: `2`
+- win rate: `0.5`
+- max drawdown: `-0.0026586496267955173`
+- expectancy: `-6.027707802488294`
+- total cost: `21.99920182120285`
+
+Interpretation:
+
+- Delta filtering materially reduced loss/cost/drawdown on this tiny development window.
+- Absolute loss was reduced by about 71.6% versus the candle-only baseline.
+- The treatment was still negative-return and negative-expectancy.
+- CVD-only did not demonstrate incremental improvement in this run.
+- This is **development evidence only**. It is not an edge claim, frozen-OOS proof, lifecycle promotion, or trading authorization.
+
+## Active work — DO NOT RESTART FROM SCRATCH
+
+Branch `m5-stacked-imbalance-feature` has already started the next candidate family.
+
+Implemented so far on that branch:
+
+- deterministic executed-trade footprint diagonal imbalance calculation;
+- buy/sell adjacent price-level comparison;
+- configurable imbalance ratio contract;
+- protection against false infinite imbalance from empty diagonal cells;
+- consecutive imbalance-level stack measurement;
+- buy stack / sell stack / signed stacked score plumbing;
+- causal closed-footprint feature propagation into footprint/feature dataset code;
+- feature-dataset schema work/backward-compatibility work has started.
+
+Not yet proven on that branch:
+
+- regression tests for all new stacked-imbalance behavior;
+- complete feature registry/adapter/gate/orchestration integration;
+- full Python regression and Ruff;
+- CI/deployment/continuity gates;
+- PR review/merge;
+- real same-window controlled stacked-imbalance ablation;
+- production deployment/proof.
 
 ## Next exact task
 
-1. Read the immutable report for batch `abl_6c4a8eeb83a662894a3f2816` and compare candle-only control vs Delta/CVD treatments using the recorded fees/slippage and screening metrics.
-2. Record the interpretation explicitly as **development evidence only**; no frozen-OOS opening or lifecycle promotion.
-3. If the first report is structurally sound, add stacked/diagonal footprint imbalance candidates with causal definitions and regression tests.
-4. Then add absorption/exhaustion and price/delta divergence candidates, keeping cheap screening and M4 evidence gates deterministic.
-5. Keep LOB reconstruction as a separate later data plane and keep real execution locked.
+1. First inspect actual GitHub state. If `m5-stacked-imbalance-feature` still exists at/after `ec015d6b...` with no replacement PR, **resume that branch**; do not create a duplicate feature branch.
+2. Inspect its three-file diff against current `main` before editing.
+3. Complete deterministic unit/regression tests for diagonal/stacked imbalance, including zero-volume/empty-diagonal, directionality, consecutive-stack, deterministic replay and causal availability cases.
+4. Finish the feature-dataset/registry/backtest adapter contract so stacked imbalance can be consumed as an allowlisted development feature without future leakage.
+5. Add a bounded controlled gate set for stacked imbalance; keep the candle-only baseline and recorded fees/slippage identical.
+6. Run full regression + Ruff + shell/deployment/continuity checks on the exact branch head.
+7. Open PR only after local/CI contract is ready; merge only when required workflows pass on the exact PR head.
+8. After merge/exact Linode deploy, run the same fixed development window and compare return, expectancy, drawdown, cost, trade count and win rate against baseline/Delta evidence.
+9. Only after that proceed to absorption/exhaustion, then price/delta divergence.
+10. Keep LOB reconstruction separate and later.
 
-## Notes for the next AI session
+## Hard safety / architecture constraints
 
-Read `AGENTS.md`, `PROJECT_STATE.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TODO.md`, and this file before coding. Inspect actual PR/main/runtime state before relying on prose. Never request an API secret in chat; Binance Demo credential entry belongs in the PWA only.
+- Real-money execution remains locked.
+- Frozen OOS remains locked until lifecycle policy explicitly permits it.
+- Deterministic Risk Engine retains final veto authority; AI/lifecycle code cannot bypass it.
+- Development rankings/wins have no promotion authority.
+- API secrets never go to Git, chat, logs or browser persistent storage.
+- Research workers/ablation jobs have no exchange-order authority.
+- Runtime TradeLedger and research DB/evidence/datasets remain separate.
+- Spot and USD-M futures data are never silently mixed.
+- Executed-trade footprint and resting LOB liquidity remain separate data planes.
+- Same-candle still-forming footprint data cannot enter a candle decision.
+- Historical fixed windows are not silently shifted to hide provider retention limitations.
+- Archive checksum/sequence/integrity problems fail closed.
+- High-frequency raw market ticks are not normal INFO service logs.
+
+## Continuous-work / new-chat startup protocol
+
+The next AI session must perform this sequence before implementation:
+
+1. Read `AGENTS.md`, `PROJECT_STATE.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TODO.md`, `CHANGELOG.md`, this `SESSION_HANDOFF.md`, and `docs/CONTINUITY_PROTOCOL.md`.
+2. Query GitHub and verify actual `main` SHA, active branch head, open PRs and workflow state.
+3. Compare the active branch against `main`; inspect the existing implementation before changing it.
+4. Treat GitHub code/workflow/runtime proof as source of truth. This handoff is context, not permission to invent state.
+5. Continue the existing branch/task when valid rather than starting the project or task over.
+6. Work sequentially: one core architecture task/branch/package at a time, then deterministic tests -> CI/log inspection -> fixes -> PR -> exact-head workflows -> merge -> production proof -> continuity update.
+7. At chat/session exit, update repo continuity with exact files, branch, PR, CI, merge SHA, production proof, unresolved risks and the next exact action.
+
+The goal of this protocol is uninterrupted cross-chat work: a new chat should recover state from the repository and continue, not ask the user to reconstruct prior work.
