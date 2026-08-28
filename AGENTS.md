@@ -54,6 +54,17 @@ Historical M1/M2/M3 documents are evidence records, not current runtime architec
 - Incomplete/gapped historical order-flow data is not backtest-ready.
 - Replit and Render are deprecated backend/runtime paths for EBA Trader; GitHub `main` + Linode is canonical.
 
+## Repository hygiene and branch lifecycle
+
+- `main` is the only long-lived implementation branch and must stay deployable.
+- Use one short-lived branch per focused task/incident/milestone; do not reuse a merged branch for unrelated work.
+- Before editing, inspect open PRs and compare any relevant existing branch with `main`; do not duplicate in-progress work.
+- Never delete or overwrite a branch that has an open PR.
+- Merged/stale same-repository branches are pruned automatically by `.github/workflows/branch-hygiene.yml`.
+- Do not commit runtime databases, logs, artifacts, raw/cache datasets, virtual environments, tool caches, local `.env` files, keys/certificates, or editor/OS temporary files.
+- Run `python scripts/check_repo_hygiene.py` after repository-structure or ignore-policy changes. CI also enforces it.
+- See `docs/REPOSITORY_HYGIENE.md` for the canonical branch/file policy.
+
 ## Mandatory end-of-session protocol
 
 After meaningful work, before declaring the work finished:
