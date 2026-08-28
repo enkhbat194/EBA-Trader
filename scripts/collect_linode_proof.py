@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import subprocess
 import tempfile
 import urllib.error
@@ -19,7 +20,10 @@ RESEARCH_EVIDENCE = RESEARCH_ROOT / "evidence"
 RESEARCH_DB = RESEARCH_ROOT / "eba_research.db"
 M5_ABLATION_PROOF = RESEARCH_ROOT / "m5-real-ablation-latest.json"
 M5_CORPUS_PROOF = RESEARCH_ROOT / "m5-corpus-materialization-latest.json"
+M5_MULTIWINDOW_PROOF = RESEARCH_ROOT / "m5-multiwindow-evaluation-latest.json"
 EXPECTED_M5_CORPUS_WINDOWS = 12
+EXPECTED_M5_MULTIWINDOW_CANDIDATES = 17
+M5_MULTIWINDOW_REPORT_SCHEMA = "m5_multiwindow_development_report_v1"
 RUNTIME_API = "http://127.0.0.1:8765"
 WEB_API = "http://127.0.0.1:8000"
 
@@ -310,6 +314,211 @@ def _m5_corpus_status() -> dict[str, Any]:
     return sanitized
 
 
+def _safe_numeric_map(value: object) -> dict[str, int | float]:
+    if not isinstance(value, dict):
+        return {}
+    result: dict[str, int | float] = {}
+    for raw_key, raw_value in value.items():
+        if isinstance(raw_value, bool) or not isinstance(raw_value, (int, float)):
+            continue
+        number = float(raw_value)
+        if not math.isfinite(number):
+            continue
+        result[str(raw_key)] = raw_value
+    return result
+
+
+def _safe_parameters(value: object) -> dict[str, int | float]:
+    allowed = {
+        "delta_ratio_threshold",
+        "cvd_threshold",
+        "stacked_imbalance_threshold",
+        "absorption_threshold",
+        "exhaustion_threshold",
+        "price_delta_divergence_threshold",
+    }
+    if not isinstance(value, dict) or not set(value) <= allowed:
+        return {}
+    return _safe_numeric_map(value)
+
+
+def _sanitize_multiwindow_ranking(value: object) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    ranking: list[dict[str, Any]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            return []
+        rank = item.get("developmentPriorityRank")
+        candidate_id = item.get("candidateId")
+        parameters = _safe_parameters(item.get("parameters"))
+        aggregate = _safe_numeric_map(item.get("aggregate"))
+        if (
+            isinstance(rank, bool)
+            or not isinstance(rank, int)
+            or rank < 1
+            or not isinstance(candidate_id, str)
+            or not candidate_id.strip()
+            or not parameters
+            or not aggregate
+        ):
+            return []
+        ranking.append(
+            {
+                "developmentPriorityRank": rank,
+                "candidateId": candidate_id[:96],
+                "parameters": parameters,
+                "aggregate": aggregate,
+            }
+        )
+    return ranking
+
+
+def _m5_multiwindow_status() -> dict[str, Any]:
+    base: dict[str, Any] = {
+        "available": M5_MULTIWINDOW_PROOF.is_file(),
+        "phase": "WAITING",
+        "complete": False,
+        "safe": True,
+        "expectedWindowCount": EXPECTED_M5_CORPUS_WINDOWS,
+        "windowCount": None,
+        "expectedCandidateCount": EXPECTED_M5_MULTIWINDOW_CANDIDATES,
+        "candidateCount": None,
+        "rankingIsDevelopmentOnly": True,
+        "developmentRanking": [],
+        "edgeClaimAllowed": False,
+        "promotionAuthority": False,
+        "frozenOosOpened": False,
+        "m5FrozenOosOpened": False,
+        "liveExecutionAllowed": False,
+    }
+    if not M5_MULTIWINDOW_PROOF.is_file():
+        return base
+
+    try:
+        payload = json.loads(M5_MULTIWINDOW_PROOF.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return {
+            **base,
+            "available": True,
+            "phase": "INVALID",
+            "safe": False,
+            "error": str(exc)[:240],
+        }
+    if not isinstance(payload, dict) or payload.get("schema") != "m5_multiwindow_runtime_status_v1":
+        return {
+            **base,
+            "available": True,
+            "phase": "INVALID",
+            "safe": False,
+            "error": "M5 multi-window runtime status has an invalid schema",
+        }
+
+    allowed = {
+        "schema",
+        "phase",
+        "updatedAt",
+        "materializationId",
+        "policyId",
+        "corpusId",
+        "evaluationId",
+        "reportPath",
+        "candidateSetSha256",
+        "complete",
+        "windowCount",
+        "expectedWindowCount",
+        "candidateCount",
+        "topDevelopmentCandidate",
+        "topDevelopmentParameters",
+        "topDevelopmentAggregate",
+        "baselineAggregate",
+        "errorType",
+        "errorSummary",
+        "rankingIsDevelopmentOnly",
+        "edgeClaimAllowed",
+        "promotionAuthority",
+        "frozenOosOpened",
+        "m5FrozenOosOpened",
+        "liveExecutionAllowed",
+    }
+    sanitized = {key: payload.get(key) for key in allowed if key in payload}
+    sanitized["topDevelopmentParameters"] = _safe_parameters(
+        payload.get("topDevelopmentParameters")
+    )
+    sanitized["topDevelopmentAggregate"] = _safe_numeric_map(
+        payload.get("topDevelopmentAggregate")
+    )
+    sanitized["baselineAggregate"] = _safe_numeric_map(payload.get("baselineAggregate"))
+
+    phase = str(payload.get("phase") or "UNKNOWN").upper()
+    locks_safe = (
+        payload.get("rankingIsDevelopmentOnly") is True
+        and payload.get("edgeClaimAllowed") is False
+        and payload.get("promotionAuthority") is False
+        and payload.get("frozenOosOpened") is False
+        and payload.get("m5FrozenOosOpened") is False
+        and payload.get("liveExecutionAllowed") is False
+    )
+    complete_valid = True
+    ranking: list[dict[str, Any]] = []
+    if phase == "COMPLETE":
+        report_path_raw = payload.get("reportPath")
+        report: dict[str, Any] | None = None
+        if isinstance(report_path_raw, str) and report_path_raw.strip():
+            try:
+                report_path = Path(report_path_raw).resolve()
+                report_path.relative_to(RESEARCH_EVIDENCE.resolve())
+                report_payload = json.loads(report_path.read_text(encoding="utf-8"))
+                if isinstance(report_payload, dict):
+                    report = report_payload
+            except (OSError, ValueError, json.JSONDecodeError):
+                report = None
+        if report is not None:
+            ranking = _sanitize_multiwindow_ranking(report.get("developmentRanking"))
+        report_safe = bool(
+            report is not None
+            and report.get("schema") == M5_MULTIWINDOW_REPORT_SCHEMA
+            and report.get("evaluationId") == payload.get("evaluationId")
+            and report.get("materializationId") == payload.get("materializationId")
+            and report.get("candidateSetSha256") == payload.get("candidateSetSha256")
+            and report.get("windowCount") == EXPECTED_M5_CORPUS_WINDOWS
+            and report.get("candidateCount") == EXPECTED_M5_MULTIWINDOW_CANDIDATES
+            and report.get("rankingIsDevelopmentOnly") is True
+            and report.get("edgeClaimAllowed") is False
+            and report.get("promotionAuthority") is False
+            and report.get("frozenOosOpened") is False
+            and report.get("m5FrozenOosOpened") is False
+            and report.get("liveExecutionAllowed") is False
+            and len(ranking) == EXPECTED_M5_MULTIWINDOW_CANDIDATES
+        )
+        complete_valid = bool(
+            payload.get("complete") is True
+            and payload.get("expectedWindowCount") == EXPECTED_M5_CORPUS_WINDOWS
+            and payload.get("windowCount") == EXPECTED_M5_CORPUS_WINDOWS
+            and payload.get("candidateCount") == EXPECTED_M5_MULTIWINDOW_CANDIDATES
+            and isinstance(payload.get("topDevelopmentCandidate"), str)
+            and bool(sanitized["topDevelopmentAggregate"])
+            and bool(sanitized["baselineAggregate"])
+            and report_safe
+        )
+
+    sanitized.update(
+        {
+            "available": True,
+            "phase": phase,
+            "complete": bool(phase == "COMPLETE" and complete_valid),
+            "safe": bool(locks_safe and complete_valid),
+            "expectedWindowCount": EXPECTED_M5_CORPUS_WINDOWS,
+            "expectedCandidateCount": EXPECTED_M5_MULTIWINDOW_CANDIDATES,
+            "developmentRanking": ranking,
+            "rankingIsDevelopmentOnly": True,
+            "edgeClaimAllowed": False,
+            "promotionAuthority": False,
+        }
+    )
+    return sanitized
+
+
 def _local_api_contract(expected_build: str | None) -> dict[str, Any]:
     health, health_error = _safe_request(f"{WEB_API}/api/health")
     runtime_health, runtime_error = _safe_request(f"{RUNTIME_API}/health")
@@ -378,7 +587,6 @@ def _demo_reconnect_contract() -> dict[str, Any]:
         payload={},
         timeout=20.0,
     )
-    # Never persist the session token returned by the autoconnect endpoint.
     result.update(
         {
             "state": (reconnect or {}).get("state"),
@@ -434,6 +642,7 @@ def collect(*, expected_build: str | None = None) -> dict[str, Any]:
         "services": _service_contract(),
         "m5RealAblation": _m5_ablation_status(),
         "m5Corpus": _m5_corpus_status(),
+        "m5MultiWindow": _m5_multiwindow_status(),
         "localApi": _local_api_contract(expected_build),
         "demoReconnect": _demo_reconnect_contract(),
         "chart": _chart_contract(),
@@ -448,6 +657,7 @@ def collect(*, expected_build: str | None = None) -> dict[str, Any]:
         proof["services"]["passed"],
         proof["m5RealAblation"]["safe"],
         proof["m5Corpus"]["safe"],
+        proof["m5MultiWindow"]["safe"],
         proof["localApi"]["passed"],
     )
     proof["localContractPassed"] = all(required_local)
