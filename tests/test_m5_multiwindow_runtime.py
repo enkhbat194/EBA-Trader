@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from eba_trader import m5_multiwindow_runtime
-from eba_trader.m5_multiwindow import M5MultiWindowCandidate, REPORT_SCHEMA
+from eba_trader.m5_multiwindow import REPORT_SCHEMA, M5MultiWindowCandidate
 
 
 def _write_corpus_status(research_root: Path, manifest: Path, *, complete: bool = True) -> None:
