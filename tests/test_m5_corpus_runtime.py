@@ -21,7 +21,10 @@ def _fake_materialization() -> SimpleNamespace:
     )
 
 
-def test_runtime_writes_complete_safe_status(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_runtime_writes_complete_safe_status(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
     research_root = tmp_path / "research"
     manifest = research_root / "datasets" / "m5_orderflow_dev" / "manifest.json"
     manifest.parent.mkdir(parents=True)
