@@ -1,0 +1,141 @@
+name: M5 corpus completion proof
+
+on:
+  push:
+    branches:
+      - m5-corpus-completion-proof
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 42
+    env:
+      EBA_PRODUCTION_URL: https://eba-trader-172-236-150-62.sslip.io
+      EXPECTED_MAIN_SHA: d0de5fbfe33ecfaff50693637ec6ff38829ad81c
+    steps:
+      - name: Wait for exact production corpus completion
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.request
+
+          base = os.environ["EBA_PRODUCTION_URL"].rstrip("/")
+          expected = os.environ["EXPECTED_MAIN_SHA"].strip()
+          deadline = time.time() + 2400
+          last = {"state": "not attempted"}
+
+          def get_json(path):
+              request = urllib.request.Request(
+                  base + path,
+                  headers={"Accept": "application/json", "User-Agent": "eba-m5-corpus-proof/1"},
+              )
+              with urllib.request.urlopen(request, timeout=15) as response:
+                  payload = json.loads(response.read().decode("utf-8"))
+              if not isinstance(payload, dict):
+                  raise RuntimeError(f"{path} returned non-object JSON")
+              return payload
+
+          while time.time() < deadline:
+              try:
+                  app = get_json("/api/app-info")
+                  build = str(app.get("buildSha") or "")
+                  if build != expected:
+                      last = {
+                          "state": "waiting_build",
+                          "expected": expected,
+                          "actual": build or None,
+                      }
+                      time.sleep(15)
+                      continue
+
+                  research = get_json("/api/research/status")
+                  proof = research.get("productionProof") or {}
+                  corpus = proof.get("m5Corpus") or {}
+                  locks = research.get("locks") or {}
+                  checks = {
+                      "exact_build": build == expected,
+                      "corpus_available": corpus.get("available") is True,
+                      "corpus_complete_phase": corpus.get("phase") == "COMPLETE",
+                      "corpus_complete": corpus.get("complete") is True,
+                      "corpus_safe": corpus.get("safe") is True,
+                      "integrity_verified": corpus.get("integrityVerified") is True,
+                      "expected_window_count": corpus.get("expectedWindowCount") == 12,
+                      "window_count": corpus.get("windowCount") == 12,
+                      "archive_orderflow": corpus.get("orderflowSource") == "archive",
+                      "feature_hashes": corpus.get("allFeatureHashesPresent") is True,
+                      "legacy_oos_closed": corpus.get("frozenOosOpened") is False,
+                      "m5_oos_closed": corpus.get("m5FrozenOosOpened") is False,
+                      "live_locked": corpus.get("liveExecutionAllowed") is False,
+                      "edge_claim_locked": corpus.get("edgeClaimAllowed") is False,
+                      "promotion_locked": corpus.get("promotionAuthority") is False,
+                      "research_oos_locked": locks.get("frozenOos") is True,
+                      "research_execution_locked": locks.get("realExecution") is True,
+                  }
+                  failed = [name for name, passed in checks.items() if not passed]
+                  if failed:
+                      last = {
+                          "state": "waiting_corpus",
+                          "failed": failed,
+                          "corpus": {
+                              key: corpus.get(key)
+                              for key in (
+                                  "phase",
+                                  "complete",
+                                  "safe",
+                                  "integrityVerified",
+                                  "expectedWindowCount",
+                                  "windowCount",
+                                  "orderflowSource",
+                                  "allFeatureHashesPresent",
+                                  "materializationId",
+                                  "policyId",
+                                  "corpusId",
+                                  "errorType",
+                                  "errorSummary",
+                                  "frozenOosOpened",
+                                  "m5FrozenOosOpened",
+                                  "liveExecutionAllowed",
+                                  "edgeClaimAllowed",
+                                  "promotionAuthority",
+                              )
+                          },
+                      }
+                      print(json.dumps(last, sort_keys=True, separators=(",", ":")))
+                      time.sleep(15)
+                      continue
+
+                  result = {
+                      "ok": True,
+                      "build": build,
+                      "phase": corpus.get("phase"),
+                      "materializationId": corpus.get("materializationId"),
+                      "policyId": corpus.get("policyId"),
+                      "corpusId": corpus.get("corpusId"),
+                      "windowCount": corpus.get("windowCount"),
+                      "expectedWindowCount": corpus.get("expectedWindowCount"),
+                      "orderflowSource": corpus.get("orderflowSource"),
+                      "integrityVerified": corpus.get("integrityVerified"),
+                      "allFeatureHashesPresent": corpus.get("allFeatureHashesPresent"),
+                      "frozenOosOpened": corpus.get("frozenOosOpened"),
+                      "m5FrozenOosOpened": corpus.get("m5FrozenOosOpened"),
+                      "liveExecutionAllowed": corpus.get("liveExecutionAllowed"),
+                      "edgeClaimAllowed": corpus.get("edgeClaimAllowed"),
+                      "promotionAuthority": corpus.get("promotionAuthority"),
+                  }
+                  print(json.dumps(result, sort_keys=True, separators=(",", ":")))
+                  raise SystemExit(0)
+              except (OSError, ValueError, RuntimeError, urllib.error.URLError) as exc:
+                  last = {"state": "request_error", "error": str(exc)[:1000]}
+                  time.sleep(15)
+
+          raise SystemExit(
+              "M5 corpus completion proof timed out: "
+              + json.dumps(last, sort_keys=True, separators=(",", ":"))
+          )
+          PY
