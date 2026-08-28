@@ -4,9 +4,10 @@ import argparse
 import json
 import math
 import statistics
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from .backtest_adapter import EmaFeatureBaselineV1Adapter, EmaOrderFlowV1Adapter
 from .m5_ablation import OrderFlowGate
@@ -135,7 +136,11 @@ def _json_object(path: Path, *, label: str) -> dict[str, Any]:
 def _resolve_under(root: Path, value: str | Path, *, label: str) -> Path:
     resolved_root = root.resolve()
     candidate = Path(value)
-    candidate = candidate.resolve() if candidate.is_absolute() else (resolved_root / candidate).resolve()
+    candidate = (
+        candidate.resolve()
+        if candidate.is_absolute()
+        else (resolved_root / candidate).resolve()
+    )
     try:
         candidate.relative_to(resolved_root)
     except ValueError as exc:
@@ -380,12 +385,13 @@ def evaluate_m5_multiwindow(
     materialization_manifest: str | Path,
     dataset_root: str | Path,
     candidates: tuple[M5MultiWindowCandidate, ...],
-    config: M5MultiWindowConfig = M5MultiWindowConfig(),
+    config: M5MultiWindowConfig | None = None,
     baseline_adapter: Any | None = None,
     orderflow_adapter: Any | None = None,
 ) -> dict[str, Any]:
     if not candidates:
         raise ValueError("M5 multi-window evaluation requires candidates")
+    config = config or M5MultiWindowConfig()
     config_payload = config.as_dict()
     dataset_root_path = Path(dataset_root).resolve()
     materialization, receipts = _load_materialization(
