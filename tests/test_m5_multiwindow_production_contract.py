@@ -26,13 +26,19 @@ def test_linode_bundle_checks_multiwindow_runtime_wiring() -> None:
 
     assert "bash -n scripts/run_m5_research_maintenance_once.sh" in workflow
     assert "python -m py_compile scripts/collect_linode_proof.py" in workflow
-    assert "grep -q 'm5_multiwindow_runtime' scripts/run_m5_research_maintenance_once.sh" in workflow
+    wiring_contract = (
+        "grep -q 'm5_multiwindow_runtime' scripts/run_m5_research_maintenance_once.sh"
+    )
+    assert wiring_contract in workflow
 
 
 def test_production_collector_exposes_sanitized_development_only_multiwindow_status() -> None:
     collector = (ROOT / "scripts/collect_linode_proof.py").read_text(encoding="utf-8")
 
-    assert 'M5_MULTIWINDOW_PROOF = RESEARCH_ROOT / "m5-multiwindow-evaluation-latest.json"' in collector
+    marker = (
+        'M5_MULTIWINDOW_PROOF = RESEARCH_ROOT / "m5-multiwindow-evaluation-latest.json"'
+    )
+    assert marker in collector
     assert "EXPECTED_M5_MULTIWINDOW_CANDIDATES = 17" in collector
     assert '"m5MultiWindow": _m5_multiwindow_status()' in collector
     assert 'proof["m5MultiWindow"]["safe"]' in collector
