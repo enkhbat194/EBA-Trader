@@ -1,0 +1,109 @@
+name: M5 robustness result proof
+
+on:
+  push:
+    branches: [m5-robustness-result-proof]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      EBA_PRODUCTION_URL: https://eba-trader-172-236-150-62.sslip.io
+      EXPECTED_BUILD: 3dcfe48995b3662899105b710aa82c6a68ad093c
+    steps:
+      - name: Wait for completed robustness evidence
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.request
+
+          base = os.environ["EBA_PRODUCTION_URL"].rstrip("/")
+          expected = os.environ["EXPECTED_BUILD"]
+          deadline = time.time() + 900
+          last = "not attempted"
+
+          def get_json(path):
+              request = urllib.request.Request(
+                  base + path,
+                  headers={"Accept": "application/json", "User-Agent": "eba-robustness-proof/1"},
+              )
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  payload = json.loads(response.read().decode("utf-8"))
+              if not isinstance(payload, dict):
+                  raise RuntimeError(f"{path} returned non-object JSON")
+              return payload
+
+          while time.time() < deadline:
+              try:
+                  app = get_json("/api/app-info")
+                  build = str(app.get("buildSha") or "")
+                  if build != expected:
+                      last = f"waiting exact build {expected[:8]} server={build[:8] or 'unknown'}"
+                      time.sleep(20)
+                      continue
+                  research = get_json("/api/research/status")
+                  proof = research.get("productionProof") or {}
+                  robust = proof.get("m5Robustness") or {}
+                  locks = research.get("locks") or {}
+                  checks = robust.get("checks") or {}
+                  required = {
+                      "phase": robust.get("phase") == "COMPLETE",
+                      "complete": robust.get("complete") is True,
+                      "safe": robust.get("safe") is True,
+                      "candidate": robust.get("candidateId") == "absorption_020",
+                      "scenarios": robust.get("scenarioCount") == 9,
+                      "development_only": robust.get("developmentEvidenceOnly") is True,
+                      "no_edge": robust.get("edgeClaimAllowed") is False,
+                      "no_promotion": robust.get("promotionAuthority") is False,
+                      "legacy_oos_closed": robust.get("frozenOosOpened") is False,
+                      "m5_oos_closed": robust.get("m5FrozenOosOpened") is False,
+                      "live_locked": robust.get("liveExecutionAllowed") is False,
+                      "global_oos_locked": locks.get("frozenOos") is True,
+                      "global_real_locked": locks.get("realExecution") is True,
+                      "checks_present": isinstance(checks, dict) and len(checks) >= 7,
+                  }
+                  failed = [name for name, passed in required.items() if not passed]
+                  if failed:
+                      last = json.dumps(
+                          {
+                              "failed": failed,
+                              "phase": robust.get("phase"),
+                              "errorType": robust.get("errorType"),
+                              "errorSummary": robust.get("errorSummary"),
+                          },
+                          sort_keys=True,
+                      )
+                      time.sleep(20)
+                      continue
+                  print(
+                      json.dumps(
+                          {
+                              "ok": True,
+                              "build": build,
+                              "robustnessId": robust.get("robustnessId"),
+                              "candidateId": robust.get("candidateId"),
+                              "scenarioCount": robust.get("scenarioCount"),
+                              "robustnessVerified": robust.get("robustnessVerified") is True,
+                              "checks": checks,
+                              "frozenOosLocked": True,
+                              "realExecutionLocked": True,
+                          },
+                          sort_keys=True,
+                          separators=(",", ":"),
+                      )
+                  )
+                  raise SystemExit(0)
+              except (OSError, ValueError, RuntimeError, urllib.error.URLError) as exc:
+                  last = str(exc)[:1200]
+                  time.sleep(20)
+
+          raise SystemExit(f"M5 robustness proof timed out: {last}")
+          PY
