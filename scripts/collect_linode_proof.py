@@ -18,6 +18,8 @@ RESEARCH_DATASETS = RESEARCH_ROOT / "datasets"
 RESEARCH_EVIDENCE = RESEARCH_ROOT / "evidence"
 RESEARCH_DB = RESEARCH_ROOT / "eba_research.db"
 M5_ABLATION_PROOF = RESEARCH_ROOT / "m5-real-ablation-latest.json"
+M5_CORPUS_PROOF = RESEARCH_ROOT / "m5-corpus-materialization-latest.json"
+EXPECTED_M5_CORPUS_WINDOWS = 12
 RUNTIME_API = "http://127.0.0.1:8765"
 WEB_API = "http://127.0.0.1:8000"
 
@@ -213,6 +215,101 @@ def _m5_ablation_status() -> dict[str, Any]:
     return sanitized
 
 
+def _m5_corpus_status() -> dict[str, Any]:
+    base: dict[str, Any] = {
+        "available": M5_CORPUS_PROOF.is_file(),
+        "phase": "WAITING",
+        "complete": False,
+        "safe": True,
+        "integrityVerified": False,
+        "expectedWindowCount": EXPECTED_M5_CORPUS_WINDOWS,
+        "windowCount": None,
+        "orderflowSource": "archive",
+        "allFeatureHashesPresent": False,
+        "frozenOosOpened": False,
+        "m5FrozenOosOpened": False,
+        "liveExecutionAllowed": False,
+        "edgeClaimAllowed": False,
+        "promotionAuthority": False,
+    }
+    if not M5_CORPUS_PROOF.is_file():
+        return base
+
+    try:
+        payload = json.loads(M5_CORPUS_PROOF.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return {
+            **base,
+            "available": True,
+            "phase": "INVALID",
+            "safe": False,
+            "error": str(exc)[:240],
+        }
+    if not isinstance(payload, dict) or payload.get("schema") != "m5_corpus_runtime_status_v1":
+        return {
+            **base,
+            "available": True,
+            "phase": "INVALID",
+            "safe": False,
+            "error": "M5 corpus runtime status has an invalid schema",
+        }
+
+    allowed = {
+        "schema",
+        "phase",
+        "updatedAt",
+        "materializationId",
+        "policyId",
+        "corpusId",
+        "manifestPath",
+        "complete",
+        "integrityVerified",
+        "expectedWindowCount",
+        "windowCount",
+        "orderflowSource",
+        "allFeatureHashesPresent",
+        "errorType",
+        "errorSummary",
+        "frozenOosOpened",
+        "m5FrozenOosOpened",
+        "liveExecutionAllowed",
+        "edgeClaimAllowed",
+        "promotionAuthority",
+    }
+    sanitized = {key: payload.get(key) for key in allowed if key in payload}
+    phase = str(payload.get("phase") or "UNKNOWN").upper()
+    locks_safe = (
+        payload.get("frozenOosOpened") is False
+        and payload.get("m5FrozenOosOpened") is False
+        and payload.get("liveExecutionAllowed") is False
+        and payload.get("edgeClaimAllowed") is False
+        and payload.get("promotionAuthority") is False
+    )
+    complete = phase == "COMPLETE"
+    complete_valid = True
+    if complete:
+        complete_valid = (
+            payload.get("complete") is True
+            and payload.get("integrityVerified") is True
+            and payload.get("expectedWindowCount") == EXPECTED_M5_CORPUS_WINDOWS
+            and payload.get("windowCount") == EXPECTED_M5_CORPUS_WINDOWS
+            and payload.get("orderflowSource") == "archive"
+            and payload.get("allFeatureHashesPresent") is True
+        )
+    sanitized.update(
+        {
+            "available": True,
+            "phase": phase,
+            "complete": bool(complete and complete_valid),
+            "safe": bool(locks_safe and complete_valid),
+            "expectedWindowCount": EXPECTED_M5_CORPUS_WINDOWS,
+            "edgeClaimAllowed": False,
+            "promotionAuthority": False,
+        }
+    )
+    return sanitized
+
+
 def _local_api_contract(expected_build: str | None) -> dict[str, Any]:
     health, health_error = _safe_request(f"{WEB_API}/api/health")
     runtime_health, runtime_error = _safe_request(f"{RUNTIME_API}/health")
@@ -336,6 +433,7 @@ def collect(*, expected_build: str | None = None) -> dict[str, Any]:
         "researchRuntime": _research_contract(),
         "services": _service_contract(),
         "m5RealAblation": _m5_ablation_status(),
+        "m5Corpus": _m5_corpus_status(),
         "localApi": _local_api_contract(expected_build),
         "demoReconnect": _demo_reconnect_contract(),
         "chart": _chart_contract(),
@@ -349,6 +447,7 @@ def collect(*, expected_build: str | None = None) -> dict[str, Any]:
         proof["researchRuntime"]["passed"],
         proof["services"]["passed"],
         proof["m5RealAblation"]["safe"],
+        proof["m5Corpus"]["safe"],
         proof["localApi"]["passed"],
     )
     proof["localContractPassed"] = all(required_local)
