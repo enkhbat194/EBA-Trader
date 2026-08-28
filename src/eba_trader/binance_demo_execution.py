@@ -17,6 +17,7 @@ from .providers import CredentialEnvelope
 DEMO_FUTURES_REST = "https://demo-fapi.binance.com"
 PROOF_SCHEMA = "binance_demo_execution_proof_v1"
 CONFIG_SCHEMA = "binance_demo_execution_probe_config_v1"
+_ZERO_TOLERANCE = Decimal("0.000000000001")
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,8 +53,8 @@ class RequestResult:
 class BinanceDemoExecutionClient:
     """Hard-locked Binance USD-M Demo client for one-shot execution verification.
 
-    The base URL is not configurable and no live endpoint is present in this module.
-    The client has no transfer, withdrawal, leverage, margin-mode or account-setting methods.
+    The base URL is deliberately not configurable. This module contains no live endpoint
+    and no transfer, withdrawal, leverage, margin-mode or account-setting operations.
     """
 
     def __init__(self, credentials: CredentialEnvelope) -> None:
@@ -73,17 +74,19 @@ class BinanceDemoExecutionClient:
         timeout: float = 12.0,
     ) -> RequestResult:
         query = dict(params or {})
-        headers = {"Accept": "application/json", "User-Agent": "eba-demo-execution-probe/1"}
+        headers = {
+            "Accept": "application/json",
+            "User-Agent": "eba-demo-execution-probe/1",
+        }
         if signed:
             query["timestamp"] = str(int(time.time() * 1000) + self._clock_offset_ms)
             query["recvWindow"] = "5000"
-            encoded_unsigned = urllib.parse.urlencode(query)
-            signature = hmac.new(
+            unsigned = urllib.parse.urlencode(query)
+            query["signature"] = hmac.new(
                 self._api_secret.encode("utf-8"),
-                encoded_unsigned.encode("utf-8"),
+                unsigned.encode("utf-8"),
                 hashlib.sha256,
             ).hexdigest()
-            query["signature"] = signature
             headers["X-MBX-APIKEY"] = self._api_key
         encoded = urllib.parse.urlencode(query)
         url = f"{DEMO_FUTURES_REST}{path}"
@@ -103,6 +106,10 @@ class BinanceDemoExecutionClient:
         except json.JSONDecodeError as exc:
             raise RuntimeError("Binance Demo returned invalid JSON") from exc
         return RequestResult(payload=payload, latency_ms=latency_ms)
+
+    @property
+    def exchange_now_ms(self) -> float:
+        return time.time() * 1000.0 + self._clock_offset_ms
 
     def sync_clock(self) -> dict[str, float]:
         local_before_ms = time.time() * 1000.0
@@ -126,8 +133,18 @@ class BinanceDemoExecutionClient:
             raise RuntimeError("Binance Demo exchangeInfo response is invalid")
         return result.payload
 
+    def account(self) -> dict[str, Any]:
+        result = self._request("GET", "/fapi/v3/account", signed=True)
+        if not isinstance(result.payload, dict):
+            raise RuntimeError("Binance Demo account response is invalid")
+        return result.payload
+
     def book_ticker(self, symbol: str) -> tuple[dict[str, Any], float]:
-        result = self._request("GET", "/fapi/v1/ticker/bookTicker", params={"symbol": symbol})
+        result = self._request(
+            "GET",
+            "/fapi/v1/ticker/bookTicker",
+            params={"symbol": symbol},
+        )
         if not isinstance(result.payload, dict):
             raise RuntimeError("Binance Demo bookTicker response is invalid")
         return result.payload, result.latency_ms
@@ -208,7 +225,7 @@ class BinanceDemoExecutionClient:
 def _decimal(value: Any, *, label: str) -> Decimal:
     try:
         number = Decimal(str(value))
-    except Exception as exc:  # Decimal raises multiple input-specific exceptions
+    except Exception as exc:  # Decimal has multiple input-specific exceptions
         raise RuntimeError(f"invalid decimal value for {label}") from exc
     if not number.is_finite():
         raise RuntimeError(f"non-finite decimal value for {label}")
@@ -241,6 +258,18 @@ def _symbol_filters(exchange_info: dict[str, Any], symbol: str) -> dict[str, dic
     return filters
 
 
+def _valid_lot_filter(value: object) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    try:
+        min_qty = _decimal(value.get("minQty", "0"), label="minQty")
+        max_qty = _decimal(value.get("maxQty", "0"), label="maxQty")
+        step_size = _decimal(value.get("stepSize", "0"), label="stepSize")
+    except RuntimeError:
+        return None
+    return value if min_qty > 0 and max_qty > 0 and step_size > 0 else None
+
+
 def _format_quantity(value: Decimal) -> str:
     text = format(value, "f")
     if "." in text:
@@ -255,14 +284,14 @@ def _quantity_for_notional(
     target_notional: Decimal,
     max_notional: Decimal,
 ) -> tuple[Decimal, Decimal]:
-    lot = filters.get("MARKET_LOT_SIZE") or filters.get("LOT_SIZE")
-    if not isinstance(lot, dict):
-        raise RuntimeError("Binance Demo market lot-size filter is missing")
+    lot = _valid_lot_filter(filters.get("MARKET_LOT_SIZE")) or _valid_lot_filter(
+        filters.get("LOT_SIZE")
+    )
+    if lot is None:
+        raise RuntimeError("Binance Demo market lot-size filter is missing or invalid")
     min_qty = _decimal(lot.get("minQty", "0"), label="minQty")
     max_qty = _decimal(lot.get("maxQty", "0"), label="maxQty")
     step_size = _decimal(lot.get("stepSize", "0"), label="stepSize")
-    if min_qty <= 0 or max_qty <= 0 or step_size <= 0:
-        raise RuntimeError("Binance Demo quantity filter is invalid")
 
     min_notional = Decimal("0")
     notional_filter = filters.get("MIN_NOTIONAL") or filters.get("NOTIONAL")
@@ -282,9 +311,7 @@ def _quantity_for_notional(
         raise RuntimeError("required Binance Demo quantity exceeds maxQty")
     effective_notional = quantity * mid_price
     if effective_notional > max_notional:
-        raise RuntimeError(
-            "required Binance Demo order exceeds configured max_notional_usdt"
-        )
+        raise RuntimeError("required Binance Demo order exceeds configured max_notional_usdt")
     return quantity, effective_notional
 
 
@@ -301,7 +328,25 @@ def _position_amount(rows: list[dict[str, Any]], *, hedged: bool) -> Decimal:
     )
 
 
-def _filled_order_payload(client: BinanceDemoExecutionClient, symbol: str, payload: dict[str, Any]) -> dict[str, Any]:
+def _available_balance_usdt(account: dict[str, Any]) -> Decimal:
+    direct = account.get("availableBalance")
+    if direct is not None:
+        value = _decimal(direct, label="availableBalance")
+        if value >= 0:
+            return value
+    assets = account.get("assets")
+    if isinstance(assets, list):
+        for row in assets:
+            if isinstance(row, dict) and row.get("asset") == "USDT":
+                return _decimal(row.get("availableBalance", "0"), label="USDT availableBalance")
+    raise RuntimeError("Binance Demo USDT available balance is unavailable")
+
+
+def _filled_order_payload(
+    client: BinanceDemoExecutionClient,
+    symbol: str,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
     status = str(payload.get("status") or "")
     if status == "FILLED":
         return payload
@@ -321,7 +366,9 @@ def _filled_order_payload(client: BinanceDemoExecutionClient, symbol: str, paylo
         if status in {"CANCELED", "EXPIRED", "REJECTED"}:
             raise RuntimeError(f"Binance Demo market order ended as {status}")
         time.sleep(0.1)
-    raise RuntimeError(f"Binance Demo market order did not fill, last status={status or 'UNKNOWN'}")
+    raise RuntimeError(
+        f"Binance Demo market order did not fill, last status={status or 'UNKNOWN'}"
+    )
 
 
 def _fill_price(payload: dict[str, Any]) -> Decimal:
@@ -349,6 +396,40 @@ def _slippage_bps(fill_price: Decimal, reference_price: Decimal, *, side: str) -
     return float(signed * Decimal("10000"))
 
 
+def _failure_proof(
+    *,
+    config: DemoExecutionConfig,
+    exc: Exception,
+    order_submission_attempted: bool,
+    open_filled: bool,
+    emergency_close_attempted: bool,
+    emergency_close_succeeded: bool,
+    position_may_remain_open: bool,
+) -> dict[str, Any]:
+    return {
+        "schema": PROOF_SCHEMA,
+        "probeId": config.probe_id,
+        "phase": "FAILED",
+        "passed": False,
+        "environment": "demo",
+        "venue": "Binance USD-M Futures Demo",
+        "endpointHost": "demo-fapi.binance.com",
+        "symbol": config.symbol,
+        "targetNotionalUsdt": config.target_notional_usdt,
+        "maxNotionalUsdt": config.max_notional_usdt,
+        "orderSubmissionAttempted": order_submission_attempted,
+        "openFilled": open_filled,
+        "emergencyCloseAttempted": emergency_close_attempted,
+        "emergencyCloseSucceeded": emergency_close_succeeded,
+        "positionMayRemainOpen": position_may_remain_open,
+        "errorType": type(exc).__name__,
+        "errorSummary": str(exc)[:320],
+        "retryAutomatically": False,
+        "realMoneyUsed": False,
+        "liveExecutionAllowed": False,
+    }
+
+
 def run_demo_execution_probe(
     *,
     credentials: CredentialEnvelope,
@@ -360,49 +441,54 @@ def run_demo_execution_probe(
     symbol = config.symbol
     target_notional = Decimal(str(config.target_notional_usdt))
     max_notional = Decimal(str(config.max_notional_usdt))
-    order_submitted = False
+    order_submission_attempted = False
     open_filled = False
     emergency_close_attempted = False
+    emergency_close_succeeded = False
+    position_may_remain_open = False
+    executed_quantity = Decimal("0")
+    hedged = False
     roundtrip_started = time.perf_counter()
 
-    clock = active_client.sync_clock()
-    exchange_info = active_client.exchange_info()
-    filters = _symbol_filters(exchange_info, symbol)
-    hedged = active_client.position_mode_hedged()
-    before_rows = active_client.position_risk(symbol)
-    before_position = _position_amount(before_rows, hedged=hedged)
-    if before_position != 0:
-        raise RuntimeError(
-            "Binance Demo execution probe requires a zero pre-existing position for the symbol"
-        )
-
-    book, book_rtt_ms = active_client.book_ticker(symbol)
-    bid = _decimal(book.get("bidPrice", "0"), label="bidPrice")
-    ask = _decimal(book.get("askPrice", "0"), label="askPrice")
-    if bid <= 0 or ask <= 0 or ask < bid:
-        raise RuntimeError("Binance Demo book ticker prices are invalid")
-    open_reference = (bid + ask) / Decimal("2")
-    quantity, effective_notional = _quantity_for_notional(
-        filters=filters,
-        mid_price=open_reference,
-        target_notional=target_notional,
-        max_notional=max_notional,
-    )
-    quantity_text = _format_quantity(quantity)
-
-    latest_trade, trade_rtt_ms = active_client.latest_aggregate_trade(symbol)
-    trade_time = latest_trade.get("T")
-    market_data_age_ms: float | None = None
-    if not isinstance(trade_time, bool) and isinstance(trade_time, (int, float)):
-        market_data_age_ms = max(0.0, time.time() * 1000.0 - float(trade_time))
-
-    open_result: RequestResult | None = None
-    close_result: RequestResult | None = None
-    open_payload: dict[str, Any] | None = None
-    close_payload: dict[str, Any] | None = None
-    executed_quantity = Decimal("0")
-
     try:
+        clock = active_client.sync_clock()
+        exchange_info = active_client.exchange_info()
+        filters = _symbol_filters(exchange_info, symbol)
+        account = active_client.account()
+        available_balance = _available_balance_usdt(account)
+        hedged = active_client.position_mode_hedged()
+        before_rows = active_client.position_risk(symbol)
+        before_position = _position_amount(before_rows, hedged=hedged)
+        if abs(before_position) > _ZERO_TOLERANCE:
+            raise RuntimeError(
+                "Binance Demo execution probe requires zero pre-existing BTCUSDT position"
+            )
+
+        book, book_rtt_ms = active_client.book_ticker(symbol)
+        bid = _decimal(book.get("bidPrice", "0"), label="bidPrice")
+        ask = _decimal(book.get("askPrice", "0"), label="askPrice")
+        if bid <= 0 or ask <= 0 or ask < bid:
+            raise RuntimeError("Binance Demo book ticker prices are invalid")
+        open_reference = (bid + ask) / Decimal("2")
+        quantity, effective_notional = _quantity_for_notional(
+            filters=filters,
+            mid_price=open_reference,
+            target_notional=target_notional,
+            max_notional=max_notional,
+        )
+        if available_balance < effective_notional:
+            raise RuntimeError(
+                "Binance Demo available USDT balance is below the conservative probe notional"
+            )
+        quantity_text = _format_quantity(quantity)
+
+        latest_trade, trade_rtt_ms = active_client.latest_aggregate_trade(symbol)
+        trade_time = latest_trade.get("T")
+        market_data_age_ms: float | None = None
+        if not isinstance(trade_time, bool) and isinstance(trade_time, (int, float)):
+            market_data_age_ms = max(0.0, active_client.exchange_now_ms - float(trade_time))
+
+        order_submission_attempted = True
         open_result = active_client.place_market_order(
             symbol=symbol,
             side="BUY",
@@ -410,11 +496,10 @@ def run_demo_execution_probe(
             hedged=hedged,
             close_long=False,
         )
-        order_submitted = True
         open_payload = _filled_order_payload(active_client, symbol, open_result.payload)
         executed_quantity = _executed_quantity(open_payload)
-        open_filled = True
         open_fill_price = _fill_price(open_payload)
+        open_filled = True
 
         close_book, close_book_rtt_ms = active_client.book_ticker(symbol)
         close_bid = _decimal(close_book.get("bidPrice", "0"), label="closeBidPrice")
@@ -432,11 +517,9 @@ def run_demo_execution_probe(
         )
         close_payload = _filled_order_payload(active_client, symbol, close_result.payload)
         close_fill_price = _fill_price(close_payload)
-        after_rows = active_client.position_risk(symbol)
-        after_position = _position_amount(after_rows, hedged=hedged)
-        position_flat = abs(after_position) <= Decimal("0.000000000001")
-        if not position_flat:
-            raise RuntimeError("Binance Demo execution probe did not return the position to zero")
+        after_position = _position_amount(active_client.position_risk(symbol), hedged=hedged)
+        if abs(after_position) > _ZERO_TOLERANCE:
+            raise RuntimeError("Binance Demo execution probe did not return position to zero")
 
         roundtrip_ms = (time.perf_counter() - roundtrip_started) * 1000.0
         return {
@@ -453,7 +536,8 @@ def run_demo_execution_probe(
             "targetNotionalUsdt": config.target_notional_usdt,
             "effectiveNotionalUsdt": float(effective_notional),
             "maxNotionalUsdt": config.max_notional_usdt,
-            "orderSubmitted": True,
+            "availableBalanceUsdtBefore": float(available_balance),
+            "orderSubmissionAttempted": True,
             "openFilled": True,
             "closeFilled": True,
             "prePositionZero": True,
@@ -471,25 +555,51 @@ def run_demo_execution_probe(
             "fills": {
                 "openAvgPrice": float(open_fill_price),
                 "closeAvgPrice": float(close_fill_price),
-                "openSlippageBps": _slippage_bps(open_fill_price, open_reference, side="BUY"),
-                "closeSlippageBps": _slippage_bps(close_fill_price, close_reference, side="SELL"),
+                "openSlippageBps": _slippage_bps(
+                    open_fill_price,
+                    open_reference,
+                    side="BUY",
+                ),
+                "closeSlippageBps": _slippage_bps(
+                    close_fill_price,
+                    close_reference,
+                    side="SELL",
+                ),
             },
+            "retryAutomatically": False,
             "realMoneyUsed": False,
             "liveExecutionAllowed": False,
         }
-    except Exception:
-        if open_filled and executed_quantity > 0:
-            emergency_close_attempted = True
+    except Exception as exc:
+        if order_submission_attempted:
+            position_may_remain_open = True
             try:
-                active_client.place_market_order(
-                    symbol=symbol,
-                    side="SELL",
-                    quantity=_format_quantity(executed_quantity),
+                current_rows = active_client.position_risk(symbol)
+                current_amount = _position_amount(current_rows, hedged=hedged)
+                if current_amount > _ZERO_TOLERANCE:
+                    emergency_close_attempted = True
+                    emergency_result = active_client.place_market_order(
+                        symbol=symbol,
+                        side="SELL",
+                        quantity=_format_quantity(current_amount),
+                        hedged=hedged,
+                        close_long=True,
+                    )
+                    _filled_order_payload(active_client, symbol, emergency_result.payload)
+                final_amount = _position_amount(
+                    active_client.position_risk(symbol),
                     hedged=hedged,
-                    close_long=True,
                 )
+                emergency_close_succeeded = abs(final_amount) <= _ZERO_TOLERANCE
+                position_may_remain_open = not emergency_close_succeeded
             except Exception:
-                pass
-        raise
-    finally:
-        _ = order_submitted, emergency_close_attempted, close_payload
+                position_may_remain_open = True
+        return _failure_proof(
+            config=config,
+            exc=exc,
+            order_submission_attempted=order_submission_attempted,
+            open_filled=open_filled,
+            emergency_close_attempted=emergency_close_attempted,
+            emergency_close_succeeded=emergency_close_succeeded,
+            position_may_remain_open=position_may_remain_open,
+        )
