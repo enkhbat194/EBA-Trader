@@ -10,7 +10,9 @@ DEFAULT_FAST_RESTART_PROOF_PATH = Path("/var/lib/eba-trader/proofs/fast-restart.
 DEFAULT_M5_ROBUSTNESS_PROOF_PATH = Path(
     "/var/lib/eba-trader/research/m5-absorption-robustness-latest.json"
 )
-DEFAULT_DEMO_EXECUTION_PROOF_PATH = Path("/var/lib/eba-trader/proofs/binance-demo-execution.json")
+DEFAULT_DEMO_EXECUTION_PROOF_PATH = Path(
+    "/var/lib/eba-trader/research/binance-demo-execution-latest.json"
+)
 _BLOCKED_KEYS = {
     "apikey",
     "apisecret",
