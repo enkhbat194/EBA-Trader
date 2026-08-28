@@ -1,0 +1,126 @@
+name: M5 multi-window result proof
+
+on:
+  push:
+    branches: [m5-multiwindow-result-proof]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      EBA_PRODUCTION_URL: https://eba-trader-172-236-150-62.sslip.io
+      EXPECTED_BUILD: e7d398903ebb635b3645b5ceca36112a07f0f4a7
+    steps:
+      - name: Wait for exact build and 12-window result
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.request
+
+          base = os.environ["EBA_PRODUCTION_URL"].rstrip("/")
+          expected = os.environ["EXPECTED_BUILD"]
+          deadline = time.time() + 900
+          last = "not attempted"
+
+          def get_json(path):
+              request = urllib.request.Request(
+                  base + path,
+                  headers={"Accept": "application/json", "User-Agent": "eba-multiwindow-proof/1"},
+              )
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  payload = json.loads(response.read().decode("utf-8"))
+              if not isinstance(payload, dict):
+                  raise RuntimeError(f"{path} returned non-object JSON")
+              return payload
+
+          while time.time() < deadline:
+              try:
+                  app = get_json("/api/app-info")
+                  build = str(app.get("buildSha") or "")
+                  if build != expected:
+                      last = f"waiting build {expected[:8]} server={build[:8] or 'unknown'}"
+                      time.sleep(20)
+                      continue
+
+                  research = get_json("/api/research/status")
+                  proof = research.get("productionProof") or {}
+                  corpus = proof.get("m5Corpus") or {}
+                  multi = proof.get("m5MultiWindow") or {}
+                  locks = research.get("locks") or {}
+                  ranking = multi.get("developmentRanking") or []
+                  checks = {
+                      "build": build == expected,
+                      "corpus_complete": corpus.get("phase") == "COMPLETE"
+                      and corpus.get("complete") is True
+                      and corpus.get("windowCount") == 12,
+                      "corpus_safe": corpus.get("safe") is True,
+                      "multi_complete": multi.get("phase") == "COMPLETE"
+                      and multi.get("complete") is True,
+                      "multi_safe": multi.get("safe") is True,
+                      "windows": multi.get("windowCount") == 12,
+                      "candidates": multi.get("candidateCount") == 17,
+                      "ranking": isinstance(ranking, list) and len(ranking) == 17,
+                      "development_only": multi.get("rankingIsDevelopmentOnly") is True,
+                      "no_edge": multi.get("edgeClaimAllowed") is False,
+                      "no_promotion": multi.get("promotionAuthority") is False,
+                      "legacy_oos_closed": multi.get("frozenOosOpened") is False,
+                      "m5_oos_closed": multi.get("m5FrozenOosOpened") is False,
+                      "live_locked": multi.get("liveExecutionAllowed") is False,
+                      "global_oos_locked": locks.get("frozenOos") is True,
+                      "global_real_locked": locks.get("realExecution") is True,
+                  }
+                  failed = [name for name, passed in checks.items() if not passed]
+                  if failed:
+                      last = json.dumps(
+                          {
+                              "failed": failed,
+                              "build": build,
+                              "corpusPhase": corpus.get("phase"),
+                              "multiPhase": multi.get("phase"),
+                              "multiErrorType": multi.get("errorType"),
+                              "multiErrorSummary": multi.get("errorSummary"),
+                              "windowCount": multi.get("windowCount"),
+                              "candidateCount": multi.get("candidateCount"),
+                          },
+                          sort_keys=True,
+                      )
+                      time.sleep(20)
+                      continue
+
+                  print(
+                      json.dumps(
+                          {
+                              "ok": True,
+                              "build": build,
+                              "materializationId": multi.get("materializationId"),
+                              "evaluationId": multi.get("evaluationId"),
+                              "windowCount": multi.get("windowCount"),
+                              "candidateCount": multi.get("candidateCount"),
+                              "baselineAggregate": multi.get("baselineAggregate"),
+                              "topDevelopmentCandidate": multi.get("topDevelopmentCandidate"),
+                              "topDevelopmentParameters": multi.get("topDevelopmentParameters"),
+                              "topDevelopmentAggregate": multi.get("topDevelopmentAggregate"),
+                              "developmentRanking": ranking,
+                              "rankingIsDevelopmentOnly": True,
+                              "frozenOosLocked": True,
+                              "realExecutionLocked": True,
+                          },
+                          sort_keys=True,
+                          separators=(",", ":"),
+                      )
+                  )
+                  raise SystemExit(0)
+              except (OSError, ValueError, RuntimeError, urllib.error.URLError) as exc:
+                  last = str(exc)[:1200]
+                  time.sleep(20)
+
+          raise SystemExit(f"M5 multi-window proof timed out: {last}")
+          PY
