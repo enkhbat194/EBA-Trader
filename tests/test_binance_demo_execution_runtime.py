@@ -249,6 +249,10 @@ def test_maintenance_demo_failure_does_not_retry_or_fail_research_contract() -> 
 
     assert "-m eba_trader.binance_demo_execution_runtime" in script
     assert "demo_exit=$?" in script
-    fatal_line = next(line for line in script.splitlines() if line.startswith("if [[ $ablation_exit"))
+    fatal_line = next(
+        line
+        for line in script.splitlines()
+        if line.startswith("if [[ $ablation_exit")
+    )
     assert "demo_exit" not in fatal_line
     assert "one-shot Binance DEMO" in script
