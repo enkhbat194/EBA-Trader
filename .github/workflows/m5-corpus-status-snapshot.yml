@@ -1,0 +1,75 @@
+name: M5 corpus status snapshot
+
+on:
+  push:
+    branches:
+      - m5-corpus-completion-proof
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      EBA_PRODUCTION_URL: https://eba-trader-172-236-150-62.sslip.io
+    steps:
+      - name: Print sanitized corpus status
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          base = os.environ["EBA_PRODUCTION_URL"].rstrip("/")
+
+          def get_json(path):
+              request = urllib.request.Request(
+                  base + path,
+                  headers={"Accept": "application/json", "User-Agent": "eba-m5-corpus-snapshot/1"},
+              )
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  payload = json.loads(response.read().decode("utf-8"))
+              if not isinstance(payload, dict):
+                  raise RuntimeError(f"{path} returned non-object JSON")
+              return payload
+
+          app = get_json("/api/app-info")
+          research = get_json("/api/research/status")
+          proof = research.get("productionProof") or {}
+          corpus = proof.get("m5Corpus") or {}
+          locks = research.get("locks") or {}
+          output = {
+              "build": app.get("buildSha"),
+              "m5Corpus": {
+                  key: corpus.get(key)
+                  for key in (
+                      "available",
+                      "phase",
+                      "complete",
+                      "safe",
+                      "integrityVerified",
+                      "expectedWindowCount",
+                      "windowCount",
+                      "orderflowSource",
+                      "allFeatureHashesPresent",
+                      "materializationId",
+                      "policyId",
+                      "corpusId",
+                      "errorType",
+                      "errorSummary",
+                      "frozenOosOpened",
+                      "m5FrozenOosOpened",
+                      "liveExecutionAllowed",
+                      "edgeClaimAllowed",
+                      "promotionAuthority",
+                  )
+              },
+              "locks": {
+                  "frozenOos": locks.get("frozenOos"),
+                  "realExecution": locks.get("realExecution"),
+              },
+          }
+          print(json.dumps(output, sort_keys=True, separators=(",", ":")))
+          PY
