@@ -108,5 +108,5 @@ def test_m5_maintenance_keeps_ablation_and_corpus_retry_together() -> None:
     assert "ablation_exit" in script
     assert "corpus_exit" in script
     assert "run_m5_research_maintenance_once.sh" in service
-    assert "TimeoutStartSec=2h" in service
+    assert "TimeoutStartSec=45min" in service
     assert "ReadWritePaths=/var/lib/eba-trader/research" in service
