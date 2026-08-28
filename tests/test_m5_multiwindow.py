@@ -61,10 +61,11 @@ class _OrderFlowAdapter:
         ordered = [window.start_ms for window in DEFAULT_M5_DEVELOPMENT_CORPUS.windows]
         index = ordered.index(start_ms)
         baseline = -0.002 + index * 0.0001
-        if params.get("delta_ratio_threshold") == 0.2:  # type: ignore[union-attr]
-            improvement = 0.0015
-        else:
-            improvement = 0.0003
+        improvement = (
+            0.0015
+            if params.get("delta_ratio_threshold") == 0.2  # type: ignore[union-attr]
+            else 0.0003
+        )
         return SimpleNamespace(metrics=_metrics(baseline + improvement, trades=1))
 
 
