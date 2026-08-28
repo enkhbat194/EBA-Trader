@@ -15,6 +15,8 @@ def test_missing_proof_is_explicitly_unavailable(tmp_path: Path) -> None:
     assert result["available"] is False
     assert result["localContractPassed"] is False
     assert result["productionSmokePassed"] is False
+    assert result["m5Robustness"]["phase"] == "WAITING"
+    assert result["demoExecution"]["phase"] == "NOT_RUN"
     assert result["liveExecutionAllowed"] is False
 
 
@@ -49,6 +51,55 @@ def test_reader_strips_secrets_and_session_tokens_but_keeps_masked_key(tmp_path:
     assert "apiSecret" not in reconnect
     assert "sessionToken" not in reconnect
     assert "credentials" not in reconnect
+    assert result["liveExecutionAllowed"] is False
+
+
+def test_reader_merges_and_sanitizes_robustness_and_demo_sidecars(tmp_path: Path) -> None:
+    proof_path = tmp_path / "proof.json"
+    robustness_path = tmp_path / "robustness.json"
+    demo_path = tmp_path / "demo.json"
+    proof_path.write_text(
+        json.dumps({"schemaVersion": 1, "localContractPassed": True}),
+        encoding="utf-8",
+    )
+    robustness_path.write_text(
+        json.dumps(
+            {
+                "phase": "COMPLETE",
+                "robustnessVerified": False,
+                "checks": {"sampleSufficient": False},
+                "apiSecret": "must-not-leak",
+                "liveExecutionAllowed": False,
+            }
+        ),
+        encoding="utf-8",
+    )
+    demo_path.write_text(
+        json.dumps(
+            {
+                "phase": "COMPLETE",
+                "passed": True,
+                "environment": "demo",
+                "orderAckLatencyMs": 120,
+                "sessionToken": "must-not-leak",
+                "liveExecutionAllowed": False,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = read_production_proof(
+        proof_path,
+        m5_robustness_path=robustness_path,
+        demo_execution_path=demo_path,
+    )
+
+    assert result["m5Robustness"]["phase"] == "COMPLETE"
+    assert result["m5Robustness"]["robustnessVerified"] is False
+    assert "apiSecret" not in result["m5Robustness"]
+    assert result["demoExecution"]["passed"] is True
+    assert result["demoExecution"]["orderAckLatencyMs"] == 120
+    assert "sessionToken" not in result["demoExecution"]
     assert result["liveExecutionAllowed"] is False
 
 

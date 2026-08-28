@@ -7,6 +7,10 @@ from typing import Any
 
 DEFAULT_PROOF_PATH = Path("/var/lib/eba-trader/proofs/latest.json")
 DEFAULT_FAST_RESTART_PROOF_PATH = Path("/var/lib/eba-trader/proofs/fast-restart.json")
+DEFAULT_M5_ROBUSTNESS_PROOF_PATH = Path(
+    "/var/lib/eba-trader/research/m5-absorption-robustness-latest.json"
+)
+DEFAULT_DEMO_EXECUTION_PROOF_PATH = Path("/var/lib/eba-trader/proofs/binance-demo-execution.json")
 _BLOCKED_KEYS = {
     "apikey",
     "apisecret",
@@ -48,6 +52,8 @@ def read_production_proof(
     path: str | Path | None = None,
     *,
     fast_restart_path: str | Path | None = None,
+    m5_robustness_path: str | Path | None = None,
+    demo_execution_path: str | Path | None = None,
 ) -> dict[str, Any]:
     chosen = Path(
         path
@@ -59,10 +65,43 @@ def read_production_proof(
         or os.getenv("EBA_FAST_RESTART_PROOF_FILE", "").strip()
         or DEFAULT_FAST_RESTART_PROOF_PATH
     )
+    chosen_robustness = Path(
+        m5_robustness_path
+        or os.getenv("EBA_M5_ROBUSTNESS_STATUS", "").strip()
+        or DEFAULT_M5_ROBUSTNESS_PROOF_PATH
+    )
+    chosen_demo_execution = Path(
+        demo_execution_path
+        or os.getenv("EBA_DEMO_EXECUTION_PROOF_FILE", "").strip()
+        or DEFAULT_DEMO_EXECUTION_PROOF_PATH
+    )
     fast_restart = _read_optional_json(chosen_fast) or {
         "phase": "WAITING_FOR_OPEN",
         "passed": False,
         "liveExecutionAllowed": False,
+    }
+    m5_robustness = _read_optional_json(chosen_robustness) or {
+        "phase": "WAITING",
+        "complete": False,
+        "robustnessVerified": False,
+        "developmentEvidenceOnly": True,
+        "edgeClaimAllowed": False,
+        "promotionAuthority": False,
+        "frozenOosOpened": False,
+        "m5FrozenOosOpened": False,
+        "liveExecutionAllowed": False,
+    }
+    demo_execution = _read_optional_json(chosen_demo_execution) or {
+        "phase": "NOT_RUN",
+        "passed": False,
+        "environment": "demo",
+        "liveExecutionAllowed": False,
+    }
+
+    sidecars = {
+        "fastRestart": fast_restart,
+        "m5Robustness": m5_robustness,
+        "demoExecution": demo_execution,
     }
 
     if not chosen.is_file():
@@ -71,7 +110,7 @@ def read_production_proof(
             "available": False,
             "localContractPassed": False,
             "productionSmokePassed": False,
-            "fastRestart": fast_restart,
+            **sidecars,
             "liveExecutionAllowed": False,
         }
     try:
@@ -82,7 +121,7 @@ def read_production_proof(
             "available": False,
             "localContractPassed": False,
             "productionSmokePassed": False,
-            "fastRestart": fast_restart,
+            **sidecars,
             "message": f"production proof unavailable: {exc}",
             "liveExecutionAllowed": False,
         }
@@ -92,7 +131,7 @@ def read_production_proof(
             "available": False,
             "localContractPassed": False,
             "productionSmokePassed": False,
-            "fastRestart": fast_restart,
+            **sidecars,
             "message": "production proof payload is not an object",
             "liveExecutionAllowed": False,
         }
@@ -104,7 +143,7 @@ def read_production_proof(
         {
             "ok": True,
             "available": True,
-            "fastRestart": fast_restart,
+            **sidecars,
             "liveExecutionAllowed": False,
         }
     )
