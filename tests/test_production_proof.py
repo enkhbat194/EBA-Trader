@@ -70,7 +70,8 @@ def test_linode_deploy_collects_proof_without_making_m5_completion_a_gate() -> N
     assert "/api/research/status" in collector
     assert "/api/v1/positions" in collector
     assert "/api/chart" in collector
-    assert "session token returned by the autoconnect endpoint" in collector
+    assert '"secretPersistedInProof": False' in collector
+    assert '"sessionToken"' not in collector
     assert "m5-real-ablation-latest.json" in collector
     assert "eba-m5-real-ablation.timer" in collector
     assert '"failureStage"' in collector
