@@ -104,7 +104,8 @@ def _load_complete_corpus_status(research_root: Path) -> dict[str, Any]:
     }
     failed = [name for name, passed in checks.items() if not passed]
     if failed:
-        raise RuntimeError(f"M5 corpus is not ready for multi-window evaluation: {', '.join(failed)}")
+        failure_names = ", ".join(failed)
+        raise RuntimeError(f"M5 corpus is not ready for multi-window evaluation: {failure_names}")
     manifest_path = payload.get("manifestPath")
     if not isinstance(manifest_path, str) or not manifest_path.strip():
         raise RuntimeError("M5 corpus runtime status is missing manifestPath")
