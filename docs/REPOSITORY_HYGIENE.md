@@ -9,7 +9,17 @@ This repository keeps `main` deployable and uses short-lived task branches.
 - Do not reuse an old merged branch for new work.
 - Open PR heads are always preserved.
 - After a merge to `main`, `.github/workflows/branch-hygiene.yml` prunes same-repository branches that are confirmed merged or contain no commits unique to `main`.
+- `archive/` refs are long-lived history-only refs and are never pruned automatically.
+- A legacy branch with unique history may be pruned only after its tip is reachable from an `archive/` ref.
 - Protected branches and `main` are never pruned.
+
+## Legacy archive policy
+
+When many abandoned branches contain unique commits, do not blindly delete them. Consolidate their histories under one explicit `archive/` ref, record the original branch names and tip SHAs under `docs/`, then let branch-hygiene automation remove the redundant branch refs.
+
+The 2026-08-28 consolidation is recorded in `docs/LEGACY_BRANCH_ARCHIVE_20260828.md` and preserved by `archive/legacy-experiments-20260828`.
+
+Archive refs are historical evidence only. They are not deployment bases and should not be used as active feature branches.
 
 ## Tracked-file policy
 
