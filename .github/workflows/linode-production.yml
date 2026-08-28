@@ -58,4 +58,5 @@ jobs:
           grep -q '127.0.0.1:8000' scripts/configure_linode_https.sh
           grep -q 'run_m5_research_maintenance_once.sh' deploy/systemd/eba-m5-real-ablation.service
           grep -q 'm5_corpus_runtime' scripts/run_m5_research_maintenance_once.sh
+          grep -q 'm5_multiwindow_runtime' scripts/run_m5_research_maintenance_once.sh
           ! test -f render.yaml
