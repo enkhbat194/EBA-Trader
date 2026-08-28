@@ -38,13 +38,14 @@ jobs:
       - name: Ruff
         run: ruff check src tests
 
-      - name: Shell syntax
+      - name: Shell and collector syntax
         run: |
           bash -n scripts/install_linode_runtime.sh
           bash -n scripts/update_linode_runtime.sh
           bash -n scripts/configure_linode_https.sh
           bash -n scripts/bootstrap_linode_public_https.sh
           bash -n scripts/run_m5_research_maintenance_once.sh
+          python -m py_compile scripts/collect_linode_proof.py
 
       - name: Deployment contract
         run: |
