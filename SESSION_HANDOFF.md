@@ -16,28 +16,13 @@ Only three repository branches remain:
 2. `m5-development-corpus-materializer` — active PR #64;
 3. `archive/legacy-experiments-20260828` — history-only archive.
 
-Do not recreate deleted legacy branches. Their unique histories were preserved before pruning in archive commit `c18496388af394890ea441e15477ff733292b350`; see `docs/LEGACY_BRANCH_ARCHIVE_20260828.md`.
+Do not recreate deleted legacy branches. Their unique histories were preserved in archive commit `c18496388af394890ea441e15477ff733292b350`; see `docs/LEGACY_BRANCH_ARCHIVE_20260828.md`.
 
-## Repository cleanup completed
+## What was completed
 
-PR #67 `Repository hygiene cleanup` merged as:
+PR #67 `Repository hygiene cleanup` merged as `8ebf6c6ce87840c95c071c15ed53cedf43f722d7` and added safe branch pruning, repository-hygiene CI, tracked runtime/cache/secret-like artifact protection, stronger ignore rules and branch lifecycle policy.
 
-`8ebf6c6ce87840c95c071c15ed53cedf43f722d7`
-
-It added:
-
-- automatic safe branch pruning;
-- repository-hygiene CI;
-- tracked runtime/cache/secret-like artifact protection;
-- stronger `.gitignore`;
-- branch lifecycle rules in `AGENTS.md` and PR checklist;
-- `docs/REPOSITORY_HYGIENE.md`.
-
-PR #68 `Archive and prune legacy unique branches` merged as:
-
-`523567785f928bfc63972894f19bf6d2541a633d`
-
-It preserved 16 unique old branch histories under one archive ref, then branch hygiene safely removed their redundant branch names.
+PR #68 `Archive and prune legacy unique branches` merged as `523567785f928bfc63972894f19bf6d2541a633d`. It preserved 16 unique old branch histories under one archive ref, then safely removed the redundant branch names.
 
 Exact current-main validation after cleanup:
 
@@ -60,17 +45,17 @@ PR #64 `M5: materialize resumable development corpus` is still open.
 
 Its existing implementation already includes deterministic/resumable materialization of the 12 pre-registered development windows, immutable checkpoints/final manifest, archive order-flow default, provenance/hash verification, replay/resume/tamper tests and `eba-materialize-m5-corpus`.
 
-**Do not restart or duplicate that work.** Compare the existing PR #64 diff/head with current main and bring it forward cleanly.
+**Do not restart or duplicate that work.** Compare PR #64 with current main and bring it forward cleanly.
 
-## Next exact actions
+## Next exact task
 
 1. Read canonical continuity files and query actual GitHub state.
 2. Compare PR #64 branch against latest `main`.
-3. Update/reconcile the existing branch without dropping its materializer commits.
+3. Reconcile the existing branch without dropping its materializer commits.
 4. Run exact-head full regression, Ruff, deployment/runtime, continuity and repository-hygiene checks; fix every failure.
 5. Merge PR #64 only when green.
 6. Deploy exact merged main to Linode.
-7. Materialize **only** the 12 pre-registered development windows.
+7. Materialize only the 12 pre-registered development windows.
 8. Verify 12/12 hashes, provenance, sequence integrity and resumable replay.
 9. Build/run the multi-window evaluator for Strategy Factory screening.
 10. Continue to robustness before any Frozen-OOS consideration.
