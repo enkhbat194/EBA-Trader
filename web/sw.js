@@ -20,8 +20,17 @@ const ASSETS = [
   './icon.svg',
 ];
 
+async function cacheFreshAssets() {
+  const cache = await caches.open(CACHE_NAME);
+  await Promise.all(ASSETS.map(async (asset) => {
+    const response = await fetch(asset, { cache: 'reload' });
+    if (!response.ok) throw new Error(`Failed to refresh PWA asset: ${asset}`);
+    await cache.put(asset, response);
+  }));
+}
+
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));
+  event.waitUntil(cacheFreshAssets());
   self.skipWaiting();
 });
 
@@ -43,12 +52,12 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
   if (url.origin === self.location.origin && url.pathname.startsWith('/api/')) {
-    event.respondWith(fetch(event.request));
+    event.respondWith(fetch(event.request, { cache: 'no-store' }));
     return;
   }
 
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: 'no-store' })
       .then((response) => {
         if (response.ok && url.origin === self.location.origin) {
           const copy = response.clone();
