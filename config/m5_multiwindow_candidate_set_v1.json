@@ -1,0 +1,34 @@
+{
+  "schema": "m5_multiwindow_candidate_set_v1",
+  "candidates": [
+    {"candidate_id": "delta_neg1", "parameters": {"delta_ratio_threshold": -1.0}},
+    {"candidate_id": "delta_0", "parameters": {"delta_ratio_threshold": 0.0}},
+    {"candidate_id": "delta_005", "parameters": {"delta_ratio_threshold": 0.05}},
+    {"candidate_id": "delta_010", "parameters": {"delta_ratio_threshold": 0.1}},
+    {"candidate_id": "delta_020", "parameters": {"delta_ratio_threshold": 0.2}},
+    {"candidate_id": "cvd_0", "parameters": {"cvd_threshold": 0.0}},
+    {
+      "candidate_id": "delta_010_cvd_0",
+      "parameters": {"delta_ratio_threshold": 0.1, "cvd_threshold": 0.0}
+    },
+    {"candidate_id": "stacked_1", "parameters": {"stacked_imbalance_threshold": 1}},
+    {"candidate_id": "stacked_2", "parameters": {"stacked_imbalance_threshold": 2}},
+    {"candidate_id": "stacked_3", "parameters": {"stacked_imbalance_threshold": 3}},
+    {"candidate_id": "absorption_010", "parameters": {"absorption_threshold": 0.1}},
+    {"candidate_id": "absorption_020", "parameters": {"absorption_threshold": 0.2}},
+    {"candidate_id": "exhaustion_001", "parameters": {"exhaustion_threshold": 0.01}},
+    {"candidate_id": "exhaustion_003", "parameters": {"exhaustion_threshold": 0.03}},
+    {
+      "candidate_id": "divergence_001",
+      "parameters": {"price_delta_divergence_threshold": 0.01}
+    },
+    {
+      "candidate_id": "divergence_005",
+      "parameters": {"price_delta_divergence_threshold": 0.05}
+    },
+    {
+      "candidate_id": "divergence_010",
+      "parameters": {"price_delta_divergence_threshold": 0.1}
+    }
+  ]
+}
