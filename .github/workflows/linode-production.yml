@@ -38,12 +38,14 @@ jobs:
       - name: Ruff
         run: ruff check src tests
 
-      - name: Shell syntax
+      - name: Shell and collector syntax
         run: |
           bash -n scripts/install_linode_runtime.sh
           bash -n scripts/update_linode_runtime.sh
           bash -n scripts/configure_linode_https.sh
           bash -n scripts/bootstrap_linode_public_https.sh
+          bash -n scripts/run_m5_research_maintenance_once.sh
+          python -m py_compile scripts/collect_linode_proof.py
 
       - name: Deployment contract
         run: |
@@ -54,4 +56,6 @@ jobs:
           grep -q 'bootstrap_linode_public_https.sh' scripts/update_linode_runtime.sh
           grep -q 'sslip.io' scripts/bootstrap_linode_public_https.sh
           grep -q '127.0.0.1:8000' scripts/configure_linode_https.sh
+          grep -q 'run_m5_research_maintenance_once.sh' deploy/systemd/eba-m5-real-ablation.service
+          grep -q 'm5_corpus_runtime' scripts/run_m5_research_maintenance_once.sh
           ! test -f render.yaml

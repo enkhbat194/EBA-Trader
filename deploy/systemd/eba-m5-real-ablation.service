@@ -1,12 +1,12 @@
 [Unit]
-Description=EBA Trader one-shot real M5 development ablation
+Description=EBA Trader one-shot M5 development research maintenance
 After=network-online.target eba-runtime-api.service
 Wants=network-online.target
 
 [Service]
 Type=oneshot
 WorkingDirectory=/opt/Eba-Trader
-ExecStart=/bin/bash /opt/Eba-Trader/scripts/run_m5_real_ablation_once.sh
+ExecStart=/bin/bash /opt/Eba-Trader/scripts/run_m5_research_maintenance_once.sh
 User=root
 Group=root
 Nice=10
