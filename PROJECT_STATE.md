@@ -4,6 +4,10 @@ _Last reconciled: 2026-08-28 (Asia/Ulaanbaatar)_
 
 Actual GitHub code, PR/workflow state and Linode production proof override stale prose.
 
+## Current goal
+
+Keep `main` production-clean, resume the existing M5 development-corpus work without duplication, validate strategies across fresh multi-window development data, then require robustness before any sealed Frozen-OOS stage. Real-money execution stays locked.
+
 ## Current stage
 
 - Production/runtime foundation: **VERIFIED**.
@@ -25,26 +29,22 @@ Actual GitHub code, PR/workflow state and Linode production proof override stale
 - PR #64 branch/head: `m5-development-corpus-materializer` @ `39cd2b6dbea75b36307c03cf9080769b49a23123`
 - PR #64 was created from older main and must be refreshed/compared against current main without recreating its existing work.
 
-Repository branch cleanup is complete. Only these long-lived/current refs remain:
+Only three branches remain:
 
 1. `main` — production/deploy branch;
 2. `m5-development-corpus-materializer` — active PR #64 work;
 3. `archive/legacy-experiments-20260828` — history-only archive.
 
-Legacy unique experiment branch history is preserved under `archive/legacy-experiments-20260828` at `c18496388af394890ea441e15477ff733292b350`. Recovery details are in `docs/LEGACY_BRANCH_ARCHIVE_20260828.md`.
+Legacy unique experiment history is preserved under `archive/legacy-experiments-20260828` at `c18496388af394890ea441e15477ff733292b350`. Recovery details: `docs/LEGACY_BRANCH_ARCHIVE_20260828.md`.
 
-Repository hygiene is now enforced by:
-
-- `.github/workflows/branch-hygiene.yml` — safely prunes merged/archived stale branches while preserving open-PR and archive refs;
-- `.github/workflows/repo-hygiene.yml` + `scripts/check_repo_hygiene.py` — blocks tracked runtime DB/log/cache/artifact/raw-data/secret-like files;
-- hardened `.gitignore`, `AGENTS.md`, PR checklist and `docs/REPOSITORY_HYGIENE.md`.
+Repository hygiene is enforced by branch auto-pruning, repository-hygiene CI, hardened `.gitignore`, `AGENTS.md`, PR checklist and `docs/REPOSITORY_HYGIENE.md`.
 
 Cleanup merges:
 
-- PR #67 `Repository hygiene cleanup` -> `8ebf6c6ce87840c95c071c15ed53cedf43f722d7`;
-- PR #68 `Archive and prune legacy unique branches` -> current main `523567785f928bfc63972894f19bf6d2541a633d`.
+- PR #67 -> `8ebf6c6ce87840c95c071c15ed53cedf43f722d7`;
+- PR #68 -> `523567785f928bfc63972894f19bf6d2541a633d`.
 
-## Production validation
+## Validation status
 
 Exact current main `523567785f928bfc63972894f19bf6d2541a633d` passed:
 
@@ -59,14 +59,14 @@ The cleanup did not change trading logic, strategy authority, Frozen OOS access 
 
 ## M5 research state
 
-The inspected `2026-08-01T00:00Z -> 04:00Z` four-hour sample is closed for isolated indicator tuning. Delta, stacked imbalance, absorption/exhaustion and price/Delta divergence all remained non-promotable development evidence. Do not keep fitting new indicators to that sample.
+The inspected `2026-08-01T00:00Z -> 04:00Z` sample is closed for isolated indicator tuning. Delta, stacked imbalance, absorption/exhaustion and price/Delta divergence remained non-promotable development evidence.
 
 Current chronological policy:
 
 - development: `2026-07-01T00:00Z -> 2026-08-15T00:00Z`;
 - sealed M5 Frozen OOS: `2026-08-15T00:00Z -> 2026-08-22T00:00Z`;
 - 12 fresh non-overlapping four-hour development windows are pre-registered;
-- the already-inspected four-hour proof window is excluded.
+- the already-inspected proof window is excluded.
 
 PR #64 already implements resumable/immutable materialization of those 12 development windows. Resume it rather than rebuilding it.
 
@@ -85,11 +85,11 @@ PR #64 already implements resumable/immutable materialization of those 12 develo
 ## Next exact task
 
 1. Resume existing PR #64; compare its current diff/head with latest `main`.
-2. Bring PR #64 forward cleanly without dropping/recreating its materializer work.
+2. Bring PR #64 forward without dropping/recreating its materializer work.
 3. Run exact-head full CI and fix every failure.
 4. Merge PR #64 only when green.
 5. Deploy exact main to Linode.
-6. Materialize **only** the 12 pre-registered development windows.
+6. Materialize only the 12 pre-registered development windows.
 7. Verify 12/12 hashes, provenance, sequence integrity and resumable replay.
 8. Build the multi-window evaluator/aggregator and use it for Strategy Factory screening.
 9. Continue to robustness before any Frozen-OOS consideration.
