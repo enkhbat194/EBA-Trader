@@ -61,7 +61,8 @@ def test_breakout_executes_only_at_next_opens() -> None:
     result = run_donchian_breakout_backtest(rows, cfg)
     assert result.trade_count >= 1
     assert result.final_equity > 0.0
-    valid_opens = {bar.open_time_ms for bar in rows[max(cfg.entry_lookback, cfg.exit_lookback) + 1 :]}
+    warmup = max(cfg.entry_lookback, cfg.exit_lookback) + 1
+    valid_opens = {bar.open_time_ms for bar in rows[warmup:]}
     assert all(trade.entry_time_ms in valid_opens for trade in result.trades)
     assert all(
         trade.exit_time_ms in valid_opens or trade.exit_time_ms == rows[-1].close_time_ms
