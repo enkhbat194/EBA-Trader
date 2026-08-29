@@ -54,7 +54,13 @@ def _json_object(path: Path, *, label: str) -> dict[str, Any]:
 
 def load_sf1_candidates(path: str | Path) -> tuple[int, int, tuple[SF1Candidate, ...]]:
     payload = _json_object(Path(path), label="SF1 candidate set")
-    expected = {"schema", "phase_id", "planned_candidate_budget", "warmup_bars", "candidates"}
+    expected = {
+        "schema",
+        "phase_id",
+        "planned_candidate_budget",
+        "warmup_bars",
+        "candidates",
+    }
     if set(payload) != expected:
         raise ValueError("invalid SF1 candidate set fields")
     if payload.get("schema") != CANDIDATE_SET_SCHEMA or payload.get("phase_id") != PHASE_ID:
@@ -73,7 +79,8 @@ def load_sf1_candidates(path: str | Path) -> tuple[int, int, tuple[SF1Candidate,
     ids: set[str] = set()
     fingerprints: set[str] = set()
     for row in rows:
-        if not isinstance(row, dict) or set(row) != {"candidate_id", "family", "parameters"}:
+        required = {"candidate_id", "family", "parameters"}
+        if not isinstance(row, dict) or set(row) != required:
             raise ValueError("invalid SF1 candidate entry")
         candidate_id = str(row["candidate_id"]).strip()
         family = str(row["family"]).strip()
@@ -82,7 +89,8 @@ def load_sf1_candidates(path: str | Path) -> tuple[int, int, tuple[SF1Candidate,
             raise ValueError("SF1 candidate_id is empty or duplicated")
         if family != "atr_trailing_v1":
             raise ValueError(f"SF1 family is not implemented yet: {family}")
-        if not isinstance(parameters, Mapping) or set(parameters) != {"atr_period", "atr_multiplier"}:
+        parameter_fields = {"atr_period", "atr_multiplier"}
+        if not isinstance(parameters, Mapping) or set(parameters) != parameter_fields:
             raise ValueError("ATR candidate parameters are invalid")
         period = parameters["atr_period"]
         multiplier = parameters["atr_multiplier"]
@@ -91,7 +99,10 @@ def load_sf1_candidates(path: str | Path) -> tuple[int, int, tuple[SF1Candidate,
         if isinstance(multiplier, bool) or not isinstance(multiplier, (int, float)):
             raise ValueError("atr_multiplier must be numeric")
         config = AtrTrailingConfig(atr_period=period, atr_multiplier=float(multiplier))
-        normalized = {"atr_period": config.atr_period, "atr_multiplier": config.atr_multiplier}
+        normalized = {
+            "atr_period": config.atr_period,
+            "atr_multiplier": config.atr_multiplier,
+        }
         fingerprint = canonical_json({"family": family, "parameters": normalized})
         if fingerprint in fingerprints:
             raise ValueError("duplicate SF1 candidate parameters")
@@ -111,7 +122,10 @@ def _numeric(metrics: Mapping[str, Any], key: str) -> float:
     return number
 
 
-def _aggregate(windows: list[dict[str, Any]], baseline: Mapping[str, dict[str, Any]] | None) -> dict[str, Any]:
+def _aggregate(
+    windows: list[dict[str, Any]],
+    baseline: Mapping[str, dict[str, Any]] | None,
+) -> dict[str, Any]:
     returns: list[float] = []
     expectancies: list[float] = []
     drawdowns: list[float] = []
@@ -127,7 +141,10 @@ def _aggregate(windows: list[dict[str, Any]], baseline: Mapping[str, dict[str, A
         trades.append(int(_numeric(metrics, "trade_count")))
         costs.append(_numeric(metrics, "total_cost"))
         if baseline is not None:
-            base_return = _numeric(baseline[row["windowName"]]["metrics"], "total_return")
+            base_return = _numeric(
+                baseline[row["windowName"]]["metrics"],
+                "total_return",
+            )
             deltas.append(total_return - base_return)
 
     aggregate: dict[str, Any] = {
@@ -176,7 +193,8 @@ def evaluate_sf1_atr(
 ) -> dict[str, Any]:
     budget, warmup_bars, candidates = load_sf1_candidates(candidate_set_path)
     manifest, receipts = _load_materialization(
-        manifest_path=Path(manifest_path), dataset_root=Path(dataset_root)
+        manifest_path=Path(manifest_path),
+        dataset_root=Path(dataset_root),
     )
     baseline_windows: list[dict[str, Any]] = []
     candidate_windows: dict[str, list[dict[str, Any]]] = {
@@ -193,7 +211,10 @@ def evaluate_sf1_atr(
             int(receipt["end_ms"]),
         )
         if len(candles) <= warmup_bars + 2:
-            raise RuntimeError(f"SF1 window is too short for preregistered warmup: {receipt['window_name']}")
+            window_name = receipt["window_name"]
+            raise RuntimeError(
+                f"SF1 window is too short for preregistered warmup: {window_name}"
+            )
         evaluation_start_ms = candles[warmup_bars].open_time_ms
         strategy_spec = {
             "adapter": "ema_feature_baseline_v1",
@@ -235,7 +256,9 @@ def evaluate_sf1_atr(
                 slippage_bps=SLIPPAGE_BPS,
             )
             result = run_atr_trailing_backtest(
-                candles, cfg, trade_start_time_ms=evaluation_start_ms
+                candles,
+                cfg,
+                trade_start_time_ms=evaluation_start_ms,
             )
             candidate_windows[candidate.candidate_id].append(
                 {
@@ -292,7 +315,11 @@ def evaluate_sf1_atr(
         "multipleTestingBudget": budget,
         "warmupBars": warmup_bars,
         "windowCount": len(baseline_windows),
-        "baseline": {"family": "ema_feature_baseline_v1", "windows": baseline_windows, "aggregate": baseline_aggregate},
+        "baseline": {
+            "family": "ema_feature_baseline_v1",
+            "windows": baseline_windows,
+            "aggregate": baseline_aggregate,
+        },
         "candidates": evaluated,
         "developmentRanking": development_ranking,
         "rankingIsDevelopmentOnly": True,
@@ -314,7 +341,11 @@ def write_immutable_sf1_report(path: str | Path, report: Mapping[str, Any]) -> P
             raise RuntimeError("refusing to overwrite immutable SF1 development report")
         return output
     with tempfile.NamedTemporaryFile(
-        mode="w", encoding="utf-8", dir=output.parent, prefix=f".{output.name}.", delete=False
+        mode="w",
+        encoding="utf-8",
+        dir=output.parent,
+        prefix=f".{output.name}.",
+        delete=False,
     ) as handle:
         handle.write(serialized)
         temporary = Path(handle.name)
