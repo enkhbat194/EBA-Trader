@@ -1,0 +1,233 @@
+name: Temporary patch M5 qualification proof
+
+on:
+  push:
+    branches: [m5-robustness-qualification-gate]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: m5-robustness-qualification-gate
+      - name: Patch collector and remove temporary workflow
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/collect_linode_proof.py')
+          text = path.read_text(encoding='utf-8')
+
+          constant_marker = (
+              'M5_MULTIWINDOW_PROOF = RESEARCH_ROOT / "m5-multiwindow-evaluation-latest.json"\n'
+          )
+          constant_insert = constant_marker + (
+              'M5_QUALIFICATION_PROOF = RESEARCH_ROOT / '
+              '"m5-robustness-qualification-latest.json"\n'
+              'M5_QUALIFICATION_STATUS_SCHEMA = '
+              '"m5_robustness_qualification_runtime_status_v1"\n'
+              'M5_QUALIFICATION_REPORT_SCHEMA = '
+              '"m5_robustness_qualification_report_v1"\n'
+          )
+          if constant_marker not in text:
+              raise SystemExit('collector constant marker missing')
+          text = text.replace(constant_marker, constant_insert, 1)
+
+          function_marker = '\n\ndef _local_api_contract(expected_build: str | None) -> dict[str, Any]:\n'
+          function = r'''
+
+
+def _m5_qualification_status() -> dict[str, Any]:
+    base: dict[str, Any] = {
+        "available": M5_QUALIFICATION_PROOF.is_file(),
+        "phase": "WAITING",
+        "complete": False,
+        "safe": True,
+        "qualificationState": "WAITING",
+        "candidateCount": None,
+        "eligibleCandidateCount": 0,
+        "topEligibleCandidate": None,
+        "topEligibleParameters": {},
+        "developmentEvidenceOnly": True,
+        "edgeClaimAllowed": False,
+        "promotionAuthority": False,
+        "frozenOosOpened": False,
+        "m5FrozenOosOpened": False,
+        "liveExecutionAllowed": False,
+    }
+    if not M5_QUALIFICATION_PROOF.is_file():
+        return base
+
+    try:
+        payload = json.loads(M5_QUALIFICATION_PROOF.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return {
+            **base,
+            "available": True,
+            "phase": "INVALID",
+            "safe": False,
+            "error": str(exc)[:240],
+        }
+    if not isinstance(payload, dict) or payload.get("schema") != M5_QUALIFICATION_STATUS_SCHEMA:
+        return {
+            **base,
+            "available": True,
+            "phase": "INVALID",
+            "safe": False,
+            "error": "M5 qualification runtime status has an invalid schema",
+        }
+
+    allowed = {
+        "schema",
+        "phase",
+        "updatedAt",
+        "evaluationId",
+        "materializationId",
+        "qualificationId",
+        "reportPath",
+        "complete",
+        "candidateCount",
+        "eligibleCandidateCount",
+        "topEligibleCandidate",
+        "qualificationState",
+        "policy",
+        "errorType",
+        "errorSummary",
+        "developmentEvidenceOnly",
+        "edgeClaimAllowed",
+        "promotionAuthority",
+        "frozenOosOpened",
+        "m5FrozenOosOpened",
+        "liveExecutionAllowed",
+    }
+    sanitized = {key: payload.get(key) for key in allowed if key in payload}
+    sanitized["topEligibleParameters"] = _safe_parameters(
+        payload.get("topEligibleParameters")
+    )
+    raw_policy = payload.get("policy")
+    policy: dict[str, Any] = {}
+    if isinstance(raw_policy, dict):
+        policy_id = raw_policy.get("policyId")
+        minimum_trades = raw_policy.get("minimumTrades")
+        minimum_windows = raw_policy.get("minimumBeatBaselineWindows")
+        if isinstance(policy_id, str) and policy_id:
+            policy["policyId"] = policy_id[:96]
+        if isinstance(minimum_trades, int) and not isinstance(minimum_trades, bool):
+            policy["minimumTrades"] = minimum_trades
+        if isinstance(minimum_windows, int) and not isinstance(minimum_windows, bool):
+            policy["minimumBeatBaselineWindows"] = minimum_windows
+    sanitized["policy"] = policy
+
+    phase = str(payload.get("phase") or "UNKNOWN").upper()
+    locks_safe = (
+        payload.get("developmentEvidenceOnly") is True
+        and payload.get("edgeClaimAllowed") is False
+        and payload.get("promotionAuthority") is False
+        and payload.get("frozenOosOpened") is False
+        and payload.get("m5FrozenOosOpened") is False
+        and payload.get("liveExecutionAllowed") is False
+    )
+    complete_valid = True
+    if phase == "COMPLETE":
+        eligible_count = payload.get("eligibleCandidateCount")
+        top_candidate = payload.get("topEligibleCandidate")
+        state = payload.get("qualificationState")
+        cardinality_valid = bool(
+            isinstance(eligible_count, int)
+            and not isinstance(eligible_count, bool)
+            and eligible_count >= 0
+            and (
+                (eligible_count == 0 and top_candidate is None and state == "NO_ELIGIBLE_CANDIDATE")
+                or (
+                    eligible_count > 0
+                    and isinstance(top_candidate, str)
+                    and bool(top_candidate)
+                    and state == "ELIGIBLE_CANDIDATE_AVAILABLE"
+                )
+            )
+        )
+        report: dict[str, Any] | None = None
+        report_raw = payload.get("reportPath")
+        if isinstance(report_raw, str) and report_raw.strip():
+            try:
+                report_path = Path(report_raw).resolve()
+                report_path.relative_to(RESEARCH_EVIDENCE.resolve())
+                report_payload = json.loads(report_path.read_text(encoding="utf-8"))
+                if isinstance(report_payload, dict):
+                    report = report_payload
+            except (OSError, ValueError, json.JSONDecodeError):
+                report = None
+        report_safe = bool(
+            report is not None
+            and report.get("schema") == M5_QUALIFICATION_REPORT_SCHEMA
+            and report.get("qualificationId") == payload.get("qualificationId")
+            and report.get("evaluationId") == payload.get("evaluationId")
+            and report.get("candidateCount") == EXPECTED_M5_MULTIWINDOW_CANDIDATES
+            and report.get("eligibleCandidateCount") == eligible_count
+            and report.get("qualificationState") == state
+            and report.get("developmentEvidenceOnly") is True
+            and report.get("edgeClaimAllowed") is False
+            and report.get("promotionAuthority") is False
+            and report.get("frozenOosOpened") is False
+            and report.get("m5FrozenOosOpened") is False
+            and report.get("liveExecutionAllowed") is False
+        )
+        complete_valid = bool(
+            payload.get("complete") is True
+            and payload.get("candidateCount") == EXPECTED_M5_MULTIWINDOW_CANDIDATES
+            and cardinality_valid
+            and report_safe
+            and policy.get("policyId") == "m5_robustness_qualification_v1"
+            and policy.get("minimumTrades") == 30
+            and policy.get("minimumBeatBaselineWindows") == 9
+        )
+
+    sanitized.update(
+        {
+            "available": True,
+            "phase": phase,
+            "complete": bool(phase == "COMPLETE" and complete_valid),
+            "safe": bool(locks_safe and complete_valid),
+            "developmentEvidenceOnly": True,
+            "edgeClaimAllowed": False,
+            "promotionAuthority": False,
+        }
+    )
+    return sanitized
+'''
+          if function_marker not in text:
+              raise SystemExit('collector function marker missing')
+          text = text.replace(function_marker, function + function_marker, 1)
+
+          proof_marker = '        "m5MultiWindow": _m5_multiwindow_status(),\n'
+          proof_insert = proof_marker + '        "m5Qualification": _m5_qualification_status(),\n'
+          if proof_marker not in text:
+              raise SystemExit('collector proof marker missing')
+          text = text.replace(proof_marker, proof_insert, 1)
+
+          required_marker = '        proof["m5MultiWindow"]["safe"],\n'
+          required_insert = required_marker + '        proof["m5Qualification"]["safe"],\n'
+          if required_marker not in text:
+              raise SystemExit('collector required marker missing')
+          text = text.replace(required_marker, required_insert, 1)
+
+          path.write_text(text, encoding='utf-8')
+          Path('.github/workflows/tmp-patch-m5-qualification-proof.yml').unlink()
+          PY
+      - name: Validate patched collector
+        run: |
+          python3 -m py_compile scripts/collect_linode_proof.py
+          python3 -m pip install --quiet ruff
+          ruff check scripts/collect_linode_proof.py
+      - name: Commit patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'M5: expose robustness qualification production proof'
+          git push origin HEAD:m5-robustness-qualification-gate
