@@ -40,7 +40,11 @@ def _prepare_inputs(
         for index in range(12)
     ]
     candidates = [
-        {"candidateId": "target", "parameters": {"absorption_threshold": 0.2}, "windows": target_windows}
+        {
+            "candidateId": "target",
+            "parameters": {"absorption_threshold": 0.2},
+            "windows": target_windows,
+        }
     ]
     candidates.extend({"candidateId": f"other_{index:02d}"} for index in range(16))
     multi_report = {
