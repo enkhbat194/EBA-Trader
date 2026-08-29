@@ -1,0 +1,66 @@
+name: Temporary patch Demo fill price
+
+on:
+  push:
+    branches: [fix-demo-fill-price-proof]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix-demo-fill-price-proof
+          fetch-depth: 0
+      - name: Apply fill-price fallback and v3 probe
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          source_path = Path('src/eba_trader/binance_demo_execution.py')
+          source = source_path.read_text(encoding='utf-8')
+          old = '''def _fill_price(payload: dict[str, Any]) -> Decimal:\n    price = _decimal(payload.get("avgPrice", "0"), label="avgPrice")\n    if price <= 0:\n        price = _decimal(payload.get("price", "0"), label="price")\n    if price <= 0:\n        raise RuntimeError("Binance Demo filled order has no positive fill price")\n    return price\n'''
+          new = '''def _fill_price(payload: dict[str, Any]) -> Decimal:\n    price = _decimal(payload.get("avgPrice", "0"), label="avgPrice")\n    if price <= 0:\n        price = _decimal(payload.get("price", "0"), label="price")\n    if price <= 0:\n        executed_qty = _decimal(payload.get("executedQty", "0"), label="executedQty")\n        cum_quote = _decimal(payload.get("cumQuote", "0"), label="cumQuote")\n        if executed_qty > 0 and cum_quote > 0:\n            price = cum_quote / executed_qty\n    if price <= 0:\n        raise RuntimeError("Binance Demo filled order has no positive fill price")\n    return price\n'''
+          if old in source:
+              source = source.replace(old, new, 1)
+              source_path.write_text(source, encoding='utf-8')
+          elif new not in source:
+              raise SystemExit('expected _fill_price block not found')
+
+          test_path = Path('tests/test_binance_demo_execution.py')
+          tests = test_path.read_text(encoding='utf-8')
+          if '    _fill_price,\n' not in tests:
+              tests = tests.replace(
+                  '    run_demo_execution_probe,\n',
+                  '    run_demo_execution_probe,\n    _fill_price,\n',
+                  1,
+              )
+          marker = 'def test_fill_price_falls_back_to_cum_quote_when_binance_avg_price_is_zero()'
+          if marker not in tests:
+              tests += '''\n\ndef test_fill_price_falls_back_to_cum_quote_when_binance_avg_price_is_zero() -> None:\n    payload = {\n        "status": "FILLED",\n        "avgPrice": "0",\n        "price": "0",\n        "executedQty": "0.0007",\n        "cumQuote": "54.25119",\n    }\n\n    assert float(_fill_price(payload)) == 77501.7\n'''
+          test_path.write_text(tests, encoding='utf-8')
+
+          config_path = Path('config/binance_demo_execution_probe_v1.json')
+          config = config_path.read_text(encoding='utf-8')
+          config = config.replace(
+              'usdm-btcusdt-roundtrip-20260829-v2',
+              'usdm-btcusdt-roundtrip-20260829-v3',
+          )
+          config_path.write_text(config, encoding='utf-8')
+
+          Path('.github/workflows/tmp-patch-demo-fill-price.yml').unlink()
+          PY
+      - name: Commit patch
+        run: |
+          if git diff --quiet; then
+            echo 'No changes required.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/eba_trader/binance_demo_execution.py tests/test_binance_demo_execution.py config/binance_demo_execution_probe_v1.json .github/workflows/tmp-patch-demo-fill-price.yml
+          git commit -m 'Demo: resolve filled price from cumulative quote'
+          git push origin HEAD:fix-demo-fill-price-proof
