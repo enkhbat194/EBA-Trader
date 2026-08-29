@@ -1,7 +1,7 @@
 {
   "schema": "binance_demo_execution_probe_config_v1",
   "enabled": true,
-  "probe_id": "usdm-btcusdt-roundtrip-20260829-v2",
+  "probe_id": "usdm-btcusdt-roundtrip-20260829-v3",
   "symbol": "BTCUSDT",
   "target_notional_usdt": 25.0,
   "max_notional_usdt": 250.0

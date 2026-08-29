@@ -19,5 +19,5 @@ def test_corrected_probe_uses_new_one_shot_id() -> None:
         Path("config/binance_demo_execution_probe_v1.json").read_text(encoding="utf-8")
     )
 
-    assert payload["probe_id"] == "usdm-btcusdt-roundtrip-20260829-v2"
+    assert payload["probe_id"] == "usdm-btcusdt-roundtrip-20260829-v3"
     assert payload["enabled"] is True
