@@ -57,11 +57,11 @@ def _safe_scalar_map(value: Any) -> dict[str, Any]:
         normalized = key.replace("_", "").replace("-", "").lower()
         if any(part in normalized for part in _BLOCKED_KEY_PARTS):
             continue
-        if isinstance(item, bool) or isinstance(item, int):
-            result[key] = item
-        elif isinstance(item, float) and math.isfinite(item):
-            result[key] = item
-        elif isinstance(item, str) and len(item) <= 128:
+        safe_number = isinstance(item, (bool, int)) or (
+            isinstance(item, float) and math.isfinite(item)
+        )
+        safe_text = isinstance(item, str) and len(item) <= 128
+        if safe_number or safe_text:
             result[key] = item
     return result
 
