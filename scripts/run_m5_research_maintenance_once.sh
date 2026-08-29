@@ -5,12 +5,14 @@ cd /opt/Eba-Trader
 
 ablation_exit=0
 corpus_exit=0
+sf1_exit=0
 multiwindow_exit=0
 activity_exit=0
 qualification_exit=0
 significance_exit=0
 robustness_exit=0
 demo_exit=0
+sf1_state="deferred"
 activity_state="deferred"
 qualification_state="deferred"
 significance_state="deferred"
@@ -20,8 +22,16 @@ robustness_state="deferred"
 /opt/Eba-Trader/.venv/bin/python -m eba_trader.m5_corpus_runtime || corpus_exit=$?
 
 if [[ $corpus_exit -eq 0 ]]; then
+  /opt/Eba-Trader/.venv/bin/python -m eba_trader.sf1_runtime || sf1_exit=$?
+  if [[ $sf1_exit -eq 0 ]]; then
+    sf1_state="complete"
+  else
+    sf1_state="failed"
+  fi
   /opt/Eba-Trader/.venv/bin/python -m eba_trader.m5_multiwindow_runtime || multiwindow_exit=$?
 else
+  sf1_exit=1
+  sf1_state="blocked_corpus"
   multiwindow_exit=1
 fi
 
@@ -107,15 +117,16 @@ else
 fi
 
 # This is a one-shot Binance DEMO connectivity/execution proof, not strategy promotion.
-# Its completed probe is now disabled; the runtime preserves terminal evidence and must not submit a new order while the probe config is disabled.
+# Its completed probe is now disabled; the runtime preserves terminal evidence and must not
+# submit a new order while the probe config is disabled.
 if [[ $robustness_exit -eq 0 ]]; then
   /opt/Eba-Trader/.venv/bin/python -m eba_trader.binance_demo_execution_runtime || demo_exit=$?
 else
   demo_exit=1
 fi
 
-if [[ $ablation_exit -ne 0 || $corpus_exit -ne 0 || $multiwindow_exit -ne 0 || $activity_exit -ne 0 || $qualification_exit -ne 0 || $significance_exit -ne 0 || $robustness_exit -ne 0 ]]; then
-  echo "M5 research maintenance incomplete: ablation_exit=$ablation_exit corpus_exit=$corpus_exit multiwindow_exit=$multiwindow_exit activity_exit=$activity_exit activity_state=$activity_state qualification_exit=$qualification_exit qualification_state=$qualification_state significance_exit=$significance_exit significance_state=$significance_state robustness_exit=$robustness_exit robustness_state=$robustness_state demo_exit=$demo_exit" >&2
+if [[ $ablation_exit -ne 0 || $corpus_exit -ne 0 || $sf1_exit -ne 0 || $multiwindow_exit -ne 0 || $activity_exit -ne 0 || $qualification_exit -ne 0 || $significance_exit -ne 0 || $robustness_exit -ne 0 ]]; then
+  echo "M5/SF1 research maintenance incomplete: ablation_exit=$ablation_exit corpus_exit=$corpus_exit sf1_exit=$sf1_exit sf1_state=$sf1_state multiwindow_exit=$multiwindow_exit activity_exit=$activity_exit activity_state=$activity_state qualification_exit=$qualification_exit qualification_state=$qualification_state significance_exit=$significance_exit significance_state=$significance_state robustness_exit=$robustness_exit robustness_state=$robustness_state demo_exit=$demo_exit" >&2
   exit 1
 fi
 
@@ -125,4 +136,4 @@ else
   demo_state="deferred"
 fi
 
-echo "M5 research maintenance complete: ablation=ok corpus=ok multiwindow=ok activity=$activity_state qualification=$qualification_state significance=$significance_state robustness=ok:$robustness_state demo=$demo_state"
+echo "M5/SF1 research maintenance complete: ablation=ok corpus=ok sf1=$sf1_state multiwindow=ok activity=$activity_state qualification=$qualification_state significance=$significance_state robustness=ok:$robustness_state demo=$demo_state"
