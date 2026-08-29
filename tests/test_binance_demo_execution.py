@@ -8,6 +8,7 @@ from eba_trader.binance_demo_execution import (
     DemoExecutionConfig,
     RequestResult,
     run_demo_execution_probe,
+    _fill_price,
 )
 from eba_trader.providers import CredentialEnvelope
 
@@ -206,3 +207,15 @@ def test_real_client_exposes_only_demo_endpoint_configuration() -> None:
         CredentialEnvelope(api_key="demo", api_secret="secret")
     )
     assert client.exchange_now_ms > 0
+
+
+def test_fill_price_falls_back_to_cum_quote_when_binance_avg_price_is_zero() -> None:
+    payload = {
+        "status": "FILLED",
+        "avgPrice": "0",
+        "price": "0",
+        "executedQty": "0.0007",
+        "cumQuote": "54.25119",
+    }
+
+    assert float(_fill_price(payload)) == 77501.7

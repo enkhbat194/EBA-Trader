@@ -380,6 +380,11 @@ def _fill_price(payload: dict[str, Any]) -> Decimal:
     if price <= 0:
         price = _decimal(payload.get("price", "0"), label="price")
     if price <= 0:
+        executed_qty = _decimal(payload.get("executedQty", "0"), label="executedQty")
+        cum_quote = _decimal(payload.get("cumQuote", "0"), label="cumQuote")
+        if executed_qty > 0 and cum_quote > 0:
+            price = cum_quote / executed_qty
+    if price <= 0:
         raise RuntimeError("Binance Demo filled order has no positive fill price")
     return price
 
