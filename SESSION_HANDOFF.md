@@ -16,7 +16,7 @@ Current working branch:
 
 No open PR existed when this branch was created.
 
-## What is already complete
+## What was completed
 
 ### M5 development corpus and evaluator
 
@@ -98,7 +98,7 @@ Why this matters: leaving the same probe enabled was already idempotent while it
 
 ## Next exact task
 
-1. Open/inspect the PR for `closeout-binance-demo-v4`.
+1. Inspect PR #78 for `closeout-binance-demo-v4`.
 2. Run exact-head full regression, Ruff, runtime, continuity and production-bundle checks.
 3. Fix every failure; do not merge red CI.
 4. Merge only when green.
