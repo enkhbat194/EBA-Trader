@@ -11,6 +11,20 @@ DEFAULT_EVIDENCE_ROOT = Path("/var/lib/eba-trader/research/evidence")
 STATUS_SCHEMA = "sf1_runtime_status_v1"
 DEVELOPMENT_SCHEMA = "sf1_development_report_v1"
 VALIDATION_SCHEMA = "sf1_validation_report_v1"
+_BLOCKED_KEY_PARTS = (
+    "apikey",
+    "apisecret",
+    "authorization",
+    "credential",
+    "keyfile",
+    "password",
+    "path",
+    "secret",
+    "signature",
+    "token",
+    "evidenceref",
+    "datasetref",
+)
 
 
 def _unavailable(reason: str) -> dict[str, Any]:
@@ -40,6 +54,9 @@ def _safe_scalar_map(value: Any) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for raw_key, item in value.items():
         key = str(raw_key)
+        normalized = key.replace("_", "").replace("-", "").lower()
+        if any(part in normalized for part in _BLOCKED_KEY_PARTS):
+            continue
         if isinstance(item, bool) or isinstance(item, int):
             result[key] = item
         elif isinstance(item, float) and math.isfinite(item):
