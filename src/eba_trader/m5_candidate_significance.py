@@ -174,7 +174,11 @@ def evaluate_candidate_significance(
 ) -> dict[str, Any]:
     _validate_inputs(multiwindow_report, qualification_report)
     candidate_count = multiwindow_report.get("candidateCount")
-    if isinstance(candidate_count, bool) or not isinstance(candidate_count, int) or candidate_count < 1:
+    if (
+        isinstance(candidate_count, bool)
+        or not isinstance(candidate_count, int)
+        or candidate_count < 1
+    ):
         raise RuntimeError("multi-window candidateCount is invalid")
 
     eligible_raw = qualification_report.get("eligibleCandidates")
