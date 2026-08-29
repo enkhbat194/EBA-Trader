@@ -86,7 +86,11 @@ def validate_sf1_development(report: Mapping[str, Any]) -> dict[str, Any]:
     candidate_count = report.get("candidateCount")
     budget = report.get("multipleTestingBudget")
     window_count = report.get("windowCount")
-    if isinstance(candidate_count, bool) or not isinstance(candidate_count, int) or candidate_count < 1:
+    if (
+        isinstance(candidate_count, bool)
+        or not isinstance(candidate_count, int)
+        or candidate_count < 1
+    ):
         raise RuntimeError("SF1 candidateCount is invalid")
     if isinstance(budget, bool) or not isinstance(budget, int) or budget < candidate_count:
         raise RuntimeError("SF1 multiple-testing budget is invalid")
@@ -130,7 +134,10 @@ def validate_sf1_development(report: Mapping[str, Any]) -> dict[str, Any]:
         candidate_returns = _window_returns(candidate.get("windows"), label=candidate_id)
         if set(candidate_returns) != set(baseline_returns):
             raise RuntimeError(f"SF1 candidate window set mismatch: {candidate_id}")
-        deltas = tuple(candidate_returns[name] - baseline_returns[name] for name in baseline_returns)
+        deltas = tuple(
+            candidate_returns[name] - baseline_returns[name]
+            for name in baseline_returns
+        )
         observed_mean = statistics.fmean(deltas)
         raw_p, extreme_count, permutation_count = _exact_sign_flip_p_value(deltas)
         adjusted_p = min(1.0, raw_p * budget)
@@ -223,7 +230,11 @@ def write_immutable_sf1_validation(path: str | Path, report: Mapping[str, Any]) 
             raise RuntimeError("refusing to overwrite immutable SF1 validation report")
         return output
     with tempfile.NamedTemporaryFile(
-        mode="w", encoding="utf-8", dir=output.parent, prefix=f".{output.name}.", delete=False
+        mode="w",
+        encoding="utf-8",
+        dir=output.parent,
+        prefix=f".{output.name}.",
+        delete=False,
     ) as handle:
         handle.write(serialized)
         temporary = Path(handle.name)
