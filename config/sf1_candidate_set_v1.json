@@ -1,0 +1,20 @@
+{
+  "schema": "sf1_candidate_set_v1",
+  "phase_id": "sf1_independent_families_v1",
+  "planned_candidate_budget": 48,
+  "warmup_bars": 64,
+  "candidates": [
+    {"candidate_id": "atr_07x150", "family": "atr_trailing_v1", "parameters": {"atr_period": 7, "atr_multiplier": 1.5}},
+    {"candidate_id": "atr_07x200", "family": "atr_trailing_v1", "parameters": {"atr_period": 7, "atr_multiplier": 2.0}},
+    {"candidate_id": "atr_07x250", "family": "atr_trailing_v1", "parameters": {"atr_period": 7, "atr_multiplier": 2.5}},
+    {"candidate_id": "atr_07x300", "family": "atr_trailing_v1", "parameters": {"atr_period": 7, "atr_multiplier": 3.0}},
+    {"candidate_id": "atr_14x150", "family": "atr_trailing_v1", "parameters": {"atr_period": 14, "atr_multiplier": 1.5}},
+    {"candidate_id": "atr_14x200", "family": "atr_trailing_v1", "parameters": {"atr_period": 14, "atr_multiplier": 2.0}},
+    {"candidate_id": "atr_14x250", "family": "atr_trailing_v1", "parameters": {"atr_period": 14, "atr_multiplier": 2.5}},
+    {"candidate_id": "atr_14x300", "family": "atr_trailing_v1", "parameters": {"atr_period": 14, "atr_multiplier": 3.0}},
+    {"candidate_id": "atr_21x150", "family": "atr_trailing_v1", "parameters": {"atr_period": 21, "atr_multiplier": 1.5}},
+    {"candidate_id": "atr_21x200", "family": "atr_trailing_v1", "parameters": {"atr_period": 21, "atr_multiplier": 2.0}},
+    {"candidate_id": "atr_21x250", "family": "atr_trailing_v1", "parameters": {"atr_period": 21, "atr_multiplier": 2.5}},
+    {"candidate_id": "atr_21x300", "family": "atr_trailing_v1", "parameters": {"atr_period": 21, "atr_multiplier": 3.0}}
+  ]
+}
