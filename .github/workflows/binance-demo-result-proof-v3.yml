@@ -1,0 +1,131 @@
+name: Binance Demo execution result proof v3
+
+on:
+  push:
+    branches: [binance-demo-result-proof-v3]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      EBA_PRODUCTION_URL: https://eba-trader-172-236-150-62.sslip.io
+      EXPECTED_BUILD: eb97c746082f5368ad5b06d8b1765f1254fb8460
+      EXPECTED_PROBE: usdm-btcusdt-roundtrip-20260829-v3
+    steps:
+      - name: Wait for exact build and successful Demo proof
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.request
+
+          base = os.environ["EBA_PRODUCTION_URL"].rstrip("/")
+          expected = os.environ["EXPECTED_BUILD"]
+          expected_probe = os.environ["EXPECTED_PROBE"]
+          deadline = time.time() + 900
+          last = "not attempted"
+
+          def get_json(path):
+              request = urllib.request.Request(
+                  base + path,
+                  headers={"Accept": "application/json", "User-Agent": "eba-demo-proof/3"},
+              )
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  payload = json.loads(response.read().decode("utf-8"))
+              if not isinstance(payload, dict):
+                  raise RuntimeError(f"{path} returned non-object JSON")
+              return payload
+
+          while time.time() < deadline:
+              try:
+                  app = get_json("/api/app-info")
+                  build = str(app.get("buildSha") or "")
+                  if build != expected:
+                      last = f"waiting exact build {expected[:8]} server={build[:8] or 'unknown'}"
+                      time.sleep(20)
+                      continue
+
+                  research = get_json("/api/research/status")
+                  proof = research.get("productionProof") or {}
+                  demo = proof.get("demoExecution") or {}
+                  locks = research.get("locks") or {}
+                  phase = str(demo.get("phase") or "NOT_RUN").upper()
+                  if demo.get("probeId") != expected_probe or phase not in {
+                      "COMPLETE", "FAILED", "BLOCKED_REVIEW"
+                  }:
+                      last = json.dumps(
+                          {
+                              "phase": phase,
+                              "probeId": demo.get("probeId"),
+                              "errorType": demo.get("errorType"),
+                              "errorSummary": demo.get("errorSummary"),
+                          },
+                          sort_keys=True,
+                      )
+                      time.sleep(20)
+                      continue
+
+                  summary = {
+                      "build": build,
+                      "phase": phase,
+                      "passed": demo.get("passed") is True,
+                      "probeId": demo.get("probeId"),
+                      "environment": demo.get("environment"),
+                      "venue": demo.get("venue"),
+                      "endpointHost": demo.get("endpointHost"),
+                      "symbol": demo.get("symbol"),
+                      "positionMode": demo.get("positionMode"),
+                      "availableBalanceUsdtBefore": demo.get("availableBalanceUsdtBefore"),
+                      "effectiveNotionalUsdt": demo.get("effectiveNotionalUsdt"),
+                      "quantity": demo.get("quantity"),
+                      "orderSubmissionAttempted": demo.get("orderSubmissionAttempted"),
+                      "openFilled": demo.get("openFilled"),
+                      "closeFilled": demo.get("closeFilled"),
+                      "prePositionZero": demo.get("prePositionZero"),
+                      "postPositionZero": demo.get("postPositionZero"),
+                      "positionMayRemainOpen": demo.get("positionMayRemainOpen"),
+                      "latency": demo.get("latency"),
+                      "fills": demo.get("fills"),
+                      "errorType": demo.get("errorType"),
+                      "errorSummary": demo.get("errorSummary"),
+                      "frozenOosLocked": locks.get("frozenOos") is True,
+                      "realExecutionLocked": locks.get("realExecution") is True,
+                  }
+                  print(json.dumps(summary, sort_keys=True, separators=(",", ":")))
+
+                  required = {
+                      "phase_complete": phase == "COMPLETE",
+                      "passed": demo.get("passed") is True,
+                      "environment_demo": demo.get("environment") == "demo",
+                      "not_real_money": demo.get("realMoneyUsed") is False,
+                      "live_locked": demo.get("liveExecutionAllowed") is False,
+                      "no_auto_retry": demo.get("retryAutomatically") is False,
+                      "order_attempted": demo.get("orderSubmissionAttempted") is True,
+                      "open_filled": demo.get("openFilled") is True,
+                      "close_filled": demo.get("closeFilled") is True,
+                      "pre_zero": demo.get("prePositionZero") is True,
+                      "post_zero": demo.get("postPositionZero") is True,
+                      "latency_present": isinstance(demo.get("latency"), dict),
+                      "fills_present": isinstance(demo.get("fills"), dict),
+                      "global_oos_locked": locks.get("frozenOos") is True,
+                      "global_real_locked": locks.get("realExecution") is True,
+                  }
+                  failed = [name for name, passed in required.items() if not passed]
+                  if failed:
+                      raise SystemExit(f"Demo proof terminal but failed required checks: {failed}")
+                  raise SystemExit(0)
+              except SystemExit:
+                  raise
+              except (OSError, ValueError, RuntimeError, urllib.error.URLError) as exc:
+                  last = str(exc)[:1200]
+                  time.sleep(20)
+
+          raise SystemExit(f"Binance Demo v3 proof timed out: {last}")
+          PY
