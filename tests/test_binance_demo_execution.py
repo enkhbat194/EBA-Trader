@@ -7,8 +7,8 @@ from eba_trader.binance_demo_execution import (
     BinanceDemoExecutionClient,
     DemoExecutionConfig,
     RequestResult,
-    run_demo_execution_probe,
     _fill_price,
+    run_demo_execution_probe,
 )
 from eba_trader.providers import CredentialEnvelope
 
