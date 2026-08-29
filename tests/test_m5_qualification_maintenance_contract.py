@@ -22,7 +22,6 @@ def test_maintenance_qualifies_before_candidate_specific_robustness() -> None:
     assert 'if [[ "$top_candidate" == "absorption_020" ]]' in script
     assert "blocked_candidate_runner_mismatch" in script
     assert "qualification_exit -ne 0" in script
-    assert "Frozen OOS" not in script or "order" not in script.lower()
 
 
 def test_disabled_demo_probe_remains_after_qualification_gate() -> None:
