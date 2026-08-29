@@ -225,6 +225,18 @@ class BinanceDemoExecutionClient:
             raise RuntimeError("Binance Demo query order response is invalid")
         return result
 
+    def account_trades(self, *, symbol: str, order_id: int) -> RequestResult:
+        result = self._request(
+            "GET",
+            "/fapi/v1/userTrades",
+            params={"symbol": symbol, "orderId": str(order_id), "limit": "100"},
+            signed=True,
+        )
+        if not isinstance(result.payload, list):
+            raise RuntimeError("Binance Demo userTrades response is invalid")
+        rows = [row for row in result.payload if isinstance(row, dict)]
+        return RequestResult(payload=rows, latency_ms=result.latency_ms)
+
 
 def _decimal(value: Any, *, label: str) -> Decimal:
     try:
@@ -389,6 +401,78 @@ def _fill_price(payload: dict[str, Any]) -> Decimal:
     return price
 
 
+def _order_id(payload: dict[str, Any]) -> int:
+    value = payload.get("orderId")
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise RuntimeError("Binance Demo filled order has no usable orderId")
+    return value
+
+
+def _fill_price_from_user_trades(
+    rows: list[dict[str, Any]],
+    *,
+    order_id: int,
+) -> Decimal:
+    total_qty = Decimal("0")
+    total_quote = Decimal("0")
+    for row in rows:
+        if str(row.get("orderId")) != str(order_id):
+            continue
+        qty = _decimal(row.get("qty", row.get("baseQty", "0")), label="tradeQty")
+        price = _decimal(row.get("price", "0"), label="tradePrice")
+        if qty <= 0 or price <= 0:
+            continue
+        total_qty += qty
+        total_quote += qty * price
+    if total_qty <= 0 or total_quote <= 0:
+        raise RuntimeError("Binance Demo userTrades has no positive fill rows for order")
+    return total_quote / total_qty
+
+
+def _resolve_fill_price(
+    client: BinanceDemoExecutionClient,
+    *,
+    symbol: str,
+    payload: dict[str, Any],
+) -> tuple[Decimal, float, str]:
+    try:
+        return _fill_price(payload), 0.0, "order_response"
+    except RuntimeError:
+        pass
+
+    order_id = _order_id(payload)
+    lookup_ms = 0.0
+    queried = client.query_order(symbol=symbol, order_id=order_id)
+    lookup_ms += queried.latency_ms
+    if isinstance(queried.payload, dict):
+        try:
+            return _fill_price(queried.payload), lookup_ms, "query_order"
+        except RuntimeError:
+            pass
+
+    deadline = time.monotonic() + 5.0
+    last_error = "no userTrades rows"
+    while time.monotonic() < deadline:
+        trades = client.account_trades(symbol=symbol, order_id=order_id)
+        lookup_ms += trades.latency_ms
+        if not isinstance(trades.payload, list):
+            raise RuntimeError("Binance Demo userTrades payload is invalid")
+        rows = [row for row in trades.payload if isinstance(row, dict)]
+        try:
+            return (
+                _fill_price_from_user_trades(rows, order_id=order_id),
+                lookup_ms,
+                "userTrades",
+            )
+        except RuntimeError as exc:
+            last_error = str(exc)
+            time.sleep(0.1)
+    raise RuntimeError(
+        "Binance Demo filled order price unavailable after order query and userTrades: "
+        + last_error
+    )
+
+
 def _executed_quantity(payload: dict[str, Any]) -> Decimal:
     quantity = _decimal(payload.get("executedQty", "0"), label="executedQty")
     if quantity <= 0:
@@ -507,7 +591,11 @@ def run_demo_execution_probe(
         )
         open_payload = _filled_order_payload(active_client, symbol, open_result.payload)
         executed_quantity = _executed_quantity(open_payload)
-        open_fill_price = _fill_price(open_payload)
+        open_fill_price, open_fill_lookup_ms, open_fill_source = _resolve_fill_price(
+            active_client,
+            symbol=symbol,
+            payload=open_payload,
+        )
         open_filled = True
 
         close_book, close_book_rtt_ms = active_client.book_ticker(symbol)
@@ -525,7 +613,11 @@ def run_demo_execution_probe(
             close_long=True,
         )
         close_payload = _filled_order_payload(active_client, symbol, close_result.payload)
-        close_fill_price = _fill_price(close_payload)
+        close_fill_price, close_fill_lookup_ms, close_fill_source = _resolve_fill_price(
+            active_client,
+            symbol=symbol,
+            payload=close_payload,
+        )
         after_position = _position_amount(active_client.position_risk(symbol), hedged=hedged)
         if abs(after_position) > _ZERO_TOLERANCE:
             raise RuntimeError("Binance Demo execution probe did not return position to zero")
@@ -557,13 +649,17 @@ def run_demo_execution_probe(
                 "latestTradeRttMs": trade_rtt_ms,
                 "marketDataAgeMs": market_data_age_ms,
                 "openOrderAckMs": open_result.latency_ms,
+                "openFillLookupMs": open_fill_lookup_ms,
                 "closeReferenceRttMs": close_book_rtt_ms,
                 "closeOrderAckMs": close_result.latency_ms,
+                "closeFillLookupMs": close_fill_lookup_ms,
                 "roundTripMs": roundtrip_ms,
             },
             "fills": {
                 "openAvgPrice": float(open_fill_price),
                 "closeAvgPrice": float(close_fill_price),
+                "openPriceSource": open_fill_source,
+                "closePriceSource": close_fill_source,
                 "openSlippageBps": _slippage_bps(
                     open_fill_price,
                     open_reference,
