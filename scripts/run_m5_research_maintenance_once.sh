@@ -6,9 +6,11 @@ cd /opt/Eba-Trader
 ablation_exit=0
 corpus_exit=0
 multiwindow_exit=0
+activity_exit=0
 qualification_exit=0
 robustness_exit=0
 demo_exit=0
+activity_state="deferred"
 qualification_state="deferred"
 robustness_state="deferred"
 
@@ -22,8 +24,16 @@ else
 fi
 
 if [[ $multiwindow_exit -eq 0 ]]; then
+  /opt/Eba-Trader/.venv/bin/python -m eba_trader.m5_candidate_activity_runtime || activity_exit=$?
+  if [[ $activity_exit -eq 0 ]]; then
+    activity_state="complete"
+  else
+    activity_state="failed"
+  fi
   /opt/Eba-Trader/.venv/bin/python -m eba_trader.m5_candidate_qualification_runtime || qualification_exit=$?
 else
+  activity_exit=1
+  activity_state="blocked_multiwindow"
   qualification_exit=1
 fi
 
@@ -84,8 +94,8 @@ else
   demo_exit=1
 fi
 
-if [[ $ablation_exit -ne 0 || $corpus_exit -ne 0 || $multiwindow_exit -ne 0 || $qualification_exit -ne 0 || $robustness_exit -ne 0 ]]; then
-  echo "M5 research maintenance incomplete: ablation_exit=$ablation_exit corpus_exit=$corpus_exit multiwindow_exit=$multiwindow_exit qualification_exit=$qualification_exit qualification_state=$qualification_state robustness_exit=$robustness_exit robustness_state=$robustness_state demo_exit=$demo_exit" >&2
+if [[ $ablation_exit -ne 0 || $corpus_exit -ne 0 || $multiwindow_exit -ne 0 || $activity_exit -ne 0 || $qualification_exit -ne 0 || $robustness_exit -ne 0 ]]; then
+  echo "M5 research maintenance incomplete: ablation_exit=$ablation_exit corpus_exit=$corpus_exit multiwindow_exit=$multiwindow_exit activity_exit=$activity_exit activity_state=$activity_state qualification_exit=$qualification_exit qualification_state=$qualification_state robustness_exit=$robustness_exit robustness_state=$robustness_state demo_exit=$demo_exit" >&2
   exit 1
 fi
 
@@ -95,4 +105,4 @@ else
   demo_state="deferred"
 fi
 
-echo "M5 research maintenance complete: ablation=ok corpus=ok multiwindow=ok qualification=$qualification_state robustness=ok:$robustness_state demo=$demo_state"
+echo "M5 research maintenance complete: ablation=ok corpus=ok multiwindow=ok activity=$activity_state qualification=$qualification_state robustness=ok:$robustness_state demo=$demo_state"
