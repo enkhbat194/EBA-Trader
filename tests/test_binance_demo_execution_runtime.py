@@ -14,14 +14,14 @@ class FakeVault:
         return CredentialEnvelope(api_key="demo", api_secret="secret")
 
 
-def _write_config(repo_root: Path) -> Path:
+def _write_config(repo_root: Path, *, enabled: bool = True) -> Path:
     path = repo_root / "config" / "binance_demo_execution_probe_v1.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(
             {
                 "schema": "binance_demo_execution_probe_config_v1",
-                "enabled": True,
+                "enabled": enabled,
                 "probe_id": "runtime-test-v1",
                 "symbol": "BTCUSDT",
                 "target_notional_usdt": 25.0,
@@ -122,6 +122,44 @@ def test_runtime_executes_same_probe_once_then_reuses_terminal_proof(
     assert first["robustnessVerified"] is False
     assert first["strategyPromotionAuthority"] is False
     assert first["liveExecutionAllowed"] is False
+
+
+def test_disabled_probe_preserves_existing_terminal_demo_proof(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repo_root = tmp_path / "repo"
+    research_root = tmp_path / "research"
+    config_path = _write_config(repo_root, enabled=False)
+    proof_path = research_root / "binance-demo-execution-latest.json"
+    proof_path.parent.mkdir(parents=True, exist_ok=True)
+    existing = {
+        **_success_probe(),
+        "schema": "binance_demo_execution_runtime_status_v1",
+        "updatedAt": "2026-08-29T08:54:39+00:00",
+        "strategyPromotionAuthority": False,
+    }
+    proof_path.write_text(json.dumps(existing), encoding="utf-8")
+
+    monkeypatch.setattr(
+        runtime,
+        "run_demo_execution_probe",
+        lambda **_: (_ for _ in ()).throw(AssertionError("disabled probe must not execute")),
+    )
+
+    result = runtime.run_demo_execution_runtime(
+        repo_root=repo_root,
+        research_root=research_root,
+        config_path=config_path,
+        proof_path=proof_path,
+        vault=FakeVault(),  # type: ignore[arg-type]
+    )
+
+    assert result == existing
+    assert json.loads(proof_path.read_text(encoding="utf-8")) == existing
+    assert result["phase"] == "COMPLETE"
+    assert result["passed"] is True
+    assert result["liveExecutionAllowed"] is False
 
 
 def test_runtime_never_replays_failed_probe_with_order_attempt(
