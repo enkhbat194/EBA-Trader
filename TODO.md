@@ -20,24 +20,25 @@ Actual GitHub/runtime state overrides stale prose. Query `main`, open PRs and wo
 - [x] Implement the deterministic 17-candidate multi-window evaluator.
 - [x] Run all 17 candidates across all 12 development windows on Linode.
 - [x] Add/run a fixed 9-scenario robustness stage for `absorption_020`.
+- [x] Diagnose the sparse top candidate by development window.
+- [x] Add a qualification gate before robustness: positive mean return/expectancy, >=30 trades, and >=9 baseline-beating windows.
 
-## IMPORTANT RESULT — robustness did not pass
+## IMPORTANT RESULT — current order-flow candidate did not pass
 
-`absorption_020` robustness proof completed safely but returned:
+`absorption_020` remains development-only evidence:
 
 - `robustnessVerified=false`
 - `centerProfitable=false`
 - `sampleSufficient=false`
-- cost-stress stable: true
-- EMA stable: true
-- parameter-neighborhood stable: true
+- only 4 development trades in the prior aggregate result
+- structurally it is an EMA-crossover entry filter, not an independent signal generator
 
 Therefore:
 
 - [x] Keep M5 Frozen OOS closed.
 - [x] Keep real-money execution locked.
 - [x] Do not promote `absorption_020`.
-- [ ] Return Strategy Factory work to development-only candidate discovery/evaluation.
+- [x] Return Strategy Factory work to development-only candidate discovery/evaluation.
 
 ## DONE — Binance USD-M Futures Demo execution plumbing
 
@@ -51,32 +52,39 @@ Therefore:
 - [x] BUY fill `77584.6`, SELL fill `77584.1`, quantity `0.0007 BTC`.
 - [x] BUY ack `212.03 ms`, SELL ack `221.39 ms`, full probe round-trip `3987.62 ms`.
 - [x] Pre/post position zero, Demo only, real execution locked.
+- [x] Disable the completed one-shot probe without losing terminal proof.
+- [x] Merge disabled-probe closeout with green CI and verify production.
 
-## NOW — Close the one-shot Demo probe safely
+## DONE — external open-source architecture audit
 
-- [x] Change probe config to `enabled=false` on closeout branch.
-- [x] Preserve an existing terminal Demo proof when the probe is disabled.
-- [x] Add regression coverage proving disabled state cannot submit another order.
-- [ ] Run exact-head full CI for `closeout-binance-demo-v4`.
-- [ ] Merge only if every required check is green.
-- [ ] Verify exact merged production build on Linode.
-- [ ] Verify the preserved v4 proof remains `COMPLETE` after disabled deployment.
-- [ ] Clean temporary proof branches when branch-delete authority is available.
+- [x] Audit Freqtrade, NautilusTrader, Hummingbot, Jesse and QuantConnect LEAN for reusable patterns.
+- [x] Record license constraints and adoption decisions in `docs/OSS_TRADING_PATTERN_AUDIT_2026-08-30.md`.
+- [x] Do not copy GPL implementations into EBA Trader; use architecture ideas only unless licensing is explicitly changed.
 
-## NEXT — Strategy Factory development, not Frozen OOS
+## NOW — Strategy Factory: independent signals + stronger statistical gates
 
-- [ ] Inspect the 12-window 17-candidate aggregate evidence and identify why sample sufficiency/center profitability failed.
-- [ ] Expand independent **development-only** evidence without touching the sealed M5 Frozen OOS.
-- [ ] Improve candidate generation/selection with minimum activity and anti-duplicate constraints.
-- [ ] Keep fees/slippage and cost-stress mandatory.
-- [ ] Require a candidate to pass center profitability, sample sufficiency, cost stress, EMA stability and parameter-neighborhood stability.
-- [ ] Only after a true robustness pass may Frozen OOS be considered.
+- [ ] Add independent strategy families rather than more filters on the EMA crossover baseline.
+- [ ] First families: ATR trailing-stop, breakout, mean-reversion, order-flow impulse/divergence.
+- [ ] Add an explicit look-ahead/causality audit inspired by mature trading frameworks.
+- [ ] Expose deterministic candidate entry/trade samples from development backtests.
+- [ ] Add a null-model/rule-significance gate before robustness promotion.
+- [ ] Keep minimum activity, positive expectancy, fees/slippage and baseline coverage mandatory.
+- [ ] Add Monte Carlo stress only after a candidate has adequate trade samples.
+- [ ] Require center profitability, sample sufficiency, cost stress, parameter-neighborhood stability and statistical evidence before Frozen OOS can be considered.
+
+## NEXT — execution architecture hardening
+
+- [ ] Formalize strategy -> risk -> execution -> fill reconciliation -> position -> exit -> terminal evidence lifecycle.
+- [ ] Keep exchange-specific connector logic separate from strategy logic.
+- [ ] Move toward identical strategy/time semantics across historical simulation, forward paper and later micro-live.
+- [ ] Strengthen fill/slippage modeling before any profitability claim.
 
 ## LATER
 
 - [ ] Verified Strategy Knowledge Base.
 - [ ] Forward-paper strategy factory.
 - [ ] Professional trading-dashboard UI/UX pass after core research state is reconciled.
+- [ ] Strategy decision trace/chart UI.
 - [ ] Separate sequence-validated LOB/order-book data plane if evidence warrants it.
 - [ ] Market Brain/regime selector after enough independently verified strategies exist.
 - [ ] Strategy/portfolio selector, outcome attribution and drift monitoring.
@@ -84,7 +92,7 @@ Therefore:
 
 ## BLOCKED / GATED
 
-- [ ] M5 Frozen OOS access — **blocked because robustness is not verified**.
+- [ ] M5 Frozen OOS access — **blocked because no candidate has passed the full development/robustness/statistical gates**.
 - [ ] Real-money Binance orders — intentionally locked.
 - [ ] Resting LOB/order-book claims — require a separate reconstruction/integrity contract.
 
