@@ -10,18 +10,15 @@ from typing import Any
 from .m5_corpus_materializer import DEFAULT_RESEARCH_ROOT
 from .m5_multiwindow_runtime import DEFAULT_REPO_ROOT, _load_complete_corpus_status
 from .research_evidence import canonical_json, sha256_text
+from .sf1_strategy_factory import REPORT_SCHEMA as DEVELOPMENT_REPORT_SCHEMA
 from .sf1_strategy_factory import (
-    REPORT_SCHEMA as DEVELOPMENT_REPORT_SCHEMA,
     SF1Candidate,
     evaluate_sf1_atr,
     load_sf1_candidates,
     write_immutable_sf1_report,
 )
-from .sf1_validation import (
-    REPORT_SCHEMA as VALIDATION_REPORT_SCHEMA,
-    validate_sf1_development,
-    write_immutable_sf1_validation,
-)
+from .sf1_validation import REPORT_SCHEMA as VALIDATION_REPORT_SCHEMA
+from .sf1_validation import validate_sf1_development, write_immutable_sf1_validation
 
 STATUS_SCHEMA = "sf1_runtime_status_v1"
 DEFAULT_STATUS_PATH = DEFAULT_RESEARCH_ROOT / "sf1-development-latest.json"
