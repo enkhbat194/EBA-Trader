@@ -54,13 +54,14 @@ jobs:
                   raise RuntimeError(f"{path} returned non-object JSON")
               return payload
 
-          def sanitized_diagnostics(proof, report):
+          def sanitized_diagnostics(proof, report, sf1):
               return {
                   "journald": proof.get("journald"),
                   "researchRuntime": proof.get("researchRuntime"),
                   "services": proof.get("services"),
                   "m5RealAblation": proof.get("m5RealAblation"),
                   "m5Report": report,
+                  "sf1": sf1,
                   "localApi": proof.get("localApi"),
                   "fastRestart": proof.get("fastRestart"),
               }
@@ -80,6 +81,7 @@ jobs:
                   locks = research.get("locks") or {}
                   m5 = proof.get("m5RealAblation") or {}
                   m5_report = research.get("m5Report") or {}
+                  sf1 = research.get("sf1") or {}
                   treatments = m5_report.get("treatments") or []
                   divergence_gates = []
                   if isinstance(treatments, list):
@@ -134,13 +136,24 @@ jobs:
                       ),
                       "m5_report_treatments": isinstance(treatments, list) and len(treatments) == 3,
                       "m5_report_divergence_gates": divergence_gates == expected_divergence_gates,
+                      "sf1_available": sf1.get("available") is True,
+                      "sf1_complete": sf1.get("phase") == "COMPLETE",
+                      "sf1_candidate_count": sf1.get("candidateCount") == 12,
+                      "sf1_search_budget": sf1.get("multipleTestingBudget") == 48,
+                      "sf1_window_count": sf1.get("windowCount") == 12,
+                      "sf1_development_only": sf1.get("developmentEvidenceOnly") is True,
+                      "sf1_no_edge_claim": sf1.get("edgeClaimAllowed") is False,
+                      "sf1_no_promotion": sf1.get("promotionAuthority") is False,
+                      "sf1_frozen_oos_closed": sf1.get("frozenOosOpened") is False,
+                      "sf1_m5_frozen_oos_closed": sf1.get("m5FrozenOosOpened") is False,
+                      "sf1_live_locked": sf1.get("liveExecutionAllowed") is False,
                       "frozen_oos_locked": locks.get("frozenOos") is True,
                       "real_execution_locked": locks.get("realExecution") is True,
                   }
                   failed = [name for name, passed in checks.items() if not passed]
                   if failed:
                       diagnostics = json.dumps(
-                          sanitized_diagnostics(proof, m5_report),
+                          sanitized_diagnostics(proof, m5_report, sf1),
                           sort_keys=True,
                           separators=(",", ":"),
                       )
@@ -148,7 +161,7 @@ jobs:
                           "failed checks: "
                           + ", ".join(failed)
                           + "; sanitized diagnostics: "
-                          + diagnostics[:4000]
+                          + diagnostics[:8000]
                       )
                       time.sleep(20)
                       continue
@@ -175,6 +188,7 @@ jobs:
                               "m5ReportPath": m5.get("reportPath"),
                               "m5DivergenceGates": divergence_gates,
                               "m5Report": m5_report,
+                              "sf1": sf1,
                               "fastRestartPhase": fast_restart.get("phase", "UNKNOWN"),
                               "fastRestartPassed": fast_restart.get("passed") is True,
                               "frozenOosLocked": True,
@@ -185,7 +199,7 @@ jobs:
                   )
                   raise SystemExit(0)
               except (OSError, ValueError, RuntimeError, urllib.error.URLError) as exc:
-                  last_error = str(exc)[:4000]
+                  last_error = str(exc)[:8000]
                   time.sleep(20)
 
           raise SystemExit(f"production proof timed out: {last_error}")
