@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from .production_proof import read_production_proof
+from .sf1_dashboard import read_sf1_summary
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_RESEARCH_DB = PROJECT_ROOT / "artifacts" / "research" / "eba_research.db"
@@ -296,6 +297,7 @@ def build_research_status(
         "researchStore": _research_db_summary(chosen_db),
         "productionProof": proof,
         "m5Report": read_m5_report_summary(proof, evidence_root=evidence_root),
+        "sf1": read_sf1_summary(evidence_root=evidence_root),
         "locks": {
             "frozenOos": True,
             "realExecution": True,
