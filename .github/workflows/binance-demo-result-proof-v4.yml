@@ -1,4 +1,4 @@
-name: Binance Demo execution result proof v4
+name: Binance Demo v4 preserved proof after disable
 
 on:
   push:
@@ -14,10 +14,10 @@ jobs:
     timeout-minutes: 18
     env:
       EBA_PRODUCTION_URL: https://eba-trader-172-236-150-62.sslip.io
-      EXPECTED_BUILD: 9ab6e70a4d5cbef7854facd48b13607ea3356b4b
+      EXPECTED_BUILD: af63c6147c024a7ccf6e7613f5130975a8541325
       EXPECTED_PROBE: usdm-btcusdt-roundtrip-20260829-v4
     steps:
-      - name: Wait for exact build and successful Demo proof
+      - name: Verify exact build preserves completed Demo proof
         run: |
           python - <<'PY'
           import json
@@ -32,9 +32,11 @@ jobs:
           last = "not attempted"
 
           def get_json(path):
+              # Read-only GET only. This proof never calls an exchange order endpoint.
               req = urllib.request.Request(
                   base + path,
-                  headers={"Accept": "application/json", "User-Agent": "eba-demo-proof/4"},
+                  headers={"Accept": "application/json", "User-Agent": "eba-demo-preserved-proof/1"},
+                  method="GET",
               )
               with urllib.request.urlopen(req, timeout=20) as response:
                   data = json.loads(response.read().decode("utf-8"))
@@ -54,75 +56,51 @@ jobs:
                   research = get_json("/api/research/status")
                   demo = ((research.get("productionProof") or {}).get("demoExecution") or {})
                   locks = research.get("locks") or {}
-                  phase = str(demo.get("phase") or "NOT_RUN").upper()
-                  if demo.get("probeId") != expected_probe or phase not in {"COMPLETE", "FAILED", "BLOCKED_REVIEW"}:
-                      last = json.dumps({
-                          "probeId": demo.get("probeId"),
-                          "phase": phase,
-                          "errorType": demo.get("errorType"),
-                          "errorSummary": demo.get("errorSummary"),
-                      }, sort_keys=True)
-                      time.sleep(20)
-                      continue
-
-                  latency = demo.get("latency")
-                  fills = demo.get("fills")
-                  summary = {
-                      "build": build,
-                      "probeId": demo.get("probeId"),
-                      "phase": phase,
-                      "passed": demo.get("passed") is True,
-                      "environment": demo.get("environment"),
-                      "venue": demo.get("venue"),
-                      "endpointHost": demo.get("endpointHost"),
-                      "symbol": demo.get("symbol"),
-                      "positionMode": demo.get("positionMode"),
-                      "availableBalanceUsdtBefore": demo.get("availableBalanceUsdtBefore"),
-                      "effectiveNotionalUsdt": demo.get("effectiveNotionalUsdt"),
-                      "quantity": demo.get("quantity"),
-                      "orderSubmissionAttempted": demo.get("orderSubmissionAttempted"),
-                      "openFilled": demo.get("openFilled"),
-                      "closeFilled": demo.get("closeFilled"),
-                      "prePositionZero": demo.get("prePositionZero"),
-                      "postPositionZero": demo.get("postPositionZero"),
-                      "latency": latency,
-                      "fills": fills,
-                      "errorType": demo.get("errorType"),
-                      "errorSummary": demo.get("errorSummary"),
-                      "frozenOosLocked": locks.get("frozenOos") is True,
-                      "realExecutionLocked": locks.get("realExecution") is True,
-                  }
-                  print(json.dumps(summary, sort_keys=True, separators=(",", ":")))
+                  latency = demo.get("latency") or {}
+                  fills = demo.get("fills") or {}
 
                   required = {
-                      "phase_complete": phase == "COMPLETE",
+                      "probe_preserved": demo.get("probeId") == expected_probe,
+                      "phase_complete": demo.get("phase") == "COMPLETE",
                       "passed": demo.get("passed") is True,
                       "environment_demo": demo.get("environment") == "demo",
                       "demo_host": demo.get("endpointHost") == "demo-fapi.binance.com",
                       "not_real_money": demo.get("realMoneyUsed") is False,
                       "live_locked": demo.get("liveExecutionAllowed") is False,
                       "no_auto_retry": demo.get("retryAutomatically") is False,
-                      "order_attempted": demo.get("orderSubmissionAttempted") is True,
                       "open_filled": demo.get("openFilled") is True,
                       "close_filled": demo.get("closeFilled") is True,
                       "pre_zero": demo.get("prePositionZero") is True,
                       "post_zero": demo.get("postPositionZero") is True,
-                      "latency_present": isinstance(latency, dict),
-                      "fills_present": isinstance(fills, dict),
-                      "open_ack": isinstance(latency, dict) and isinstance(latency.get("openOrderAckMs"), (int, float)),
-                      "close_ack": isinstance(latency, dict) and isinstance(latency.get("closeOrderAckMs"), (int, float)),
-                      "roundtrip": isinstance(latency, dict) and isinstance(latency.get("roundTripMs"), (int, float)),
-                      "market_age": isinstance(latency, dict) and isinstance(latency.get("marketDataAgeMs"), (int, float)),
-                      "open_price": isinstance(fills, dict) and isinstance(fills.get("openAvgPrice"), (int, float)) and fills.get("openAvgPrice", 0) > 0,
-                      "close_price": isinstance(fills, dict) and isinstance(fills.get("closeAvgPrice"), (int, float)) and fills.get("closeAvgPrice", 0) > 0,
-                      "open_price_source": isinstance(fills, dict) and fills.get("openPriceSource") in {"order_response", "query_order", "userTrades"},
-                      "close_price_source": isinstance(fills, dict) and fills.get("closePriceSource") in {"order_response", "query_order", "userTrades"},
+                      # Exact terminal metrics prove the old successful evidence was preserved,
+                      # rather than replaced by a new execution result after disable.
+                      "same_quantity": str(demo.get("quantity")) == "0.0007",
+                      "same_open_fill": fills.get("openAvgPrice") == 77584.6,
+                      "same_close_fill": fills.get("closeAvgPrice") == 77584.1,
+                      "same_open_ack": latency.get("openOrderAckMs") == 212.03370700823143,
+                      "same_close_ack": latency.get("closeOrderAckMs") == 221.3939509820193,
+                      "same_roundtrip": latency.get("roundTripMs") == 3987.621519016102,
                       "global_oos_locked": locks.get("frozenOos") is True,
                       "global_real_locked": locks.get("realExecution") is True,
                   }
                   failed = [name for name, ok in required.items() if not ok]
+                  summary = {
+                      "build": build,
+                      "probeId": demo.get("probeId"),
+                      "phase": demo.get("phase"),
+                      "passed": demo.get("passed"),
+                      "quantity": demo.get("quantity"),
+                      "fills": fills,
+                      "latency": latency,
+                      "frozenOosLocked": locks.get("frozenOos") is True,
+                      "realExecutionLocked": locks.get("realExecution") is True,
+                      "readOnlyProof": True,
+                  }
                   if failed:
-                      raise SystemExit(f"Demo v4 terminal but failed required checks: {failed}")
+                      last = json.dumps({"failed": failed, "summary": summary}, sort_keys=True)[:3000]
+                      time.sleep(20)
+                      continue
+                  print(json.dumps(summary, sort_keys=True, separators=(",", ":")))
                   raise SystemExit(0)
               except SystemExit:
                   raise
@@ -130,5 +108,5 @@ jobs:
                   last = str(exc)[:1200]
                   time.sleep(20)
 
-          raise SystemExit(f"Binance Demo v4 proof timed out: {last}")
+          raise SystemExit(f"preserved Demo v4 proof timed out: {last}")
           PY
