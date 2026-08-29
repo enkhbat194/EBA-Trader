@@ -1,0 +1,134 @@
+name: Binance Demo execution result proof v4
+
+on:
+  push:
+    branches: [binance-demo-result-proof-v4]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      EBA_PRODUCTION_URL: https://eba-trader-172-236-150-62.sslip.io
+      EXPECTED_BUILD: 9ab6e70a4d5cbef7854facd48b13607ea3356b4b
+      EXPECTED_PROBE: usdm-btcusdt-roundtrip-20260829-v4
+    steps:
+      - name: Wait for exact build and successful Demo proof
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.request
+
+          base = os.environ["EBA_PRODUCTION_URL"].rstrip("/")
+          expected = os.environ["EXPECTED_BUILD"]
+          expected_probe = os.environ["EXPECTED_PROBE"]
+          deadline = time.time() + 900
+          last = "not attempted"
+
+          def get_json(path):
+              req = urllib.request.Request(
+                  base + path,
+                  headers={"Accept": "application/json", "User-Agent": "eba-demo-proof/4"},
+              )
+              with urllib.request.urlopen(req, timeout=20) as response:
+                  data = json.loads(response.read().decode("utf-8"))
+              if not isinstance(data, dict):
+                  raise RuntimeError(f"{path} returned non-object JSON")
+              return data
+
+          while time.time() < deadline:
+              try:
+                  app = get_json("/api/app-info")
+                  build = str(app.get("buildSha") or "")
+                  if build != expected:
+                      last = f"waiting build {expected[:8]} server={build[:8] or 'unknown'}"
+                      time.sleep(20)
+                      continue
+
+                  research = get_json("/api/research/status")
+                  demo = ((research.get("productionProof") or {}).get("demoExecution") or {})
+                  locks = research.get("locks") or {}
+                  phase = str(demo.get("phase") or "NOT_RUN").upper()
+                  if demo.get("probeId") != expected_probe or phase not in {"COMPLETE", "FAILED", "BLOCKED_REVIEW"}:
+                      last = json.dumps({
+                          "probeId": demo.get("probeId"),
+                          "phase": phase,
+                          "errorType": demo.get("errorType"),
+                          "errorSummary": demo.get("errorSummary"),
+                      }, sort_keys=True)
+                      time.sleep(20)
+                      continue
+
+                  latency = demo.get("latency")
+                  fills = demo.get("fills")
+                  summary = {
+                      "build": build,
+                      "probeId": demo.get("probeId"),
+                      "phase": phase,
+                      "passed": demo.get("passed") is True,
+                      "environment": demo.get("environment"),
+                      "venue": demo.get("venue"),
+                      "endpointHost": demo.get("endpointHost"),
+                      "symbol": demo.get("symbol"),
+                      "positionMode": demo.get("positionMode"),
+                      "availableBalanceUsdtBefore": demo.get("availableBalanceUsdtBefore"),
+                      "effectiveNotionalUsdt": demo.get("effectiveNotionalUsdt"),
+                      "quantity": demo.get("quantity"),
+                      "orderSubmissionAttempted": demo.get("orderSubmissionAttempted"),
+                      "openFilled": demo.get("openFilled"),
+                      "closeFilled": demo.get("closeFilled"),
+                      "prePositionZero": demo.get("prePositionZero"),
+                      "postPositionZero": demo.get("postPositionZero"),
+                      "latency": latency,
+                      "fills": fills,
+                      "errorType": demo.get("errorType"),
+                      "errorSummary": demo.get("errorSummary"),
+                      "frozenOosLocked": locks.get("frozenOos") is True,
+                      "realExecutionLocked": locks.get("realExecution") is True,
+                  }
+                  print(json.dumps(summary, sort_keys=True, separators=(",", ":")))
+
+                  required = {
+                      "phase_complete": phase == "COMPLETE",
+                      "passed": demo.get("passed") is True,
+                      "environment_demo": demo.get("environment") == "demo",
+                      "demo_host": demo.get("endpointHost") == "demo-fapi.binance.com",
+                      "not_real_money": demo.get("realMoneyUsed") is False,
+                      "live_locked": demo.get("liveExecutionAllowed") is False,
+                      "no_auto_retry": demo.get("retryAutomatically") is False,
+                      "order_attempted": demo.get("orderSubmissionAttempted") is True,
+                      "open_filled": demo.get("openFilled") is True,
+                      "close_filled": demo.get("closeFilled") is True,
+                      "pre_zero": demo.get("prePositionZero") is True,
+                      "post_zero": demo.get("postPositionZero") is True,
+                      "latency_present": isinstance(latency, dict),
+                      "fills_present": isinstance(fills, dict),
+                      "open_ack": isinstance(latency, dict) and isinstance(latency.get("openOrderAckMs"), (int, float)),
+                      "close_ack": isinstance(latency, dict) and isinstance(latency.get("closeOrderAckMs"), (int, float)),
+                      "roundtrip": isinstance(latency, dict) and isinstance(latency.get("roundTripMs"), (int, float)),
+                      "market_age": isinstance(latency, dict) and isinstance(latency.get("marketDataAgeMs"), (int, float)),
+                      "open_price": isinstance(fills, dict) and isinstance(fills.get("openAvgPrice"), (int, float)) and fills.get("openAvgPrice", 0) > 0,
+                      "close_price": isinstance(fills, dict) and isinstance(fills.get("closeAvgPrice"), (int, float)) and fills.get("closeAvgPrice", 0) > 0,
+                      "open_price_source": isinstance(fills, dict) and fills.get("openPriceSource") in {"order_response", "query_order", "userTrades"},
+                      "close_price_source": isinstance(fills, dict) and fills.get("closePriceSource") in {"order_response", "query_order", "userTrades"},
+                      "global_oos_locked": locks.get("frozenOos") is True,
+                      "global_real_locked": locks.get("realExecution") is True,
+                  }
+                  failed = [name for name, ok in required.items() if not ok]
+                  if failed:
+                      raise SystemExit(f"Demo v4 terminal but failed required checks: {failed}")
+                  raise SystemExit(0)
+              except SystemExit:
+                  raise
+              except Exception as exc:
+                  last = str(exc)[:1200]
+                  time.sleep(20)
+
+          raise SystemExit(f"Binance Demo v4 proof timed out: {last}")
+          PY
