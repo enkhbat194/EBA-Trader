@@ -172,9 +172,13 @@ class BinanceDemoExecutionClient:
         return value
 
     def position_risk(self, symbol: str) -> list[dict[str, Any]]:
+        # V2 is intentional here. Binance V3 returns only symbols with positions or
+        # open orders, which makes a valid flat pre-trade account look like "no rows".
+        # V2 returns the requested symbol even when positionAmt is zero, which is
+        # required for a fail-closed pre-position check before the first Demo order.
         result = self._request(
             "GET",
-            "/fapi/v3/positionRisk",
+            "/fapi/v2/positionRisk",
             params={"symbol": symbol},
             signed=True,
         )
