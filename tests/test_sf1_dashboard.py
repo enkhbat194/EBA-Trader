@@ -137,7 +137,7 @@ def test_sf1_summary_exposes_only_sanitized_validation_and_ranking(tmp_path: Pat
     assert summary["candidateValidation"][0]["failedChecks"] == [
         "statisticalSignificance"
     ]
-    assert "privatePath" in summary["topDevelopmentAggregate"]
+    assert "privatePath" not in summary["topDevelopmentAggregate"]
     assert "developmentReportPath" not in summary
     assert "validationReportPath" not in summary
     assert summary["frozenOosOpened"] is False
