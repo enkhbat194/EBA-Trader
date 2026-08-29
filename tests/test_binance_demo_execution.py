@@ -219,3 +219,85 @@ def test_fill_price_falls_back_to_cum_quote_when_binance_avg_price_is_zero() -> 
     }
 
     assert float(_fill_price(payload)) == 77501.7
+
+
+class ZeroPriceDemoClient(FakeDemoClient):
+    def place_market_order(
+        self,
+        *,
+        symbol: str,
+        side: str,
+        quantity: str,
+        hedged: bool,
+        close_long: bool,
+    ) -> RequestResult:
+        self.orders.append(
+            {
+                "symbol": symbol,
+                "side": side,
+                "quantity": quantity,
+                "hedged": hedged,
+                "close_long": close_long,
+            }
+        )
+        if side == "SELL":
+            self.closed = True
+        return RequestResult(
+            payload={
+                "orderId": len(self.orders),
+                "status": "FILLED",
+                "executedQty": quantity,
+                "avgPrice": "0",
+                "price": "0",
+                "cumQuote": "0",
+            },
+            latency_ms=25.0 if side == "BUY" else 30.0,
+        )
+
+    def query_order(self, *, symbol: str, order_id: int) -> RequestResult:
+        order = self.orders[order_id - 1]
+        return RequestResult(
+            payload={
+                "orderId": order_id,
+                "status": "FILLED",
+                "executedQty": order["quantity"],
+                "avgPrice": "0",
+                "price": "0",
+                "cumQuote": "0",
+            },
+            latency_ms=11.0,
+        )
+
+    def account_trades(self, *, symbol: str, order_id: int) -> RequestResult:
+        order = self.orders[order_id - 1]
+        return RequestResult(
+            payload=[
+                {
+                    "orderId": order_id,
+                    "price": self.price,
+                    "qty": order["quantity"],
+                }
+            ],
+            latency_ms=13.0,
+        )
+
+
+def test_probe_resolves_zero_price_filled_orders_from_user_trades() -> None:
+    client = ZeroPriceDemoClient()
+    result = run_demo_execution_probe(
+        credentials=CredentialEnvelope(api_key="demo", api_secret="secret"),
+        config=_config(),
+        client=client,  # type: ignore[arg-type]
+    )
+
+    assert result["phase"] == "COMPLETE"
+    assert result["passed"] is True
+    assert result["openFilled"] is True
+    assert result["closeFilled"] is True
+    assert result["postPositionZero"] is True
+    assert result["fills"]["openAvgPrice"] == 100000.0
+    assert result["fills"]["closeAvgPrice"] == 100000.0
+    assert result["fills"]["openPriceSource"] == "userTrades"
+    assert result["fills"]["closePriceSource"] == "userTrades"
+    assert result["latency"]["openFillLookupMs"] == 24.0
+    assert result["latency"]["closeFillLookupMs"] == 24.0
