@@ -7,8 +7,10 @@ import pytest
 from eba_trader.sf1_strategy_factory import (
     EXPECTED_SEARCH_BUDGET,
     EXPECTED_WARMUP_BARS,
-    REPORT_SCHEMA as DEVELOPMENT_SCHEMA,
     load_sf1_candidates,
+)
+from eba_trader.sf1_strategy_factory import (
+    REPORT_SCHEMA as DEVELOPMENT_SCHEMA,
 )
 from eba_trader.sf1_validation import ALPHA, REPORT_SCHEMA, validate_sf1_development
 
