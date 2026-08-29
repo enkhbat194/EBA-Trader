@@ -117,8 +117,7 @@ else
 fi
 
 # This is a one-shot Binance DEMO connectivity/execution proof, not strategy promotion.
-# Its completed probe is now disabled; the runtime preserves terminal evidence and must not
-# submit a new order while the probe config is disabled.
+# Its completed probe is now disabled; the runtime preserves terminal evidence and must not submit a new order while the probe config is disabled.
 if [[ $robustness_exit -eq 0 ]]; then
   /opt/Eba-Trader/.venv/bin/python -m eba_trader.binance_demo_execution_runtime || demo_exit=$?
 else
