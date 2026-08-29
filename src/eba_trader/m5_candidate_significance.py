@@ -40,15 +40,21 @@ def _numeric(mapping: Mapping[str, Any], key: str) -> float:
     return number
 
 
-def _validate_safety(payload: Mapping[str, Any], *, label: str) -> None:
+def _validate_safety(
+    payload: Mapping[str, Any],
+    *,
+    label: str,
+    require_development_marker: bool,
+) -> None:
     checks = {
-        "developmentEvidenceOnly": payload.get("developmentEvidenceOnly") is True,
         "edgeClaimAllowed": payload.get("edgeClaimAllowed") is False,
         "promotionAuthority": payload.get("promotionAuthority") is False,
         "frozenOosOpened": payload.get("frozenOosOpened") is False,
         "m5FrozenOosOpened": payload.get("m5FrozenOosOpened") is False,
         "liveExecutionAllowed": payload.get("liveExecutionAllowed") is False,
     }
+    if require_development_marker:
+        checks["developmentEvidenceOnly"] = payload.get("developmentEvidenceOnly") is True
     failed = [name for name, passed in checks.items() if not passed]
     if failed:
         raise RuntimeError(f"{label} violates development-only safety: {', '.join(failed)}")
@@ -64,8 +70,16 @@ def _validate_inputs(
         raise RuntimeError("unsupported M5 qualification report schema for significance")
     if multiwindow_report.get("rankingIsDevelopmentOnly") is not True:
         raise RuntimeError("significance requires a development-only multi-window ranking")
-    _validate_safety(multiwindow_report, label="multi-window report")
-    _validate_safety(qualification_report, label="qualification report")
+    _validate_safety(
+        multiwindow_report,
+        label="multi-window report",
+        require_development_marker=False,
+    )
+    _validate_safety(
+        qualification_report,
+        label="qualification report",
+        require_development_marker=True,
+    )
     for key in ("evaluationId", "materializationId", "candidateSetSha256"):
         if multiwindow_report.get(key) != qualification_report.get(key):
             raise RuntimeError(f"significance input identity mismatch: {key}")
@@ -191,9 +205,7 @@ def evaluate_candidate_significance(
             raise RuntimeError("qualified candidate is missing from multi-window evidence")
         if isinstance(rank, bool) or not isinstance(rank, int) or rank < 1:
             raise RuntimeError("qualified development rank is invalid")
-        deltas = _window_return_deltas(
-            candidates[candidate_id], baseline_returns=baseline_returns
-        )
+        deltas = _window_return_deltas(candidates[candidate_id], baseline_returns=baseline_returns)
         observed_mean = statistics.fmean(deltas)
         raw_p, extreme_count, permutation_count = _exact_sign_flip_p_value(deltas)
         adjusted_p = min(1.0, raw_p * candidate_count)
