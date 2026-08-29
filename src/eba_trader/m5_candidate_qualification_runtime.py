@@ -72,7 +72,11 @@ def _base_status(*, phase: str, status_path: Path) -> dict[str, Any]:
     }
 
 
-def _load_complete_multiwindow_status(path: Path, *, evidence_root: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+def _load_complete_multiwindow_status(
+    path: Path,
+    *,
+    evidence_root: Path,
+) -> tuple[dict[str, Any], dict[str, Any]]:
     status = _read_json(path, label="M5 multi-window runtime status")
     checks = (
         status.get("schema") == MULTIWINDOW_STATUS_SCHEMA,
