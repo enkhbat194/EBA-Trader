@@ -20,6 +20,7 @@ DEFAULT_CONFIG_PATH = Path("config/binance_demo_execution_probe_v1.json")
 DEFAULT_ROBUSTNESS_STATUS = DEFAULT_RESEARCH_ROOT / "m5-absorption-robustness-latest.json"
 DEFAULT_PROOF_PATH = DEFAULT_RESEARCH_ROOT / "binance-demo-execution-latest.json"
 ROBUSTNESS_STATUS_SCHEMA = "m5_absorption_robustness_runtime_status_v1"
+_TERMINAL_PROOF_PHASES = {"COMPLETE", "FAILED", "BLOCKED_REVIEW", "DISABLED"}
 
 
 def _utc_now() -> str:
@@ -131,7 +132,7 @@ def _reuse_or_block_existing(
     if existing.get("probeId") != config.probe_id:
         return None
     phase = str(existing.get("phase") or "UNKNOWN").upper()
-    if phase in {"COMPLETE", "FAILED", "BLOCKED_REVIEW", "DISABLED"}:
+    if phase in _TERMINAL_PROOF_PHASES:
         return existing
     blocked = {
         **_base_proof(config, phase="BLOCKED_REVIEW"),
@@ -142,6 +143,20 @@ def _reuse_or_block_existing(
     }
     _atomic_write(proof_path, blocked)
     return blocked
+
+
+def _preserve_terminal_proof_when_disabled(proof_path: Path) -> dict[str, Any] | None:
+    if not proof_path.is_file():
+        return None
+    existing = _read_json(proof_path, label="Binance Demo execution proof")
+    phase = str(existing.get("phase") or "UNKNOWN").upper()
+    if phase not in _TERMINAL_PROOF_PHASES:
+        return None
+    if existing.get("environment") != "demo":
+        raise RuntimeError("disabled Binance Demo probe found non-demo terminal proof")
+    if existing.get("liveExecutionAllowed") is not False:
+        raise RuntimeError("disabled Binance Demo probe found terminal proof with live authority")
+    return existing
 
 
 def run_demo_execution_runtime(
@@ -163,6 +178,9 @@ def run_demo_execution_runtime(
 
     config = load_demo_execution_config(chosen_config)
     if config is None:
+        preserved = _preserve_terminal_proof_when_disabled(chosen_proof)
+        if preserved is not None:
+            return preserved
         disabled = {
             "schema": "binance_demo_execution_runtime_status_v1",
             "phase": "DISABLED",

@@ -14,10 +14,10 @@ def test_demo_position_risk_uses_v2_for_flat_symbol_precheck() -> None:
     assert BinanceDemoExecutionClient.position_risk.__name__ == "position_risk"
 
 
-def test_corrected_probe_uses_new_one_shot_id() -> None:
+def test_completed_probe_keeps_v4_one_shot_id_and_is_disabled() -> None:
     payload = json.loads(
         Path("config/binance_demo_execution_probe_v1.json").read_text(encoding="utf-8")
     )
 
     assert payload["probe_id"] == "usdm-btcusdt-roundtrip-20260829-v4"
-    assert payload["enabled"] is True
+    assert payload["enabled"] is False
