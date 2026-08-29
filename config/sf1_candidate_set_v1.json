@@ -15,18 +15,6 @@
     {"candidate_id": "atr_21x150", "family": "atr_trailing_v1", "parameters": {"atr_period": 21, "atr_multiplier": 1.5}},
     {"candidate_id": "atr_21x200", "family": "atr_trailing_v1", "parameters": {"atr_period": 21, "atr_multiplier": 2.0}},
     {"candidate_id": "atr_21x250", "family": "atr_trailing_v1", "parameters": {"atr_period": 21, "atr_multiplier": 2.5}},
-    {"candidate_id": "atr_21x300", "family": "atr_trailing_v1", "parameters": {"atr_period": 21, "atr_multiplier": 3.0}},
-    {"candidate_id": "don_12x03", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 12, "exit_lookback": 3}},
-    {"candidate_id": "don_12x06", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 12, "exit_lookback": 6}},
-    {"candidate_id": "don_12x09", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 12, "exit_lookback": 9}},
-    {"candidate_id": "don_24x06", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 24, "exit_lookback": 6}},
-    {"candidate_id": "don_24x12", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 24, "exit_lookback": 12}},
-    {"candidate_id": "don_24x18", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 24, "exit_lookback": 18}},
-    {"candidate_id": "don_48x12", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 48, "exit_lookback": 12}},
-    {"candidate_id": "don_48x24", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 48, "exit_lookback": 24}},
-    {"candidate_id": "don_48x36", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 48, "exit_lookback": 36}},
-    {"candidate_id": "don_64x16", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 64, "exit_lookback": 16}},
-    {"candidate_id": "don_64x32", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 64, "exit_lookback": 32}},
-    {"candidate_id": "don_64x48", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 64, "exit_lookback": 48}}
+    {"candidate_id": "atr_21x300", "family": "atr_trailing_v1", "parameters": {"atr_period": 21, "atr_multiplier": 3.0}}
   ]
 }
