@@ -1,0 +1,44 @@
+name: Binance Demo v3 snapshot
+
+on:
+  push:
+    branches: [binance-demo-snapshot-v3]
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print current production Demo status
+        run: |
+          python - <<'PY'
+          import json
+          import urllib.request
+
+          base = 'https://eba-trader-172-236-150-62.sslip.io'
+          def get(path):
+              req = urllib.request.Request(base + path, headers={'Accept':'application/json','User-Agent':'eba-demo-snapshot/3'})
+              with urllib.request.urlopen(req, timeout=20) as response:
+                  return json.loads(response.read().decode('utf-8'))
+
+          app = get('/api/app-info')
+          research = get('/api/research/status')
+          demo = ((research.get('productionProof') or {}).get('demoExecution') or {})
+          print(json.dumps({
+              'build': app.get('buildSha'),
+              'probeId': demo.get('probeId'),
+              'phase': demo.get('phase'),
+              'passed': demo.get('passed'),
+              'orderSubmissionAttempted': demo.get('orderSubmissionAttempted'),
+              'openFilled': demo.get('openFilled'),
+              'closeFilled': demo.get('closeFilled'),
+              'prePositionZero': demo.get('prePositionZero'),
+              'postPositionZero': demo.get('postPositionZero'),
+              'latency': demo.get('latency'),
+              'fills': demo.get('fills'),
+              'errorType': demo.get('errorType'),
+              'errorSummary': demo.get('errorSummary'),
+          }, sort_keys=True, separators=(',', ':')))
+          PY
