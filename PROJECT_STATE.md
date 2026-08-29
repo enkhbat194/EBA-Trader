@@ -1,79 +1,125 @@
 # EBA Trader — Project State
 
-_Last reconciled: 2026-08-28 (Asia/Ulaanbaatar)_
+_Last reconciled: 2026-08-29 (Asia/Ulaanbaatar)_
 
-Actual GitHub code, PR/workflow state and Linode production proof override stale prose.
+Actual GitHub code, workflow state and Linode production proof override stale prose.
 
 ## Current goal
 
-Keep `main` production-clean, resume the existing M5 development-corpus work without duplication, validate strategies across fresh multi-window development data, then require robustness before any sealed Frozen-OOS stage. Real-money execution stays locked.
+Keep `main` production-clean while building a verified automated trading research pipeline. Development evidence must pass robustness before any sealed Frozen-OOS stage. Real-money execution stays locked.
 
 ## Current stage
 
 - Production/runtime foundation: **VERIFIED**.
 - Fast Momentum: **sole active production paper scanner**.
-- Scanner-status UI incident: **FIXED / PRODUCTION VERIFIED**.
 - M4 research/evidence platform: **COMPLETE**.
-- M5 isolated single-window candidate cycle: **CLOSED WITHOUT EDGE CLAIM**.
+- M5 single-window order-flow candidate cycle: **CLOSED WITHOUT EDGE CLAIM**.
 - M5 chronological study policy: **MERGED / ENFORCED**.
-- M5 development-corpus materializer: **PR #64 OPEN / EXISTING IMPLEMENTATION; DO NOT RESTART**.
-- Legacy 2025 Frozen OOS: **LOCKED / INDEPENDENT**.
-- M5 Frozen OOS (`2026-08-15 -> 2026-08-22` UTC): **SEALED / NOT ACQUIRED / NOT OPENED**.
+- 12-window M5 development corpus: **MATERIALIZED / VERIFIED**.
+- 17-candidate multi-window evaluator: **IMPLEMENTED / PRODUCTION-RUN**.
+- `absorption_020` robustness stage: **COMPLETE BUT NOT VERIFIED**.
+- Binance USD-M Futures Demo execution plumbing: **REAL DEMO ROUND-TRIP VERIFIED**.
+- M5 Frozen OOS (`2026-08-15 -> 2026-08-22` UTC): **SEALED / NOT OPENED**.
+- Legacy 2025 Frozen OOS: **LOCKED**.
 - Real-money execution: **LOCKED**.
 
-## Canonical repository state
+## Canonical repository/runtime state
 
 - Repository: `enkhbat194/EBA-Trader`
-- Current `main`: `523567785f928bfc63972894f19bf6d2541a633d`
-- Active research PR: `#64 M5: materialize resumable development corpus`
-- PR #64 branch/head: `m5-development-corpus-materializer` @ `39cd2b6dbea75b36307c03cf9080769b49a23123`
-- PR #64 was created from older main and must be refreshed/compared against current main without recreating its existing work.
+- Production URL: `https://eba-trader-172-236-150-62.sslip.io`
+- Production `main` before the current closeout PR: `9ab6e70a4d5cbef7854facd48b13607ea3356b4b`
+- Current closeout branch: `closeout-binance-demo-v4`
+- Open PRs at closeout start: none.
+- Linode exact-build production proof for `9ab6e70a...`: **PASS**.
 
-Only three branches remain:
+Recent durable milestones:
 
-1. `main` — production/deploy branch;
-2. `m5-development-corpus-materializer` — active PR #64 work;
-3. `archive/legacy-experiments-20260828` — history-only archive.
-
-Legacy unique experiment history is preserved under `archive/legacy-experiments-20260828` at `c18496388af394890ea441e15477ff733292b350`. Recovery details: `docs/LEGACY_BRANCH_ARCHIVE_20260828.md`.
-
-Repository hygiene is enforced by branch auto-pruning, repository-hygiene CI, hardened `.gitignore`, `AGENTS.md`, PR checklist and `docs/REPOSITORY_HYGIENE.md`.
-
-Cleanup merges:
-
-- PR #67 -> `8ebf6c6ce87840c95c071c15ed53cedf43f722d7`;
-- PR #68 -> `523567785f928bfc63972894f19bf6d2541a633d`.
+- `8f7d27922c60caf92e3f23fc988f0dbbba2b7e84` — resumable 12-window development corpus materializer.
+- `d0de5fbfe33ecfaff50693637ec6ff38829ad81c` — materialize the pre-registered corpus on Linode.
+- `40ec7761e27616621b563665697cbe0ff783336f` — deterministic 17-candidate multi-window evaluator.
+- `e7d398903ebb635b3645b5ceca36112a07f0f4a7` — run the evaluator across all 12 development windows on Linode.
+- `3dcfe48995b3662899105b710aa82c6a68ad093c` — fixed 9-scenario robustness stage for `absorption_020`.
+- `1667a0fd918a2af8f0a1796414bc536def26c9ad` and follow-up fixes — one-shot Binance USD-M Demo execution/latency proof infrastructure.
+- `9ab6e70a4d5cbef7854facd48b13607ea3356b4b` — resolve zero-price Demo fills through exact order lookup/account trade history.
 
 ## Validation status
 
-Exact current main `523567785f928bfc63972894f19bf6d2541a633d` passed:
+### M5 robustness
 
-- Repository hygiene: **PASS**;
-- Continuity guard: **PASS**;
-- Linode production bundle: **PASS**;
-- Branch hygiene: **PASS**;
-- Public production smoke run `33138685742`: **PASS**;
-- Linode external exact-build proof run `33138685809`: **PASS**.
+Production proof run `33215478581` completed successfully as a proof collector, but the candidate itself **did not pass robustness**:
 
-The cleanup did not change trading logic, strategy authority, Frozen OOS access or real execution.
+- robustness ID: `m5rob_0ddaad97c4954b46ff7e9bcb`
+- candidate: `absorption_020`
+- scenarios: 9
+- `robustnessVerified=false`
+- `centerProfitable=false`
+- `sampleSufficient=false`
+- `costStressStable=true`
+- `emaStable=true`
+- `parameterNeighborhoodStable=true`
+- minimum baseline-beating windows: 9
+- minimum center trades requirement: 30
 
-## M5 research state
+Interpretation: the plumbing and robustness evaluation completed safely, but this candidate is **not eligible for Frozen OOS**. Do not promote it.
 
-The inspected `2026-08-01T00:00Z -> 04:00Z` sample is closed for isolated indicator tuning. Delta, stacked imbalance, absorption/exhaustion and price/Delta divergence remained non-promotable development evidence.
+### Binance USD-M Futures Demo round-trip v4
 
-Current chronological policy:
+Production one-shot probe `usdm-btcusdt-roundtrip-20260829-v4` completed with `phase=COMPLETE`, `passed=true` on exact build `9ab6e70a...`.
 
-- development: `2026-07-01T00:00Z -> 2026-08-15T00:00Z`;
-- sealed M5 Frozen OOS: `2026-08-15T00:00Z -> 2026-08-22T00:00Z`;
-- 12 fresh non-overlapping four-hour development windows are pre-registered;
-- the already-inspected proof window is excluded.
+Execution proof:
 
-PR #64 already implements resumable/immutable materialization of those 12 development windows. Resume it rather than rebuilding it.
+- environment: Binance USD-M Futures **Demo** (`demo-fapi.binance.com`)
+- symbol: `BTCUSDT`
+- position mode: one-way
+- quantity: `0.0007 BTC`
+- effective notional: `54.30901 USDT`
+- available Demo USDT before: `4999.89709561`
+- BUY average fill: `77584.6`
+- SELL average fill: `77584.1`
+- BUY fill source: exact order query
+- SELL fill source: exact order query
+- BUY slippage: `+0.0386676170 bps`
+- SELL slippage: `+0.0322229934 bps`
+- BUY order acknowledgement: `212.033707 ms`
+- SELL order acknowledgement: `221.393951 ms`
+- BUY fill lookup: `216.710555 ms`
+- SELL fill lookup: `270.355526 ms`
+- latest market-data age: `618.613281 ms`
+- full probe round-trip: `3987.621519 ms`
+- pre-position zero: true
+- post-position zero: true
+- real money used: false
+- real execution lock: true
+- Frozen OOS lock: true
+
+This proves the **Demo execution plumbing and measurement path**, not strategy profitability and not live-readiness.
+
+## Demo one-shot closeout
+
+The current closeout changes make the successful v4 probe permanently inactive after proof:
+
+- `config/binance_demo_execution_probe_v1.json` becomes `enabled=false`;
+- a disabled probe preserves an already-terminal Demo proof instead of overwriting it with `DISABLED`;
+- regression coverage guarantees disabled state cannot submit another order;
+- the existing successful proof remains observable for continuity/production checks.
+
+## Research interpretation
+
+The system has now proven:
+
+1. deterministic historical research/data materialization;
+2. multi-window candidate evaluation;
+3. a bounded robustness stage;
+4. actual Binance Futures Demo BUY/SELL execution plumbing with measured latency/slippage and flat-position recovery.
+
+What it has **not** proven is a robust profitable strategy. `absorption_020` failed the required profitability/sample sufficiency checks, so the research pipeline must return to development rather than open Frozen OOS.
 
 ## Safety invariants
 
 - Frozen OOS cannot be opened by normal development workflows.
+- M5 Frozen OOS stays sealed until a candidate actually passes robustness.
 - Real Binance order execution remains disabled.
+- Demo execution plumbing has no lifecycle-promotion authority.
 - Development rankings have no promotion authority.
 - Lifecycle v2 requires robustness before OOS.
 - Deterministic risk keeps final veto authority.
@@ -84,16 +130,15 @@ PR #64 already implements resumable/immutable materialization of those 12 develo
 
 ## Next exact task
 
-1. Resume existing PR #64; compare its current diff/head with latest `main`.
-2. Bring PR #64 forward without dropping/recreating its materializer work.
-3. Run exact-head full CI and fix every failure.
-4. Merge PR #64 only when green.
-5. Deploy exact main to Linode.
-6. Materialize only the 12 pre-registered development windows.
-7. Verify 12/12 hashes, provenance, sequence integrity and resumable replay.
-8. Build the multi-window evaluator/aggregator and use it for Strategy Factory screening.
-9. Continue to robustness before any Frozen-OOS consideration.
+1. Finish CI for `closeout-binance-demo-v4`.
+2. Merge only if full regression/runtime/continuity checks pass.
+3. Verify production exact build and confirm the preserved v4 proof remains `COMPLETE` after the probe is disabled.
+4. Clean temporary proof branches when branch-deletion authority is available; keep `main` plus the intentional legacy archive.
+5. Return Strategy Factory work to **development-only** candidate discovery/evaluation.
+6. Increase independent evidence/sample size and candidate quality without reusing Frozen OOS.
+7. Require the next candidate to satisfy center profitability, sample sufficiency, cost stress and parameter-neighborhood stability before Frozen OOS can be considered.
+8. Do not open M5 Frozen OOS and do not enable real-money execution.
 
 ## Continuity protocol
 
-New sessions read `AGENTS.md`, `PROJECT_STATE.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TODO.md`, `CHANGELOG.md`, `SESSION_HANDOFF.md`, and `docs/CONTINUITY_PROTOCOL.md`, then query actual GitHub state before editing.
+New sessions read `AGENTS.md`, `PROJECT_STATE.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TODO.md`, `CHANGELOG.md`, `SESSION_HANDOFF.md`, and `docs/CONTINUITY_PROTOCOL.md`, then query actual GitHub/production state before editing.
