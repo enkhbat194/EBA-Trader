@@ -16,6 +16,10 @@ from .history import validate_interval_window
 from .m5_multiwindow import _load_materialization
 from .mean_reversion_backtest import MeanReversionConfig, run_mean_reversion_backtest
 from .orderflow_feature_dataset import load_orderflow_feature_csv
+from .orderflow_impulse_backtest import (
+    OrderFlowDeltaImpulseConfig,
+    run_orderflow_delta_impulse_backtest,
+)
 from .research_evidence import canonical_json, sha256_text
 
 CANDIDATE_SET_SCHEMA = "sf1_candidate_set_v1"
@@ -111,6 +115,21 @@ def _normalize_parameters(
             "lookback": config.lookback,
             "entry_z": config.entry_z,
             "exit_z": config.exit_z,
+        }
+
+    if family == "orderflow_delta_impulse_v1":
+        fields = {"side", "entry_delta_ratio", "exit_delta_ratio"}
+        if set(parameters) != fields:
+            raise ValueError("order-flow impulse candidate parameters are invalid")
+        config = OrderFlowDeltaImpulseConfig(
+            side=_require_int(parameters, "side"),
+            entry_delta_ratio=_require_number(parameters, "entry_delta_ratio"),
+            exit_delta_ratio=_require_number(parameters, "exit_delta_ratio"),
+        )
+        return {
+            "side": config.side,
+            "entry_delta_ratio": config.entry_delta_ratio,
+            "exit_delta_ratio": config.exit_delta_ratio,
         }
 
     raise ValueError(f"SF1 family is not implemented yet: {family}")
@@ -239,6 +258,7 @@ def _ranking_key(row: Mapping[str, Any]) -> tuple[float, ...]:
 def _run_candidate(
     candidate: SF1Candidate,
     candles: list[Any],
+    feature_rows: list[Any],
     *,
     trade_start_time_ms: int,
 ) -> Any:
@@ -280,6 +300,20 @@ def _run_candidate(
         )
         return run_mean_reversion_backtest(
             candles,
+            config,
+            trade_start_time_ms=trade_start_time_ms,
+        )
+    if candidate.family == "orderflow_delta_impulse_v1":
+        config = OrderFlowDeltaImpulseConfig(
+            side=int(params["side"]),
+            entry_delta_ratio=float(params["entry_delta_ratio"]),
+            exit_delta_ratio=float(params["exit_delta_ratio"]),
+            initial_cash=INITIAL_CASH,
+            fee_bps=FEE_BPS,
+            slippage_bps=SLIPPAGE_BPS,
+        )
+        return run_orderflow_delta_impulse_backtest(
+            feature_rows,
             config,
             trade_start_time_ms=trade_start_time_ms,
         )
@@ -353,6 +387,7 @@ def evaluate_sf1_atr(
             result = _run_candidate(
                 candidate,
                 candles,
+                feature_rows,
                 trade_start_time_ms=evaluation_start_ms,
             )
             candidate_windows[candidate.candidate_id].append(
