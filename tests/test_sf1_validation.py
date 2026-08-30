@@ -71,8 +71,12 @@ def test_sf1_candidate_set_preregisters_full_search_budget() -> None:
     budget, warmup, candidates = load_sf1_candidates(ROOT / "config/sf1_candidate_set_v1.json")
     assert budget == EXPECTED_SEARCH_BUDGET == 48
     assert warmup == EXPECTED_WARMUP_BARS == 64
-    assert len(candidates) == 12
-    assert {candidate.family for candidate in candidates} == {"atr_trailing_v1"}
+    assert len(candidates) == 36
+    assert {candidate.family for candidate in candidates} == {
+        "atr_trailing_v1",
+        "donchian_breakout_v1",
+        "mean_reversion_z_v1",
+    }
     assert len({candidate.candidate_id for candidate in candidates}) == len(candidates)
 
 
