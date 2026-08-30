@@ -41,6 +41,19 @@
     {"candidate_id": "mr_48z15x00", "family": "mean_reversion_z_v1", "parameters": {"lookback": 48, "entry_z": 1.5, "exit_z": 0.0}},
     {"candidate_id": "mr_48z15x05", "family": "mean_reversion_z_v1", "parameters": {"lookback": 48, "entry_z": 1.5, "exit_z": 0.5}},
     {"candidate_id": "mr_48z20x00", "family": "mean_reversion_z_v1", "parameters": {"lookback": 48, "entry_z": 2.0, "exit_z": 0.0}},
-    {"candidate_id": "mr_48z20x05", "family": "mean_reversion_z_v1", "parameters": {"lookback": 48, "entry_z": 2.0, "exit_z": 0.5}}
+    {"candidate_id": "mr_48z20x05", "family": "mean_reversion_z_v1", "parameters": {"lookback": 48, "entry_z": 2.0, "exit_z": 0.5}},
+
+    {"candidate_id": "ofd_l10x00", "family": "orderflow_delta_impulse_v1", "parameters": {"side": 1, "entry_delta_ratio": 0.1, "exit_delta_ratio": 0.0}},
+    {"candidate_id": "ofd_l10x05", "family": "orderflow_delta_impulse_v1", "parameters": {"side": 1, "entry_delta_ratio": 0.1, "exit_delta_ratio": 0.05}},
+    {"candidate_id": "ofd_l20x00", "family": "orderflow_delta_impulse_v1", "parameters": {"side": 1, "entry_delta_ratio": 0.2, "exit_delta_ratio": 0.0}},
+    {"candidate_id": "ofd_l20x05", "family": "orderflow_delta_impulse_v1", "parameters": {"side": 1, "entry_delta_ratio": 0.2, "exit_delta_ratio": 0.05}},
+    {"candidate_id": "ofd_l30x00", "family": "orderflow_delta_impulse_v1", "parameters": {"side": 1, "entry_delta_ratio": 0.3, "exit_delta_ratio": 0.0}},
+    {"candidate_id": "ofd_l30x05", "family": "orderflow_delta_impulse_v1", "parameters": {"side": 1, "entry_delta_ratio": 0.3, "exit_delta_ratio": 0.05}},
+    {"candidate_id": "ofd_s10x00", "family": "orderflow_delta_impulse_v1", "parameters": {"side": -1, "entry_delta_ratio": 0.1, "exit_delta_ratio": 0.0}},
+    {"candidate_id": "ofd_s10x05", "family": "orderflow_delta_impulse_v1", "parameters": {"side": -1, "entry_delta_ratio": 0.1, "exit_delta_ratio": 0.05}},
+    {"candidate_id": "ofd_s20x00", "family": "orderflow_delta_impulse_v1", "parameters": {"side": -1, "entry_delta_ratio": 0.2, "exit_delta_ratio": 0.0}},
+    {"candidate_id": "ofd_s20x05", "family": "orderflow_delta_impulse_v1", "parameters": {"side": -1, "entry_delta_ratio": 0.2, "exit_delta_ratio": 0.05}},
+    {"candidate_id": "ofd_s30x00", "family": "orderflow_delta_impulse_v1", "parameters": {"side": -1, "entry_delta_ratio": 0.3, "exit_delta_ratio": 0.0}},
+    {"candidate_id": "ofd_s30x05", "family": "orderflow_delta_impulse_v1", "parameters": {"side": -1, "entry_delta_ratio": 0.3, "exit_delta_ratio": 0.05}}
   ]
 }
