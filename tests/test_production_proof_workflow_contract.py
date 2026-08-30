@@ -28,3 +28,21 @@ def test_external_production_proof_requires_terminal_m5_evidence() -> None:
     assert '"m5DivergenceGates": divergence_gates' in text
     assert "deadline = time.time() + 900" in text
     assert "time.sleep(20)" in text
+
+
+def test_external_production_proof_preserves_strict_sf1_contract() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+
+    required_checks = (
+        '"sf1_candidate_count": sf1.get("candidateCount") == 36',
+        '"sf1_search_budget": sf1.get("multipleTestingBudget") == 48',
+        '"sf1_window_count": sf1.get("windowCount") == 12',
+        '"sf1_development_only": sf1.get("developmentEvidenceOnly") is True',
+        '"sf1_no_edge_claim": sf1.get("edgeClaimAllowed") is False',
+        '"sf1_no_promotion": sf1.get("promotionAuthority") is False',
+        '"sf1_frozen_oos_closed": sf1.get("frozenOosOpened") is False',
+        '"sf1_m5_frozen_oos_closed": sf1.get("m5FrozenOosOpened") is False',
+        '"sf1_live_locked": sf1.get("liveExecutionAllowed") is False',
+    )
+    for contract in required_checks:
+        assert contract in text

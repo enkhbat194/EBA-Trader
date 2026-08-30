@@ -15,6 +15,32 @@
     {"candidate_id": "atr_21x150", "family": "atr_trailing_v1", "parameters": {"atr_period": 21, "atr_multiplier": 1.5}},
     {"candidate_id": "atr_21x200", "family": "atr_trailing_v1", "parameters": {"atr_period": 21, "atr_multiplier": 2.0}},
     {"candidate_id": "atr_21x250", "family": "atr_trailing_v1", "parameters": {"atr_period": 21, "atr_multiplier": 2.5}},
-    {"candidate_id": "atr_21x300", "family": "atr_trailing_v1", "parameters": {"atr_period": 21, "atr_multiplier": 3.0}}
+    {"candidate_id": "atr_21x300", "family": "atr_trailing_v1", "parameters": {"atr_period": 21, "atr_multiplier": 3.0}},
+
+    {"candidate_id": "brk_16x04", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 16, "exit_lookback": 4}},
+    {"candidate_id": "brk_16x08", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 16, "exit_lookback": 8}},
+    {"candidate_id": "brk_16x12", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 16, "exit_lookback": 12}},
+    {"candidate_id": "brk_24x06", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 24, "exit_lookback": 6}},
+    {"candidate_id": "brk_24x12", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 24, "exit_lookback": 12}},
+    {"candidate_id": "brk_24x18", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 24, "exit_lookback": 18}},
+    {"candidate_id": "brk_32x08", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 32, "exit_lookback": 8}},
+    {"candidate_id": "brk_32x16", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 32, "exit_lookback": 16}},
+    {"candidate_id": "brk_32x24", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 32, "exit_lookback": 24}},
+    {"candidate_id": "brk_48x12", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 48, "exit_lookback": 12}},
+    {"candidate_id": "brk_48x24", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 48, "exit_lookback": 24}},
+    {"candidate_id": "brk_48x36", "family": "donchian_breakout_v1", "parameters": {"entry_lookback": 48, "exit_lookback": 36}},
+
+    {"candidate_id": "mr_16z15x00", "family": "mean_reversion_z_v1", "parameters": {"lookback": 16, "entry_z": 1.5, "exit_z": 0.0}},
+    {"candidate_id": "mr_16z15x05", "family": "mean_reversion_z_v1", "parameters": {"lookback": 16, "entry_z": 1.5, "exit_z": 0.5}},
+    {"candidate_id": "mr_16z20x00", "family": "mean_reversion_z_v1", "parameters": {"lookback": 16, "entry_z": 2.0, "exit_z": 0.0}},
+    {"candidate_id": "mr_16z20x05", "family": "mean_reversion_z_v1", "parameters": {"lookback": 16, "entry_z": 2.0, "exit_z": 0.5}},
+    {"candidate_id": "mr_32z15x00", "family": "mean_reversion_z_v1", "parameters": {"lookback": 32, "entry_z": 1.5, "exit_z": 0.0}},
+    {"candidate_id": "mr_32z15x05", "family": "mean_reversion_z_v1", "parameters": {"lookback": 32, "entry_z": 1.5, "exit_z": 0.5}},
+    {"candidate_id": "mr_32z20x00", "family": "mean_reversion_z_v1", "parameters": {"lookback": 32, "entry_z": 2.0, "exit_z": 0.0}},
+    {"candidate_id": "mr_32z20x05", "family": "mean_reversion_z_v1", "parameters": {"lookback": 32, "entry_z": 2.0, "exit_z": 0.5}},
+    {"candidate_id": "mr_48z15x00", "family": "mean_reversion_z_v1", "parameters": {"lookback": 48, "entry_z": 1.5, "exit_z": 0.0}},
+    {"candidate_id": "mr_48z15x05", "family": "mean_reversion_z_v1", "parameters": {"lookback": 48, "entry_z": 1.5, "exit_z": 0.5}},
+    {"candidate_id": "mr_48z20x00", "family": "mean_reversion_z_v1", "parameters": {"lookback": 48, "entry_z": 2.0, "exit_z": 0.0}},
+    {"candidate_id": "mr_48z20x05", "family": "mean_reversion_z_v1", "parameters": {"lookback": 48, "entry_z": 2.0, "exit_z": 0.5}}
   ]
 }

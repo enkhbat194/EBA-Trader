@@ -11,6 +11,7 @@ DEFAULT_EVIDENCE_ROOT = Path("/var/lib/eba-trader/research/evidence")
 STATUS_SCHEMA = "sf1_runtime_status_v1"
 DEVELOPMENT_SCHEMA = "sf1_development_report_v1"
 VALIDATION_SCHEMA = "sf1_validation_report_v1"
+MAX_PUBLIC_CANDIDATES = 48
 _BLOCKED_KEY_PARTS = (
     "apikey",
     "apisecret",
@@ -94,7 +95,7 @@ def _safe_ranking(rows: Any) -> list[dict[str, Any]]:
     if not isinstance(rows, list):
         return []
     result: list[dict[str, Any]] = []
-    for row in rows[:12]:
+    for row in rows[:MAX_PUBLIC_CANDIDATES]:
         if not isinstance(row, dict):
             continue
         result.append(
@@ -113,7 +114,7 @@ def _safe_validation_rows(rows: Any) -> list[dict[str, Any]]:
     if not isinstance(rows, list):
         return []
     result: list[dict[str, Any]] = []
-    for row in rows[:12]:
+    for row in rows[:MAX_PUBLIC_CANDIDATES]:
         if not isinstance(row, dict):
             continue
         failed_raw = row.get("failedChecks")
