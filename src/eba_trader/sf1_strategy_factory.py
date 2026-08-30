@@ -11,8 +11,10 @@ from typing import Any
 
 from .atr_backtest import AtrTrailingConfig, run_atr_trailing_backtest
 from .backtest_adapter import EmaFeatureBaselineV1Adapter, _result_metrics
+from .breakout_backtest import DonchianBreakoutConfig, run_donchian_breakout_backtest
 from .history import validate_interval_window
 from .m5_multiwindow import _load_materialization
+from .mean_reversion_backtest import MeanReversionConfig, run_mean_reversion_backtest
 from .orderflow_feature_dataset import load_orderflow_feature_csv
 from .research_evidence import canonical_json, sha256_text
 
@@ -52,6 +54,68 @@ def _json_object(path: Path, *, label: str) -> dict[str, Any]:
     return payload
 
 
+def _require_int(parameters: Mapping[str, Any], key: str) -> int:
+    value = parameters[key]
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{key} must be an integer")
+    return value
+
+
+def _require_number(parameters: Mapping[str, Any], key: str) -> float:
+    value = parameters[key]
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{key} must be numeric")
+    return float(value)
+
+
+def _normalize_parameters(
+    family: str,
+    parameters: Mapping[str, Any],
+) -> dict[str, float | int]:
+    if family == "atr_trailing_v1":
+        fields = {"atr_period", "atr_multiplier"}
+        if set(parameters) != fields:
+            raise ValueError("ATR candidate parameters are invalid")
+        config = AtrTrailingConfig(
+            atr_period=_require_int(parameters, "atr_period"),
+            atr_multiplier=_require_number(parameters, "atr_multiplier"),
+        )
+        return {
+            "atr_period": config.atr_period,
+            "atr_multiplier": config.atr_multiplier,
+        }
+
+    if family == "donchian_breakout_v1":
+        fields = {"entry_lookback", "exit_lookback"}
+        if set(parameters) != fields:
+            raise ValueError("Donchian candidate parameters are invalid")
+        config = DonchianBreakoutConfig(
+            entry_lookback=_require_int(parameters, "entry_lookback"),
+            exit_lookback=_require_int(parameters, "exit_lookback"),
+        )
+        return {
+            "entry_lookback": config.entry_lookback,
+            "exit_lookback": config.exit_lookback,
+        }
+
+    if family == "mean_reversion_z_v1":
+        fields = {"lookback", "entry_z", "exit_z"}
+        if set(parameters) != fields:
+            raise ValueError("mean-reversion candidate parameters are invalid")
+        config = MeanReversionConfig(
+            lookback=_require_int(parameters, "lookback"),
+            entry_z=_require_number(parameters, "entry_z"),
+            exit_z=_require_number(parameters, "exit_z"),
+        )
+        return {
+            "lookback": config.lookback,
+            "entry_z": config.entry_z,
+            "exit_z": config.exit_z,
+        }
+
+    raise ValueError(f"SF1 family is not implemented yet: {family}")
+
+
 def load_sf1_candidates(path: str | Path) -> tuple[int, int, tuple[SF1Candidate, ...]]:
     payload = _json_object(Path(path), label="SF1 candidate set")
     expected = {
@@ -87,22 +151,9 @@ def load_sf1_candidates(path: str | Path) -> tuple[int, int, tuple[SF1Candidate,
         parameters = row["parameters"]
         if not candidate_id or candidate_id in ids:
             raise ValueError("SF1 candidate_id is empty or duplicated")
-        if family != "atr_trailing_v1":
-            raise ValueError(f"SF1 family is not implemented yet: {family}")
-        parameter_fields = {"atr_period", "atr_multiplier"}
-        if not isinstance(parameters, Mapping) or set(parameters) != parameter_fields:
-            raise ValueError("ATR candidate parameters are invalid")
-        period = parameters["atr_period"]
-        multiplier = parameters["atr_multiplier"]
-        if isinstance(period, bool) or not isinstance(period, int):
-            raise ValueError("atr_period must be an integer")
-        if isinstance(multiplier, bool) or not isinstance(multiplier, (int, float)):
-            raise ValueError("atr_multiplier must be numeric")
-        config = AtrTrailingConfig(atr_period=period, atr_multiplier=float(multiplier))
-        normalized = {
-            "atr_period": config.atr_period,
-            "atr_multiplier": config.atr_multiplier,
-        }
+        if not isinstance(parameters, Mapping):
+            raise ValueError("SF1 candidate parameters must be an object")
+        normalized = _normalize_parameters(family, parameters)
         fingerprint = canonical_json({"family": family, "parameters": normalized})
         if fingerprint in fingerprints:
             raise ValueError("duplicate SF1 candidate parameters")
@@ -185,12 +236,63 @@ def _ranking_key(row: Mapping[str, Any]) -> tuple[float, ...]:
     )
 
 
+def _run_candidate(
+    candidate: SF1Candidate,
+    candles: list[Any],
+    *,
+    trade_start_time_ms: int,
+) -> Any:
+    params = candidate.parameters
+    if candidate.family == "atr_trailing_v1":
+        config = AtrTrailingConfig(
+            atr_period=int(params["atr_period"]),
+            atr_multiplier=float(params["atr_multiplier"]),
+            initial_cash=INITIAL_CASH,
+            fee_bps=FEE_BPS,
+            slippage_bps=SLIPPAGE_BPS,
+        )
+        return run_atr_trailing_backtest(
+            candles,
+            config,
+            trade_start_time_ms=trade_start_time_ms,
+        )
+    if candidate.family == "donchian_breakout_v1":
+        config = DonchianBreakoutConfig(
+            entry_lookback=int(params["entry_lookback"]),
+            exit_lookback=int(params["exit_lookback"]),
+            initial_cash=INITIAL_CASH,
+            fee_bps=FEE_BPS,
+            slippage_bps=SLIPPAGE_BPS,
+        )
+        return run_donchian_breakout_backtest(
+            candles,
+            config,
+            trade_start_time_ms=trade_start_time_ms,
+        )
+    if candidate.family == "mean_reversion_z_v1":
+        config = MeanReversionConfig(
+            lookback=int(params["lookback"]),
+            entry_z=float(params["entry_z"]),
+            exit_z=float(params["exit_z"]),
+            initial_cash=INITIAL_CASH,
+            fee_bps=FEE_BPS,
+            slippage_bps=SLIPPAGE_BPS,
+        )
+        return run_mean_reversion_backtest(
+            candles,
+            config,
+            trade_start_time_ms=trade_start_time_ms,
+        )
+    raise RuntimeError(f"unsupported SF1 candidate family: {candidate.family}")
+
+
 def evaluate_sf1_atr(
     *,
     manifest_path: str | Path,
     dataset_root: str | Path,
     candidate_set_path: str | Path,
 ) -> dict[str, Any]:
+    """Evaluate all preregistered SF1 families; legacy name retained for runtime compatibility."""
     budget, warmup_bars, candidates = load_sf1_candidates(candidate_set_path)
     manifest, receipts = _load_materialization(
         manifest_path=Path(manifest_path),
@@ -248,16 +350,9 @@ def evaluate_sf1_atr(
         )
 
         for candidate in candidates:
-            cfg = AtrTrailingConfig(
-                atr_period=int(candidate.parameters["atr_period"]),
-                atr_multiplier=float(candidate.parameters["atr_multiplier"]),
-                initial_cash=INITIAL_CASH,
-                fee_bps=FEE_BPS,
-                slippage_bps=SLIPPAGE_BPS,
-            )
-            result = run_atr_trailing_backtest(
+            result = _run_candidate(
+                candidate,
                 candles,
-                cfg,
                 trade_start_time_ms=evaluation_start_ms,
             )
             candidate_windows[candidate.candidate_id].append(
