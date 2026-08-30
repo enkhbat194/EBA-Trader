@@ -1,112 +1,148 @@
 # EBA Trader — Session Handoff
 
-_Last handoff prepared: 2026-08-29 (Asia/Ulaanbaatar)_
+_Last handoff prepared: 2026-08-30 (Asia/Ulaanbaatar)_
 
 ## Exact continuation point
 
 Repository: `enkhbat194/EBA-Trader`
 
-Production `main` before this closeout PR:
+Canonical production `main`:
 
-`9ab6e70a4d5cbef7854facd48b13607ea3356b4b`
+`0f6d0c1d7c74f8a42ae16921d24dfe446d805380`
 
 Current working branch:
 
-`closeout-binance-demo-v4`
+`sf1-closeout-sf2-preregistration`
 
-No open PR existed when this branch was created.
+Production exact-build proof for `0f6d0c1d...`: **SUCCESS**.
 
-## What was completed
-
-### M5 development corpus and evaluator
-
-- `8f7d27922c60caf92e3f23fc988f0dbbba2b7e84` — resumable 12-window development corpus materializer.
-- `d0de5fbfe33ecfaff50693637ec6ff38829ad81c` — production Linode corpus materialization.
-- `40ec7761e27616621b563665697cbe0ff783336f` — deterministic 17-candidate multi-window evaluator.
-- `e7d398903ebb635b3645b5ceca36112a07f0f4a7` — evaluator run across all 12 development windows on Linode.
-
-### Robustness
-
-`3dcfe48995b3662899105b710aa82c6a68ad093c` added and ran a fixed 9-scenario development-only robustness stage for `absorption_020`.
-
-Exact production robustness proof run `33215478581`:
-
-- robustness ID `m5rob_0ddaad97c4954b46ff7e9bcb`
-- candidate `absorption_020`
-- scenario count 9
-- `robustnessVerified=false`
-- `centerProfitable=false`
-- `sampleSufficient=false`
-- `costStressStable=true`
-- `emaStable=true`
-- `parameterNeighborhoodStable=true`
-- Frozen OOS closed
-- real execution locked
-
-This means **do not open M5 Frozen OOS**. The candidate did not pass the required robustness gate.
+## What is proven
 
 ### Binance USD-M Futures Demo execution plumbing
 
-The one-shot execution runtime was implemented and iteratively fixed through production observations. PR #77 merged as:
+- real Demo BTCUSDT BUY/SELL round trip previously passed;
+- terminal proof is preserved;
+- one-shot probe is disabled;
+- pre/post position was flat;
+- real money was not used;
+- real execution remains locked.
 
-`9ab6e70a4d5cbef7854facd48b13607ea3356b4b`
+This proves execution plumbing only, not strategy profitability.
 
-The final probe is:
+### M5 / `absorption_020`
 
-`usdm-btcusdt-roundtrip-20260829-v4`
+- structurally an EMA-crossover entry filter rather than an independent absorption strategy;
+- only 4 development trades;
+- negative expectancy;
+- center not profitable;
+- sample insufficient;
+- robustness not verified.
 
-Exact production v4 proof workflow run `33243896565`, job `99077873835`: **SUCCESS**.
+Do not promote it and do not open M5 Frozen OOS.
 
-Measured result:
+### SF1 independent-family search
 
-- phase `COMPLETE`, passed true
-- environment Binance USD-M Futures Demo
-- endpoint `demo-fapi.binance.com`
-- BTCUSDT one-way position mode
-- quantity `0.0007 BTC`
-- effective notional `54.30901 USDT`
-- available balance before `4999.89709561 USDT`
-- BUY average fill `77584.6`
-- SELL average fill `77584.1`
-- both fill prices resolved from exact order query
-- BUY slippage `+0.0386676170 bps`
-- SELL slippage `+0.0322229934 bps`
-- BUY order acknowledgement `212.033707 ms`
-- SELL order acknowledgement `221.393951 ms`
-- BUY fill lookup `216.710555 ms`
-- SELL fill lookup `270.355526 ms`
-- latest market-data age `618.613281 ms`
-- full probe round-trip `3987.621519 ms`
-- pre-position zero true
-- post-position zero true
-- real money false
-- Frozen OOS locked
-- real execution locked
+SF1 is now fully consumed and closed:
 
-This proves **execution plumbing/measurement only**. It is not strategy-profitability evidence and has no promotion authority.
+- 12 ATR candidates;
+- 12 Donchian breakout candidates;
+- 12 z-score mean-reversion candidates;
+- 12 independent raw footprint-delta impulse candidates;
+- total 48/48 candidates;
+- 12 original development windows;
+- 4 bps fees;
+- 1.5 bps slippage;
+- causal next-open execution;
+- Bonferroni search budget 48.
 
-## Current closeout changes
+Exact production result on `0f6d0c1d...`:
 
-On branch `closeout-binance-demo-v4`:
+- `validationState=NO_VERIFIED_CANDIDATE`;
+- `verifiedCandidateCount=0`;
+- `topVerifiedCandidate=null`;
+- Frozen OOS closed;
+- live/real execution locked.
 
-1. `config/binance_demo_execution_probe_v1.json` is changed to `enabled=false`.
-2. Disabled runtime now preserves an existing terminal Demo proof instead of overwriting it with `DISABLED`.
-3. A regression test guarantees disabled state cannot invoke a new exchange-order probe.
-4. `PROJECT_STATE.md`, `TODO.md` and this handoff are reconciled to actual current state.
+Top development-ranked candidate `mr_48z15x00`:
 
-Why this matters: leaving the same probe enabled was already idempotent while its persistent COMPLETE proof existed, but disabling it removes the remaining accidental re-execution path if state handling changes later. Preserving terminal proof keeps the successful production evidence visible after shutdown.
+- 10/12 baseline-beating windows;
+- 30 trades;
+- mean return about `-0.0965%`;
+- mean expectancy about `-1.17`;
+- adjusted p-value about `0.246`.
+
+It is rejected because the fixed quality gate requires positive mean return, positive expectancy and adjusted p <= 0.05 in addition to activity/cross-window requirements.
+
+The 12 direct raw-delta impulse candidates also failed despite adequate activity: all beat baseline in 0/12 windows, all had negative mean return/expectancy and adjusted p-value 1.0.
+
+## Fixed quality gate — never weaken silently
+
+A candidate may enter robustness only when all are true:
+
+1. mean return > 0;
+2. mean expectancy > 0;
+3. total trades >= 30;
+4. baseline beaten in >=9/12 development windows;
+5. Bonferroni-adjusted p-value <= 0.05.
+
+Then robustness remains mandatory before any Frozen-OOS consideration.
+
+## Scientific decision after SF1
+
+Do not add more candidate thresholds to SF1 and do not keep tuning on the same 12 windows. SF1 consumed its full preregistered 48-candidate budget; repeated adaptive use of the same development evidence would create data snooping / overfitting.
+
+SF2 therefore uses new development windows that were not used by SF1. Candidate definitions, execution assumptions and the data-window schedule are preregistered before any SF2 evaluation output is observed.
+
+## Current branch work — SF2 preregistration
+
+Files added/updated:
+
+- `config/sf2_research_protocol_v1.json`
+- `src/eba_trader/sf2_protocol.py`
+- `tests/test_sf2_protocol.py`
+- `PROJECT_STATE.md`
+- `TODO.md`
+- `SESSION_HANDOFF.md`
+
+SF2 locked design:
+
+- 24 active candidates;
+- statistical correction budget remains 48;
+- 12 new 4-hour development windows;
+- no overlap with the original SF1 corpus;
+- 2026-08-01 original smoke day excluded;
+- all new windows remain inside M5 development `2026-07-01 -> 2026-08-15`;
+- M5 Frozen OOS `2026-08-15 -> 2026-08-22` remains sealed;
+- fees 4 bps;
+- slippage 1.5 bps;
+- one-bar signal-to-execution delay;
+- minimum hold 2 bars;
+- maximum hold 12 bars;
+- quality gate unchanged.
+
+Preregistered families, six candidates each:
+
+1. `divergence_reversal_v1`;
+2. `absorption_reversal_v1`;
+3. `stacked_delta_continuation_v1`;
+4. `flow_price_continuation_v1`.
+
+The protocol loader fails closed if an SF1 development window is reused, the original smoke day is reused, execution assumptions change, the multiple-testing budget is lowered, or the quality gate is weakened.
 
 ## Next exact task
 
-1. Inspect PR #78 for `closeout-binance-demo-v4`.
+1. Open/inspect the SF2 preregistration PR.
 2. Run exact-head full regression, Ruff, runtime, continuity and production-bundle checks.
 3. Fix every failure; do not merge red CI.
-4. Merge only when green.
-5. Verify exact merged `main` deploys to Linode.
-6. Confirm `/api/research/status` still exposes the v4 Demo proof as `COMPLETE` after the config is disabled.
-7. Confirm no new order is submitted after disabled deployment.
-8. Clean temporary proof branches when deletion authority is available.
-9. Return to development-only Strategy Factory work: analyze the failed robustness reasons (`centerProfitable=false`, `sampleSufficient=false`) and build stronger independent development evidence without touching Frozen OOS.
+4. Merge only when all checks are green.
+5. Verify exact merged build on Linode and confirm SF1 remains `NO_VERIFIED_CANDIDATE`, Frozen OOS closed and real execution locked.
+6. Implement all four SF2 families without materializing or evaluating the fresh SF2 windows.
+7. Add causality, no-lookahead, fee/slippage, long/short and holding-period tests.
+8. Freeze implementation/configuration with green CI.
+9. Only then materialize the preregistered fresh SF2 corpus from Binance USD-M archives.
+10. Run all 24 candidates across all 12 fresh windows with the conservative 48-hypothesis Bonferroni correction.
+11. Reject every candidate that misses any fixed quality criterion.
+12. Do not open M5 Frozen OOS and do not enable real-money execution unless the required later gates actually pass.
 
 ## Hard locks
 
@@ -115,12 +151,8 @@ Why this matters: leaving the same probe enabled was already idempotent while it
 - Real Binance execution remains locked.
 - Demo execution has no strategy-promotion authority.
 - Development/ranking results have no promotion authority.
-- Fast Momentum remains paper-only and deterministic risk keeps final veto authority.
-
-## Repository hygiene note
-
-Temporary proof branches currently exist for corpus/multi-window/robustness/Demo verification. They are not canonical work. Keep `main` authoritative and prune the temporary proof refs once branch-delete authority is available; preserve `archive/legacy-experiments-20260828`.
+- Repeated analysis of already-inspected development data cannot be relabelled as fresh verification.
 
 ## Startup rule
 
-Read `AGENTS.md`, `PROJECT_STATE.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TODO.md`, `CHANGELOG.md`, this file and `docs/CONTINUITY_PROTOCOL.md`; then query actual GitHub and Linode proof state before editing.
+Read `AGENTS.md`, `PROJECT_STATE.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TODO.md`, `CHANGELOG.md`, this file and `docs/CONTINUITY_PROTOCOL.md`; then query actual GitHub and production proof state before editing.
