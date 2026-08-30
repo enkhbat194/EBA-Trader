@@ -16,6 +16,14 @@ Current working branch:
 
 Production exact-build proof for `0f6d0c1d...`: **SUCCESS**.
 
+## What was completed
+
+- SF1 was production-run at the full preregistered 48/48 candidate budget and closed with zero verified candidates.
+- The final 12 SF1 slots were genuinely independent long/short raw footprint-Delta signal generators rather than EMA gates.
+- Production exact-build evidence kept Frozen OOS closed and real execution locked.
+- The stale repository continuity state was reconciled to the SF1 closeout.
+- A new SF2 fresh-development protocol was preregistered before any fresh SF2 window was materialized or evaluated.
+
 ## What is proven
 
 ### Binance USD-M Futures Demo execution plumbing
@@ -131,7 +139,7 @@ The protocol loader fails closed if an SF1 development window is reused, the ori
 
 ## Next exact task
 
-1. Open/inspect the SF2 preregistration PR.
+1. Inspect PR #91 for `sf1-closeout-sf2-preregistration`.
 2. Run exact-head full regression, Ruff, runtime, continuity and production-bundle checks.
 3. Fix every failure; do not merge red CI.
 4. Merge only when all checks are green.
