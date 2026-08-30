@@ -73,6 +73,13 @@ The new independent order-flow delta family had adequate sample size but poor ec
 - adjusted p-values were `1.0`;
 - this is a performance failure, not an inactivity failure.
 
+## Validation status
+
+- SF1 production evaluation completed on all 48 preregistered candidates.
+- No strategy is development-verified or robustness-eligible.
+- SF1 evidence is closed and must not be extended with post-hoc threshold tuning.
+- SF2 protocol validation is required to fail closed on reused SF1 evidence, smoke-day reuse, lowered statistical budget or weakened quality criteria.
+
 ## Quality gate — DO NOT LOWER
 
 A development candidate may enter robustness only if all are true:
