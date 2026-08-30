@@ -8,13 +8,13 @@ ROOT = Path(__file__).resolve().parents[1]
 CANDIDATES = ROOT / "config/sf1_candidate_set_v1.json"
 
 
-def test_sf1_candidate_set_uses_36_of_48_preregistered_slots() -> None:
+def test_sf1_candidate_set_uses_full_48_preregistered_slots() -> None:
     budget, warmup, candidates = load_sf1_candidates(CANDIDATES)
 
     assert budget == 48
     assert warmup == 64
-    assert len(candidates) == 36
-    assert len({candidate.candidate_id for candidate in candidates}) == 36
+    assert len(candidates) == 48
+    assert len({candidate.candidate_id for candidate in candidates}) == 48
 
     families: dict[str, int] = {}
     for candidate in candidates:
@@ -24,6 +24,7 @@ def test_sf1_candidate_set_uses_36_of_48_preregistered_slots() -> None:
         "atr_trailing_v1": 12,
         "donchian_breakout_v1": 12,
         "mean_reversion_z_v1": 12,
+        "orderflow_delta_impulse_v1": 12,
     }
 
 
@@ -43,4 +44,9 @@ def test_sf1_candidate_parameters_are_normalized_by_family() -> None:
         "lookback": 48,
         "entry_z": 2.0,
         "exit_z": 0.5,
+    }
+    assert by_id["ofd_s30x05"].parameters == {
+        "side": -1,
+        "entry_delta_ratio": 0.3,
+        "exit_delta_ratio": 0.05,
     }
