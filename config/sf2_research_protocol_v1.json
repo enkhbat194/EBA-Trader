@@ -1,0 +1,77 @@
+{
+  "schema": "sf2_research_protocol_v1",
+  "phase_id": "sf2_fresh_development_v1",
+  "source_phase": "sf1_independent_families_v1",
+  "symbol": "BTCUSDT",
+  "venue": "usd_m_futures",
+  "interval": "1m",
+  "planned_candidate_budget": 48,
+  "active_candidate_count": 24,
+  "warmup_bars": 64,
+  "execution": {
+    "initial_cash": 10000.0,
+    "fee_bps": 4.0,
+    "slippage_bps": 1.5,
+    "signal_to_execution_delay_bars": 1,
+    "max_hold_bars": 12,
+    "minimum_hold_bars": 2
+  },
+  "qualification": {
+    "minimum_mean_return_exclusive": 0.0,
+    "minimum_mean_expectancy_exclusive": 0.0,
+    "minimum_total_trades": 30,
+    "minimum_baseline_beating_windows": 9,
+    "adjusted_alpha_max": 0.05,
+    "multiple_testing_method": "bonferroni",
+    "permutation_count": 4096
+  },
+  "data_reuse_policy": {
+    "sf1_development_windows_reused": false,
+    "original_2026_08_01_smoke_window_reused": false,
+    "frozen_oos_allowed": false,
+    "fresh_development_required": true
+  },
+  "development_windows": [
+    {"name": "sf2-dev-01", "start": "2026-07-03T04:00:00Z", "end": "2026-07-03T08:00:00Z"},
+    {"name": "sf2-dev-02", "start": "2026-07-07T12:00:00Z", "end": "2026-07-07T16:00:00Z"},
+    {"name": "sf2-dev-03", "start": "2026-07-11T20:00:00Z", "end": "2026-07-12T00:00:00Z"},
+    {"name": "sf2-dev-04", "start": "2026-07-15T04:00:00Z", "end": "2026-07-15T08:00:00Z"},
+    {"name": "sf2-dev-05", "start": "2026-07-19T12:00:00Z", "end": "2026-07-19T16:00:00Z"},
+    {"name": "sf2-dev-06", "start": "2026-07-23T20:00:00Z", "end": "2026-07-24T00:00:00Z"},
+    {"name": "sf2-dev-07", "start": "2026-07-27T04:00:00Z", "end": "2026-07-27T08:00:00Z"},
+    {"name": "sf2-dev-08", "start": "2026-07-31T12:00:00Z", "end": "2026-07-31T16:00:00Z"},
+    {"name": "sf2-dev-09", "start": "2026-08-04T20:00:00Z", "end": "2026-08-05T00:00:00Z"},
+    {"name": "sf2-dev-10", "start": "2026-08-08T04:00:00Z", "end": "2026-08-08T08:00:00Z"},
+    {"name": "sf2-dev-11", "start": "2026-08-12T12:00:00Z", "end": "2026-08-12T16:00:00Z"},
+    {"name": "sf2-dev-12", "start": "2026-08-13T20:00:00Z", "end": "2026-08-14T00:00:00Z"}
+  ],
+  "candidates": [
+    {"candidate_id": "s2_div_l001", "family": "divergence_reversal_v1", "parameters": {"side": 1, "signal_threshold": 0.01}},
+    {"candidate_id": "s2_div_l003", "family": "divergence_reversal_v1", "parameters": {"side": 1, "signal_threshold": 0.03}},
+    {"candidate_id": "s2_div_l005", "family": "divergence_reversal_v1", "parameters": {"side": 1, "signal_threshold": 0.05}},
+    {"candidate_id": "s2_div_s001", "family": "divergence_reversal_v1", "parameters": {"side": -1, "signal_threshold": 0.01}},
+    {"candidate_id": "s2_div_s003", "family": "divergence_reversal_v1", "parameters": {"side": -1, "signal_threshold": 0.03}},
+    {"candidate_id": "s2_div_s005", "family": "divergence_reversal_v1", "parameters": {"side": -1, "signal_threshold": 0.05}},
+
+    {"candidate_id": "s2_abs_l010", "family": "absorption_reversal_v1", "parameters": {"side": 1, "signal_threshold": 0.1}},
+    {"candidate_id": "s2_abs_l020", "family": "absorption_reversal_v1", "parameters": {"side": 1, "signal_threshold": 0.2}},
+    {"candidate_id": "s2_abs_l030", "family": "absorption_reversal_v1", "parameters": {"side": 1, "signal_threshold": 0.3}},
+    {"candidate_id": "s2_abs_s010", "family": "absorption_reversal_v1", "parameters": {"side": -1, "signal_threshold": 0.1}},
+    {"candidate_id": "s2_abs_s020", "family": "absorption_reversal_v1", "parameters": {"side": -1, "signal_threshold": 0.2}},
+    {"candidate_id": "s2_abs_s030", "family": "absorption_reversal_v1", "parameters": {"side": -1, "signal_threshold": 0.3}},
+
+    {"candidate_id": "s2_stk_l2", "family": "stacked_delta_continuation_v1", "parameters": {"side": 1, "minimum_stacked_levels": 2, "minimum_delta_ratio": 0.15}},
+    {"candidate_id": "s2_stk_l3", "family": "stacked_delta_continuation_v1", "parameters": {"side": 1, "minimum_stacked_levels": 3, "minimum_delta_ratio": 0.15}},
+    {"candidate_id": "s2_stk_l4", "family": "stacked_delta_continuation_v1", "parameters": {"side": 1, "minimum_stacked_levels": 4, "minimum_delta_ratio": 0.15}},
+    {"candidate_id": "s2_stk_s2", "family": "stacked_delta_continuation_v1", "parameters": {"side": -1, "minimum_stacked_levels": 2, "minimum_delta_ratio": 0.15}},
+    {"candidate_id": "s2_stk_s3", "family": "stacked_delta_continuation_v1", "parameters": {"side": -1, "minimum_stacked_levels": 3, "minimum_delta_ratio": 0.15}},
+    {"candidate_id": "s2_stk_s4", "family": "stacked_delta_continuation_v1", "parameters": {"side": -1, "minimum_stacked_levels": 4, "minimum_delta_ratio": 0.15}},
+
+    {"candidate_id": "s2_fpc_l010", "family": "flow_price_continuation_v1", "parameters": {"side": 1, "minimum_delta_ratio": 0.1, "minimum_price_return": 0.0005}},
+    {"candidate_id": "s2_fpc_l020", "family": "flow_price_continuation_v1", "parameters": {"side": 1, "minimum_delta_ratio": 0.2, "minimum_price_return": 0.0005}},
+    {"candidate_id": "s2_fpc_l030", "family": "flow_price_continuation_v1", "parameters": {"side": 1, "minimum_delta_ratio": 0.3, "minimum_price_return": 0.0005}},
+    {"candidate_id": "s2_fpc_s010", "family": "flow_price_continuation_v1", "parameters": {"side": -1, "minimum_delta_ratio": 0.1, "minimum_price_return": 0.0005}},
+    {"candidate_id": "s2_fpc_s020", "family": "flow_price_continuation_v1", "parameters": {"side": -1, "minimum_delta_ratio": 0.2, "minimum_price_return": 0.0005}},
+    {"candidate_id": "s2_fpc_s030", "family": "flow_price_continuation_v1", "parameters": {"side": -1, "minimum_delta_ratio": 0.3, "minimum_price_return": 0.0005}}
+  ]
+}

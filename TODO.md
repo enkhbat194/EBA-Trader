@@ -8,69 +8,80 @@ Actual GitHub/runtime state overrides stale prose. Query `main`, open PRs and wo
 - [x] Production HTTPS/PWA/runtime proof and auto-update path.
 - [x] Encrypted Binance Demo credential vault and reconnect proof.
 - [x] Repository/branch hygiene automation and legacy archive.
-- [x] Scanner-status UI hotfix; Fast Momentum remains the sole active paper scanner.
+- [x] Fast Momentum remains the sole active paper scanner.
+- [x] Binance USD-M Futures Demo BUY/SELL round-trip execution plumbing proved without real money.
+- [x] Completed one-shot Demo probe disabled while preserving terminal proof.
 
-## DONE — M5 chronological development pipeline
+## DONE — M5 chronological development foundation
 
-- [x] Close the repeated single-window Delta/stacked/absorption-exhaustion/price-delta-divergence cycle without edge promotion.
-- [x] Seal dedicated M5 development and Frozen-OOS chronology.
-- [x] Pre-register 12 fresh non-overlapping development windows.
-- [x] Materialize the 12-window corpus deterministically and resumably on Linode.
-- [x] Verify per-window integrity/provenance and final manifest.
-- [x] Implement the deterministic 17-candidate multi-window evaluator.
-- [x] Run all 17 candidates across all 12 development windows on Linode.
-- [x] Add/run a fixed 9-scenario robustness stage for `absorption_020`.
-- [x] Diagnose the sparse top candidate by development window.
-- [x] Add a qualification gate before robustness: positive mean return/expectancy, >=30 trades, and >=9 baseline-beating windows.
+- [x] Seal M5 development range `2026-07-01 -> 2026-08-15` UTC.
+- [x] Seal M5 Frozen OOS `2026-08-15 -> 2026-08-22` UTC.
+- [x] Materialize and verify the original 12-window development corpus.
+- [x] Run multi-window order-flow development research.
+- [x] Diagnose `absorption_020` as a sparse EMA-crossover entry filter rather than an independent signal generator.
+- [x] Reject `absorption_020`: only 4 trades, negative expectancy, not profitable, not sample-sufficient, not robustness-verified.
+- [x] Keep Frozen OOS closed and real-money execution locked.
 
-## IMPORTANT RESULT — current order-flow candidate did not pass
+## DONE — SF1 independent-family search
 
-`absorption_020` remains development-only evidence:
+- [x] Add 12 ATR trailing-stop candidates.
+- [x] Add 12 Donchian breakout candidates.
+- [x] Add 12 z-score mean-reversion candidates.
+- [x] Add 12 independent long/short raw footprint-delta impulse candidates.
+- [x] Fill the entire preregistered SF1 search budget: `48/48` candidates.
+- [x] Use the same 12 development windows, 4 bps fees, 1.5 bps adverse slippage and causal next-open execution.
+- [x] Apply the fixed 48-hypothesis Bonferroni correction.
+- [x] Production-run all 48 candidates on exact build `0f6d0c1d7c74f8a42ae16921d24dfe446d805380`.
+- [x] Production proof passed structurally with `validationState=NO_VERIFIED_CANDIDATE` and `verifiedCandidateCount=0`.
+- [x] Reject top development candidate `mr_48z15x00`: 10/12 baseline beats and 30 trades, but negative mean return, negative mean expectancy and adjusted p-value ~0.246.
+- [x] Reject all 12 raw order-flow impulse candidates: adequate sample but 0/12 baseline beats, negative return/expectancy and adjusted p-value 1.0.
+- [x] Close SF1 without an edge/profitability claim.
 
-- `robustnessVerified=false`
-- `centerProfitable=false`
-- `sampleSufficient=false`
-- only 4 development trades in the prior aggregate result
-- structurally it is an EMA-crossover entry filter, not an independent signal generator
+## FIXED QUALITY GATE — DO NOT LOWER
 
-Therefore:
+A candidate may enter robustness only if all are true:
 
-- [x] Keep M5 Frozen OOS closed.
-- [x] Keep real-money execution locked.
-- [x] Do not promote `absorption_020`.
-- [x] Return Strategy Factory work to development-only candidate discovery/evaluation.
+- [x] mean return > 0;
+- [x] mean expectancy > 0;
+- [x] total trades >= 30;
+- [x] baseline beaten in >=9/12 windows;
+- [x] Bonferroni-adjusted p-value <= 0.05.
 
-## DONE — Binance USD-M Futures Demo execution plumbing
+Passing this gate still does not open Frozen OOS. Robustness remains mandatory afterward.
 
-- [x] Add hard-locked one-shot BTCUSDT Demo BUY/SELL round-trip runtime.
-- [x] Require flat pre-position and flat post-position.
-- [x] Measure market-data age, request latency, fill lookup latency and slippage.
-- [x] Fix flat-position lookup for a valid zero position.
-- [x] Handle FILLED responses whose `avgPrice`/`price` are zero.
-- [x] Resolve exact fill price through order query / account trade history.
-- [x] Production v4 proof `usdm-btcusdt-roundtrip-20260829-v4` passed.
-- [x] BUY fill `77584.6`, SELL fill `77584.1`, quantity `0.0007 BTC`.
-- [x] BUY ack `212.03 ms`, SELL ack `221.39 ms`, full probe round-trip `3987.62 ms`.
-- [x] Pre/post position zero, Demo only, real execution locked.
-- [x] Disable the completed one-shot probe without losing terminal proof.
-- [x] Merge disabled-probe closeout with green CI and verify production.
+## NOW — SF2 fresh-development preregistration
 
-## DONE — external open-source architecture audit
+- [x] Stop adding candidates to SF1 after its 48/48 budget is consumed.
+- [x] Explicitly prohibit pretending another pass over the same 12 SF1 windows is fresh verification.
+- [x] Select 12 new non-overlapping 4-hour windows inside the sealed M5 development period.
+- [x] Exclude every SF1 window and the previously inspected 2026-08-01 smoke day.
+- [x] Keep the statistical correction budget at 48 even though SF2 has only 24 active candidates.
+- [x] Keep fees at 4 bps and slippage at 1.5 bps.
+- [x] Keep the quality gate unchanged.
+- [x] Preregister four SF2 families with six candidates each in `config/sf2_research_protocol_v1.json`.
+- [x] Add code validation that rejects SF1-window reuse, smoke-day reuse, changed execution assumptions, lowered statistical budget or weakened qualification gates.
+- [x] Add regression tests for the protocol.
+- [ ] Finish CI for `sf1-closeout-sf2-preregistration` and merge only if all checks pass.
 
-- [x] Audit Freqtrade, NautilusTrader, Hummingbot, Jesse and QuantConnect LEAN for reusable patterns.
-- [x] Record license constraints and adoption decisions in `docs/OSS_TRADING_PATTERN_AUDIT_2026-08-30.md`.
-- [x] Do not copy GPL implementations into EBA Trader; use architecture ideas only unless licensing is explicitly changed.
+## NEXT — Implement SF2 candidates before touching fresh data
 
-## NOW — Strategy Factory: independent signals + stronger statistical gates
+- [ ] Implement `divergence_reversal_v1` as an independent entry generator from already-closed price/Delta divergence.
+- [ ] Implement `absorption_reversal_v1` as an independent executed-flow response signal, not an EMA filter.
+- [ ] Implement `stacked_delta_continuation_v1` with stacked imbalance + Delta confirmation.
+- [ ] Implement `flow_price_continuation_v1` using only already-closed price response plus already-available executed flow.
+- [ ] Enforce fixed `minimum_hold_bars=2` and `max_hold_bars=12` to reduce the raw-delta churn failure mode.
+- [ ] Add long/short, no-lookahead, causality, cost, hold-time and terminal-close tests.
+- [ ] Freeze candidate implementation/configuration before any fresh SF2 dataset is materialized or evaluated.
 
-- [ ] Add independent strategy families rather than more filters on the EMA crossover baseline.
-- [ ] First families: ATR trailing-stop, breakout, mean-reversion, order-flow impulse/divergence.
-- [ ] Add an explicit look-ahead/causality audit inspired by mature trading frameworks.
-- [ ] Expose deterministic candidate entry/trade samples from development backtests.
-- [ ] Add a null-model/rule-significance gate before robustness promotion.
-- [ ] Keep minimum activity, positive expectancy, fees/slippage and baseline coverage mandatory.
-- [ ] Add Monte Carlo stress only after a candidate has adequate trade samples.
-- [ ] Require center profitability, sample sufficiency, cost stress, parameter-neighborhood stability and statistical evidence before Frozen OOS can be considered.
+## THEN — Fresh SF2 evidence
+
+- [ ] Materialize the preregistered 12-window SF2 corpus from Binance USD-M daily aggregate-trade archives using a distinct immutable corpus/materialization ID.
+- [ ] Verify archive checksum, acquisition provenance, feature hashes and non-overlap with M5 Frozen OOS.
+- [ ] Run all 24 SF2 candidates across all 12 fresh development windows.
+- [ ] Use 4096 sign-flip permutations and the conservative 48-hypothesis Bonferroni budget.
+- [ ] Reject every candidate that misses any fixed quality-gate condition.
+- [ ] Run robustness only for a candidate that passes the entire development gate.
+- [ ] Keep M5 Frozen OOS sealed unless development + robustness both pass.
 
 ## NEXT — execution architecture hardening
 
@@ -98,4 +109,4 @@ Therefore:
 
 ## Handoff rule
 
-At meaningful session end, record exact commits, CI/production proof, risks and the next exact action. Never convert a successful execution-plumbing proof into a profitability or live-readiness claim.
+At meaningful session end, record exact commits, CI/production proof, risks and the next exact action. Never convert successful execution plumbing, a development leaderboard, or a statistically invalid repeated search into a profitability/live-readiness claim.

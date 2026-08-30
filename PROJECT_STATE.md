@@ -1,143 +1,155 @@
 # EBA Trader — Project State
 
-_Last reconciled: 2026-08-29 (Asia/Ulaanbaatar)_
+_Last reconciled: 2026-08-30 (Asia/Ulaanbaatar)_
 
 Actual GitHub code, workflow state and Linode production proof override stale prose.
 
 ## Current goal
 
-Keep `main` production-clean while building a verified automated trading research pipeline. Development evidence must pass robustness before any sealed Frozen-OOS stage. Real-money execution stays locked.
-
-## Current stage
-
-- Production/runtime foundation: **VERIFIED**.
-- Fast Momentum: **sole active production paper scanner**.
-- M4 research/evidence platform: **COMPLETE**.
-- M5 single-window order-flow candidate cycle: **CLOSED WITHOUT EDGE CLAIM**.
-- M5 chronological study policy: **MERGED / ENFORCED**.
-- 12-window M5 development corpus: **MATERIALIZED / VERIFIED**.
-- 17-candidate multi-window evaluator: **IMPLEMENTED / PRODUCTION-RUN**.
-- `absorption_020` robustness stage: **COMPLETE BUT NOT VERIFIED**.
-- Binance USD-M Futures Demo execution plumbing: **REAL DEMO ROUND-TRIP VERIFIED**.
-- M5 Frozen OOS (`2026-08-15 -> 2026-08-22` UTC): **SEALED / NOT OPENED**.
-- Legacy 2025 Frozen OOS: **LOCKED**.
-- Real-money execution: **LOCKED**.
+Build a verified automated trading research pipeline without weakening the quality bar. Candidate discovery stays development-only until a strategy passes profitability, activity, cross-window, multiple-testing and robustness gates. Real-money execution stays locked.
 
 ## Canonical repository/runtime state
 
 - Repository: `enkhbat194/EBA-Trader`
 - Production URL: `https://eba-trader-172-236-150-62.sslip.io`
-- Production `main` before the current closeout PR: `9ab6e70a4d5cbef7854facd48b13607ea3356b4b`
-- Current closeout branch: `closeout-binance-demo-v4`
-- Open PRs at closeout start: none.
-- Linode exact-build production proof for `9ab6e70a...`: **PASS**.
+- Canonical production `main`: `0f6d0c1d7c74f8a42ae16921d24dfe446d805380`
+- Exact-build Linode production proof for `0f6d0c1d...`: **PASS**.
+- Fast Momentum remains the sole active production paper scanner.
+- Binance USD-M Futures Demo execution plumbing: **REAL DEMO ROUND-TRIP VERIFIED**.
+- M5 Frozen OOS (`2026-08-15 -> 2026-08-22` UTC): **SEALED / NOT OPENED**.
+- Legacy 2025 Frozen OOS: **LOCKED**.
+- Real-money execution: **LOCKED**.
 
-Recent durable milestones:
+## M5 / SF1 research status
 
-- `8f7d27922c60caf92e3f23fc988f0dbbba2b7e84` — resumable 12-window development corpus materializer.
-- `d0de5fbfe33ecfaff50693637ec6ff38829ad81c` — materialize the pre-registered corpus on Linode.
-- `40ec7761e27616621b563665697cbe0ff783336f` — deterministic 17-candidate multi-window evaluator.
-- `e7d398903ebb635b3645b5ceca36112a07f0f4a7` — run the evaluator across all 12 development windows on Linode.
-- `3dcfe48995b3662899105b710aa82c6a68ad093c` — fixed 9-scenario robustness stage for `absorption_020`.
-- `1667a0fd918a2af8f0a1796414bc536def26c9ad` and follow-up fixes — one-shot Binance USD-M Demo execution/latency proof infrastructure.
-- `9ab6e70a4d5cbef7854facd48b13607ea3356b4b` — resolve zero-price Demo fills through exact order lookup/account trade history.
+### Historical M5 candidate
+
+`absorption_020` is closed without promotion:
+
+- only 4 development trades;
+- negative expectancy;
+- `centerProfitable=false`;
+- `sampleSufficient=false`;
+- `robustnessVerified=false`;
+- structurally it is an EMA-crossover entry filter, not an independent absorption signal generator.
+
+### SF1 independent-family search — CLOSED
+
+SF1 used the complete preregistered multiple-testing budget:
+
+- 12 ATR trailing-stop candidates;
+- 12 Donchian breakout candidates;
+- 12 z-score mean-reversion candidates;
+- 12 independent raw footprint-delta impulse candidates;
+- total: **48/48 candidates**;
+- development windows: **12**;
+- fees: **4 bps**;
+- adverse slippage: **1.5 bps**;
+- causal next-open execution;
+- Bonferroni budget: **48**.
+
+Production result on exact build `0f6d0c1d...`:
+
+- `validationState=NO_VERIFIED_CANDIDATE`;
+- `verifiedCandidateCount=0`;
+- `topVerifiedCandidate=null`;
+- Frozen OOS remained closed;
+- live execution remained locked.
+
+The top development-ranked candidate was `mr_48z15x00`:
+
+- baseline-beating windows: `10/12`;
+- total trades: `30`;
+- mean return: approximately `-0.0965%`;
+- mean expectancy: approximately `-1.17`;
+- Bonferroni-adjusted p-value: approximately `0.246`.
+
+It therefore fails the unchanged quality gate and is rejected.
+
+The new independent order-flow delta family had adequate sample size but poor economics:
+
+- all 12 candidates beat the baseline in `0/12` windows;
+- all had negative mean return and negative mean expectancy;
+- adjusted p-values were `1.0`;
+- this is a performance failure, not an inactivity failure.
 
 ## Validation status
 
-### M5 robustness
+- SF1 production evaluation completed on all 48 preregistered candidates.
+- No strategy is development-verified or robustness-eligible.
+- SF1 evidence is closed and must not be extended with post-hoc threshold tuning.
+- SF2 protocol validation is required to fail closed on reused SF1 evidence, smoke-day reuse, lowered statistical budget or weakened quality criteria.
 
-Production proof run `33215478581` completed successfully as a proof collector, but the candidate itself **did not pass robustness**:
+## Quality gate — DO NOT LOWER
 
-- robustness ID: `m5rob_0ddaad97c4954b46ff7e9bcb`
-- candidate: `absorption_020`
-- scenarios: 9
-- `robustnessVerified=false`
-- `centerProfitable=false`
-- `sampleSufficient=false`
-- `costStressStable=true`
-- `emaStable=true`
-- `parameterNeighborhoodStable=true`
-- minimum baseline-beating windows: 9
-- minimum center trades requirement: 30
+A development candidate may enter robustness only if all are true:
 
-Interpretation: the plumbing and robustness evaluation completed safely, but this candidate is **not eligible for Frozen OOS**. Do not promote it.
+1. mean return > 0;
+2. mean expectancy > 0;
+3. total trades >= 30;
+4. baseline beaten in at least 9 of 12 development windows;
+5. Bonferroni-adjusted p-value <= 0.05.
 
-### Binance USD-M Futures Demo round-trip v4
+Passing development still does **not** open Frozen OOS. Robustness must then pass center profitability, sample sufficiency, cost stress, parameter-neighborhood stability and other locked checks.
 
-Production one-shot probe `usdm-btcusdt-roundtrip-20260829-v4` completed with `phase=COMPLETE`, `passed=true` on exact build `9ab6e70a...`.
+## Scientific closeout decision
 
-Execution proof:
+SF1 has consumed its full 48-candidate preregistered search budget. Do not add more SF1 thresholds or retune the same 12 development windows. Doing so would create adaptive data snooping / overfitting.
 
-- environment: Binance USD-M Futures **Demo** (`demo-fapi.binance.com`)
-- symbol: `BTCUSDT`
-- position mode: one-way
-- quantity: `0.0007 BTC`
-- effective notional: `54.30901 USDT`
-- available Demo USDT before: `4999.89709561`
-- BUY average fill: `77584.6`
-- SELL average fill: `77584.1`
-- BUY fill source: exact order query
-- SELL fill source: exact order query
-- BUY slippage: `+0.0386676170 bps`
-- SELL slippage: `+0.0322229934 bps`
-- BUY order acknowledgement: `212.033707 ms`
-- SELL order acknowledgement: `221.393951 ms`
-- BUY fill lookup: `216.710555 ms`
-- SELL fill lookup: `270.355526 ms`
-- latest market-data age: `618.613281 ms`
-- full probe round-trip: `3987.621519 ms`
-- pre-position zero: true
-- post-position zero: true
-- real money used: false
-- real execution lock: true
-- Frozen OOS lock: true
+The next research phase is SF2 and must use **fresh development evidence not used by SF1**. Candidate definitions and the data windows must be preregistered before any SF2 evaluation result is inspected.
 
-This proves the **Demo execution plumbing and measurement path**, not strategy profitability and not live-readiness.
+## SF2 preregistration — IN PROGRESS
 
-## Demo one-shot closeout
+Branch: `sf1-closeout-sf2-preregistration`
 
-The current closeout changes make the successful v4 probe permanently inactive after proof:
+Protocol file:
 
-- `config/binance_demo_execution_probe_v1.json` becomes `enabled=false`;
-- a disabled probe preserves an already-terminal Demo proof instead of overwriting it with `DISABLED`;
-- regression coverage guarantees disabled state cannot submit another order;
-- the existing successful proof remains observable for continuity/production checks.
+- `config/sf2_research_protocol_v1.json`
 
-## Research interpretation
+Locked SF2 design:
 
-The system has now proven:
+- source phase: `sf1_independent_families_v1`;
+- active candidates: **24**;
+- statistical correction budget remains **48** (conservative; it is not reduced to 24);
+- fresh development windows: **12 × 4 hours**;
+- none overlap the SF1 12-window corpus;
+- the previously inspected 2026-08-01 smoke day is excluded;
+- every window is inside the sealed M5 development range `2026-07-01 -> 2026-08-15`;
+- M5 Frozen OOS `2026-08-15 -> 2026-08-22` remains unreachable by normal SF2 development;
+- fee/slippage and the quality gate remain unchanged.
 
-1. deterministic historical research/data materialization;
-2. multi-window candidate evaluation;
-3. a bounded robustness stage;
-4. actual Binance Futures Demo BUY/SELL execution plumbing with measured latency/slippage and flat-position recovery.
+Preregistered SF2 families, six candidates each:
 
-What it has **not** proven is a robust profitable strategy. `absorption_020` failed the required profitability/sample sufficiency checks, so the research pipeline must return to development rather than open Frozen OOS.
+1. `divergence_reversal_v1` — independent price/Delta divergence reversal entries;
+2. `absorption_reversal_v1` — direct executed-flow absorption-proxy reversal entries;
+3. `stacked_delta_continuation_v1` — stacked imbalance + Delta confirmation;
+4. `flow_price_continuation_v1` — executed-flow and already-closed price-response continuation.
+
+SF2 adds fixed anti-churn holding rules (`minimum_hold_bars=2`, `max_hold_bars=12`) because SF1 raw-delta impulse overtraded and lost to poor expectancy/costs. These rules are preregistered before fresh SF2 data is inspected.
 
 ## Safety invariants
 
 - Frozen OOS cannot be opened by normal development workflows.
-- M5 Frozen OOS stays sealed until a candidate actually passes robustness.
-- Real Binance order execution remains disabled.
-- Demo execution plumbing has no lifecycle-promotion authority.
+- M5 Frozen OOS stays sealed until a candidate passes strict development + robustness gates.
+- Real Binance execution remains disabled.
+- Demo execution proof has no strategy-promotion authority.
 - Development rankings have no promotion authority.
-- Lifecycle v2 requires robustness before OOS.
-- Deterministic risk keeps final veto authority.
 - Runtime persistence and research persistence remain separate.
 - Spot and USD-M futures data are never silently mixed.
 - Executed footprint and resting LOB/order-book liquidity remain separate data planes.
 - Gapped/tampered/missing-version research data fails closed.
+- Reusing already-inspected development evidence must be labelled adaptive/exploratory; it cannot masquerade as fresh verification.
 
 ## Next exact task
 
-1. Finish CI for `closeout-binance-demo-v4`.
-2. Merge only if full regression/runtime/continuity checks pass.
-3. Verify production exact build and confirm the preserved v4 proof remains `COMPLETE` after the probe is disabled.
-4. Clean temporary proof branches when branch-deletion authority is available; keep `main` plus the intentional legacy archive.
-5. Return Strategy Factory work to **development-only** candidate discovery/evaluation.
-6. Increase independent evidence/sample size and candidate quality without reusing Frozen OOS.
-7. Require the next candidate to satisfy center profitability, sample sufficiency, cost stress and parameter-neighborhood stability before Frozen OOS can be considered.
-8. Do not open M5 Frozen OOS and do not enable real-money execution.
+1. Finish CI for `sf1-closeout-sf2-preregistration`.
+2. Merge only with full regression/runtime/continuity checks green.
+3. Verify exact production build while confirming SF1 remains `NO_VERIFIED_CANDIDATE` and all locks remain closed.
+4. Implement the four SF2 signal families **without materializing or evaluating the fresh SF2 windows yet**.
+5. Add causality, fee/slippage, holding-period, long/short and no-lookahead regression tests.
+6. Only after candidate implementation is frozen and CI-green, materialize the preregistered fresh SF2 corpus from the Binance USD-M archive.
+7. Run the 24 candidates across the 12 fresh windows using the unchanged 48-hypothesis Bonferroni correction.
+8. Reject every candidate that misses any quality-gate condition; do not open M5 Frozen OOS and do not enable real-money execution.
 
 ## Continuity protocol
 
