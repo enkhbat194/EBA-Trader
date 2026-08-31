@@ -2,11 +2,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .strategy_discovery_v2 import MAX_CANDIDATES_PER_FAMILY, MAX_RAW_CANDIDATES
-from .strategy_family_v2 import ParameterAxis, StrategyDataPlane, StrategyFamilyV2
+from .strategy_discovery_v2 import (
+    MAX_CANDIDATES_PER_FAMILY,
+    MAX_RAW_CANDIDATES,
+    DiscoveryCandidate,
+)
+from .strategy_family_v2 import (
+    ParameterAxis,
+    StrategyDataPlane,
+    StrategyFamilyV2,
+    deterministic_quasi_random_candidates,
+)
 
 TARGET_FAMILY_MIN = 8
 TARGET_FAMILY_MAX = 12
+PILOT_SEED = "sfv2-discovery-pilot-v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,3 +192,26 @@ def _validate_catalog(plans: tuple[PilotFamilyPlan, ...]) -> None:
 
 def planned_raw_candidate_count() -> int:
     return sum(plan.sample_count for plan in pilot_family_plans())
+
+
+def generate_pilot_candidates(*, seed: str = PILOT_SEED) -> tuple[DiscoveryCandidate, ...]:
+    if not seed.strip():
+        raise ValueError("pilot seed is required")
+    candidates: list[DiscoveryCandidate] = []
+    for plan in pilot_family_plans():
+        family_seed = f"{seed}:{plan.family.family_id}"
+        candidates.extend(
+            deterministic_quasi_random_candidates(
+                plan.family,
+                count=plan.sample_count,
+                seed=family_seed,
+            )
+        )
+    ids = tuple(candidate.candidate_id for candidate in candidates)
+    if len(ids) != planned_raw_candidate_count():
+        raise RuntimeError("pilot candidate generation did not honor the declared sample plan")
+    if len(ids) != len(set(ids)):
+        raise RuntimeError("pilot candidate generation produced duplicate candidate IDs")
+    if len(ids) > MAX_RAW_CANDIDATES:
+        raise RuntimeError("pilot candidate generation exceeded the hard raw-candidate cap")
+    return tuple(candidates)
