@@ -20,7 +20,6 @@ from .sf2_development import (
     _resolve_under,
     _safe_contract,
     _window_returns,
-    write_immutable_report,
 )
 from .sf3_protocol import (
     ADJUSTED_ALPHA_MAX,
@@ -319,7 +318,12 @@ def validate_sf3_development(
         if not isinstance(candidate, Mapping):
             raise RuntimeError("SF3 candidate row is invalid")
         candidate_id = candidate.get("candidateId")
-        if not isinstance(candidate_id, str) or candidate_id not in expected or candidate_id in seen:
+        invalid_candidate = (
+            not isinstance(candidate_id, str)
+            or candidate_id not in expected
+            or candidate_id in seen
+        )
+        if invalid_candidate:
             raise RuntimeError("SF3 candidateId is invalid, unknown or duplicated")
         seen.add(candidate_id)
         spec = expected[candidate_id]
