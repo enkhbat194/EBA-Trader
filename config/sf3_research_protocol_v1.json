@@ -1,0 +1,78 @@
+{
+  "schema": "sf3_research_protocol_v1",
+  "phase_id": "sf3_fresh_development_v1",
+  "source_phase": "sf2_fresh_development_v1",
+  "symbol": "BTCUSDT",
+  "venue": "usd_m_futures",
+  "interval": "1m",
+  "planned_candidate_budget": 48,
+  "active_candidate_count": 24,
+  "warmup_bars": 96,
+  "execution": {
+    "initial_cash": 10000.0,
+    "fee_bps": 4.0,
+    "slippage_bps": 1.5,
+    "signal_to_execution_delay_bars": 1,
+    "max_hold_bars": 30,
+    "minimum_hold_bars": 4
+  },
+  "qualification": {
+    "minimum_mean_return_exclusive": 0.0,
+    "minimum_mean_expectancy_exclusive": 0.0,
+    "minimum_total_trades": 30,
+    "minimum_baseline_beating_windows": 9,
+    "adjusted_alpha_max": 0.05,
+    "multiple_testing_method": "bonferroni",
+    "permutation_count": 4096
+  },
+  "data_reuse_policy": {
+    "sf1_development_windows_reused": false,
+    "sf2_development_windows_reused": false,
+    "original_2026_08_01_smoke_window_reused": false,
+    "frozen_oos_allowed": false,
+    "fresh_development_required": true
+  },
+  "development_windows": [
+    {"name": "sf3-dev-01", "start": "2026-07-04T08:00:00Z", "end": "2026-07-04T12:00:00Z"},
+    {"name": "sf3-dev-02", "start": "2026-07-08T16:00:00Z", "end": "2026-07-08T20:00:00Z"},
+    {"name": "sf3-dev-03", "start": "2026-07-13T00:00:00Z", "end": "2026-07-13T04:00:00Z"},
+    {"name": "sf3-dev-04", "start": "2026-07-17T08:00:00Z", "end": "2026-07-17T12:00:00Z"},
+    {"name": "sf3-dev-05", "start": "2026-07-21T16:00:00Z", "end": "2026-07-21T20:00:00Z"},
+    {"name": "sf3-dev-06", "start": "2026-07-25T00:00:00Z", "end": "2026-07-25T04:00:00Z"},
+    {"name": "sf3-dev-07", "start": "2026-07-29T08:00:00Z", "end": "2026-07-29T12:00:00Z"},
+    {"name": "sf3-dev-08", "start": "2026-08-02T16:00:00Z", "end": "2026-08-02T20:00:00Z"},
+    {"name": "sf3-dev-09", "start": "2026-08-06T00:00:00Z", "end": "2026-08-06T04:00:00Z"},
+    {"name": "sf3-dev-10", "start": "2026-08-09T08:00:00Z", "end": "2026-08-09T12:00:00Z"},
+    {"name": "sf3-dev-11", "start": "2026-08-13T08:00:00Z", "end": "2026-08-13T12:00:00Z"},
+    {"name": "sf3-dev-12", "start": "2026-08-14T08:00:00Z", "end": "2026-08-14T12:00:00Z"}
+  ],
+  "candidates": [
+    {"candidate_id": "s3_rft_l08", "family": "rolling_flow_trend_v1", "parameters": {"side": 1, "lookback": 8, "minimum_flow_ratio": 0.08, "minimum_price_return": 0.001}},
+    {"candidate_id": "s3_rft_l16", "family": "rolling_flow_trend_v1", "parameters": {"side": 1, "lookback": 16, "minimum_flow_ratio": 0.08, "minimum_price_return": 0.001}},
+    {"candidate_id": "s3_rft_l32", "family": "rolling_flow_trend_v1", "parameters": {"side": 1, "lookback": 32, "minimum_flow_ratio": 0.08, "minimum_price_return": 0.001}},
+    {"candidate_id": "s3_rft_s08", "family": "rolling_flow_trend_v1", "parameters": {"side": -1, "lookback": 8, "minimum_flow_ratio": 0.08, "minimum_price_return": 0.001}},
+    {"candidate_id": "s3_rft_s16", "family": "rolling_flow_trend_v1", "parameters": {"side": -1, "lookback": 16, "minimum_flow_ratio": 0.08, "minimum_price_return": 0.001}},
+    {"candidate_id": "s3_rft_s32", "family": "rolling_flow_trend_v1", "parameters": {"side": -1, "lookback": 32, "minimum_flow_ratio": 0.08, "minimum_price_return": 0.001}},
+
+    {"candidate_id": "s3_vsm_l150", "family": "volume_shock_momentum_v1", "parameters": {"side": 1, "lookback": 30, "volume_multiple": 1.5, "minimum_price_return": 0.001}},
+    {"candidate_id": "s3_vsm_l200", "family": "volume_shock_momentum_v1", "parameters": {"side": 1, "lookback": 30, "volume_multiple": 2.0, "minimum_price_return": 0.001}},
+    {"candidate_id": "s3_vsm_l250", "family": "volume_shock_momentum_v1", "parameters": {"side": 1, "lookback": 30, "volume_multiple": 2.5, "minimum_price_return": 0.001}},
+    {"candidate_id": "s3_vsm_s150", "family": "volume_shock_momentum_v1", "parameters": {"side": -1, "lookback": 30, "volume_multiple": 1.5, "minimum_price_return": 0.001}},
+    {"candidate_id": "s3_vsm_s200", "family": "volume_shock_momentum_v1", "parameters": {"side": -1, "lookback": 30, "volume_multiple": 2.0, "minimum_price_return": 0.001}},
+    {"candidate_id": "s3_vsm_s250", "family": "volume_shock_momentum_v1", "parameters": {"side": -1, "lookback": 30, "volume_multiple": 2.5, "minimum_price_return": 0.001}},
+
+    {"candidate_id": "s3_vwr_l10", "family": "vwap_reversion_flow_v1", "parameters": {"side": 1, "lookback": 60, "entry_deviation_bps": 10.0, "minimum_reversal_delta_ratio": 0.05}},
+    {"candidate_id": "s3_vwr_l20", "family": "vwap_reversion_flow_v1", "parameters": {"side": 1, "lookback": 60, "entry_deviation_bps": 20.0, "minimum_reversal_delta_ratio": 0.05}},
+    {"candidate_id": "s3_vwr_l30", "family": "vwap_reversion_flow_v1", "parameters": {"side": 1, "lookback": 60, "entry_deviation_bps": 30.0, "minimum_reversal_delta_ratio": 0.05}},
+    {"candidate_id": "s3_vwr_s10", "family": "vwap_reversion_flow_v1", "parameters": {"side": -1, "lookback": 60, "entry_deviation_bps": 10.0, "minimum_reversal_delta_ratio": 0.05}},
+    {"candidate_id": "s3_vwr_s20", "family": "vwap_reversion_flow_v1", "parameters": {"side": -1, "lookback": 60, "entry_deviation_bps": 20.0, "minimum_reversal_delta_ratio": 0.05}},
+    {"candidate_id": "s3_vwr_s30", "family": "vwap_reversion_flow_v1", "parameters": {"side": -1, "lookback": 60, "entry_deviation_bps": 30.0, "minimum_reversal_delta_ratio": 0.05}},
+
+    {"candidate_id": "s3_cex_l055", "family": "compression_expansion_v1", "parameters": {"side": 1, "short_lookback": 8, "long_lookback": 32, "compression_ratio_max": 0.55, "minimum_price_return": 0.001}},
+    {"candidate_id": "s3_cex_l065", "family": "compression_expansion_v1", "parameters": {"side": 1, "short_lookback": 8, "long_lookback": 32, "compression_ratio_max": 0.65, "minimum_price_return": 0.001}},
+    {"candidate_id": "s3_cex_l075", "family": "compression_expansion_v1", "parameters": {"side": 1, "short_lookback": 8, "long_lookback": 32, "compression_ratio_max": 0.75, "minimum_price_return": 0.001}},
+    {"candidate_id": "s3_cex_s055", "family": "compression_expansion_v1", "parameters": {"side": -1, "short_lookback": 8, "long_lookback": 32, "compression_ratio_max": 0.55, "minimum_price_return": 0.001}},
+    {"candidate_id": "s3_cex_s065", "family": "compression_expansion_v1", "parameters": {"side": -1, "short_lookback": 8, "long_lookback": 32, "compression_ratio_max": 0.65, "minimum_price_return": 0.001}},
+    {"candidate_id": "s3_cex_s075", "family": "compression_expansion_v1", "parameters": {"side": -1, "short_lookback": 8, "long_lookback": 32, "compression_ratio_max": 0.75, "minimum_price_return": 0.001}}
+  ]
+}
