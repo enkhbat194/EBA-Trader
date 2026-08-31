@@ -20,7 +20,6 @@ class DiscoveryTrialStatus(StrEnum):
     DECLARED = "declared"
     EVALUATED = "evaluated"
     REJECTED = "rejected"
-    SURVIVOR = "survivor"
 
 
 @dataclass(frozen=True, slots=True)
@@ -185,10 +184,11 @@ def select_behavioral_representatives(
 
 
 class DiscoveryTrialLedger:
-    """Immutable-audit ledger for non-authoritative mass discovery trials.
+    """Audit ledger for discovery candidates, evaluations and frozen survivor selection.
 
-    This ledger deliberately has no method that changes StrategyLifecycle. A survivor only
-    earns the right to enter a later hidden-confirmation workflow; it is never verified here.
+    Candidate budget and evaluation-trial count are intentionally separate. One declared candidate
+    may be evaluated across multiple D0 subsets/fidelities without consuming additional raw-candidate
+    budget. Nothing in this ledger can transition the durable StrategyLifecycle.
     """
 
     def __init__(self, store: ResearchStore) -> None:
@@ -210,16 +210,29 @@ class DiscoveryTrialLedger:
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                 );
 
-                CREATE TABLE IF NOT EXISTS discovery_trials_v2 (
-                    trial_id TEXT PRIMARY KEY,
+                CREATE TABLE IF NOT EXISTS discovery_candidates_v2 (
                     campaign_id TEXT NOT NULL,
                     candidate_id TEXT NOT NULL,
                     family_id TEXT NOT NULL,
                     candidate_spec_sha256 TEXT NOT NULL,
                     candidate_spec_json TEXT NOT NULL,
-                    dataset_sha256 TEXT NOT NULL,
                     source_code_sha TEXT NOT NULL,
                     search_round INTEGER NOT NULL CHECK(search_round >= 0),
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY(campaign_id, candidate_id),
+                    FOREIGN KEY(campaign_id) REFERENCES discovery_campaigns_v2(campaign_id)
+                        ON DELETE RESTRICT
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_discovery_candidates_campaign
+                    ON discovery_candidates_v2(campaign_id, family_id, candidate_id);
+
+                CREATE TABLE IF NOT EXISTS discovery_trials_v2 (
+                    trial_id TEXT PRIMARY KEY,
+                    campaign_id TEXT NOT NULL,
+                    candidate_id TEXT NOT NULL,
+                    dataset_sha256 TEXT NOT NULL,
+                    fidelity TEXT NOT NULL,
                     status TEXT NOT NULL,
                     metrics_json TEXT NOT NULL DEFAULT '{}',
                     behavior_json TEXT,
@@ -227,13 +240,25 @@ class DiscoveryTrialLedger:
                     compute_ms INTEGER CHECK(compute_ms IS NULL OR compute_ms >= 0),
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY(campaign_id) REFERENCES discovery_campaigns_v2(campaign_id)
+                    FOREIGN KEY(campaign_id, candidate_id)
+                        REFERENCES discovery_candidates_v2(campaign_id, candidate_id)
                         ON DELETE RESTRICT,
-                    UNIQUE(campaign_id, candidate_id, dataset_sha256)
+                    UNIQUE(campaign_id, candidate_id, dataset_sha256, fidelity)
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_discovery_trials_campaign
-                    ON discovery_trials_v2(campaign_id, status, family_id, candidate_id);
+                    ON discovery_trials_v2(campaign_id, status, candidate_id, fidelity);
+
+                CREATE TABLE IF NOT EXISTS discovery_survivor_selections_v2 (
+                    selection_id TEXT PRIMARY KEY,
+                    campaign_id TEXT NOT NULL UNIQUE,
+                    definition_sha256 TEXT NOT NULL,
+                    definition_json TEXT NOT NULL,
+                    candidate_ids_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(campaign_id) REFERENCES discovery_campaigns_v2(campaign_id)
+                        ON DELETE RESTRICT
+                );
                 """
             )
 
@@ -243,10 +268,7 @@ class DiscoveryTrialLedger:
         *,
         definition: Mapping[str, object],
     ) -> None:
-        payload = {
-            "definition": dict(definition),
-            "policy": policy.as_dict(),
-        }
+        payload = {"definition": dict(definition), "policy": policy.as_dict()}
         definition_json = canonical_json(payload)
         definition_sha256 = sha256_text(definition_json)
         with self.store._connection() as connection:
@@ -276,25 +298,17 @@ class DiscoveryTrialLedger:
                 ),
             )
 
-    def declare_trial(
+    def declare_candidate(
         self,
         *,
         campaign_id: str,
         candidate: DiscoveryCandidate,
-        dataset_sha256: str,
         source_code_sha: str,
         search_round: int,
     ) -> str:
-        dataset_sha256 = _required_token(dataset_sha256, "dataset_sha256")
         source_code_sha = _required_token(source_code_sha, "source_code_sha")
         if search_round < 0:
             raise ValueError("search_round must be non-negative")
-        trial_payload = {
-            "campaign_id": campaign_id,
-            "candidate_id": candidate.candidate_id,
-            "dataset_sha256": dataset_sha256,
-        }
-        trial_id = f"dtrial_{sha256_text(canonical_json(trial_payload))[:24]}"
         candidate_json = canonical_json(candidate.specification)
 
         with self.store._connection() as connection:
@@ -305,26 +319,29 @@ class DiscoveryTrialLedger:
             if campaign is None:
                 raise KeyError(f"unknown discovery campaign: {campaign_id}")
             existing = connection.execute(
-                "SELECT * FROM discovery_trials_v2 WHERE trial_id = ?",
-                (trial_id,),
+                """
+                SELECT * FROM discovery_candidates_v2
+                WHERE campaign_id = ? AND candidate_id = ?
+                """,
+                (campaign_id, candidate.candidate_id),
             ).fetchone()
             if existing is not None:
                 if (
                     existing["candidate_spec_sha256"] != candidate.specification_sha256
                     or existing["source_code_sha"] != source_code_sha
                 ):
-                    raise RuntimeError("immutable discovery trial collision")
-                return trial_id
+                    raise RuntimeError("immutable discovery candidate collision")
+                return candidate.candidate_id
 
             total = connection.execute(
-                "SELECT COUNT(*) AS n FROM discovery_trials_v2 WHERE campaign_id = ?",
+                "SELECT COUNT(*) AS n FROM discovery_candidates_v2 WHERE campaign_id = ?",
                 (campaign_id,),
             ).fetchone()["n"]
             if int(total) >= int(campaign["raw_candidate_cap"]):
                 raise RuntimeError("discovery campaign raw candidate cap reached")
             family_total = connection.execute(
                 """
-                SELECT COUNT(*) AS n FROM discovery_trials_v2
+                SELECT COUNT(*) AS n FROM discovery_candidates_v2
                 WHERE campaign_id = ? AND family_id = ?
                 """,
                 (campaign_id, candidate.family_id),
@@ -334,22 +351,70 @@ class DiscoveryTrialLedger:
 
             connection.execute(
                 """
-                INSERT INTO discovery_trials_v2(
-                    trial_id, campaign_id, candidate_id, family_id,
-                    candidate_spec_sha256, candidate_spec_json, dataset_sha256,
-                    source_code_sha, search_round, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO discovery_candidates_v2(
+                    campaign_id, candidate_id, family_id, candidate_spec_sha256,
+                    candidate_spec_json, source_code_sha, search_round
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    trial_id,
                     campaign_id,
                     candidate.candidate_id,
                     candidate.family_id,
                     candidate.specification_sha256,
                     candidate_json,
-                    dataset_sha256,
                     source_code_sha,
                     search_round,
+                ),
+            )
+        return candidate.candidate_id
+
+    def declare_trial(
+        self,
+        *,
+        campaign_id: str,
+        candidate_id: str,
+        dataset_sha256: str,
+        fidelity: str,
+    ) -> str:
+        dataset_sha256 = _required_token(dataset_sha256, "dataset_sha256")
+        fidelity = _required_token(fidelity, "fidelity")
+        candidate_id = _required_token(candidate_id, "candidate_id")
+        trial_payload = {
+            "campaign_id": campaign_id,
+            "candidate_id": candidate_id,
+            "dataset_sha256": dataset_sha256,
+            "fidelity": fidelity,
+        }
+        trial_id = f"dtrial_{sha256_text(canonical_json(trial_payload))[:24]}"
+
+        with self.store._connection() as connection:
+            candidate = connection.execute(
+                """
+                SELECT 1 FROM discovery_candidates_v2
+                WHERE campaign_id = ? AND candidate_id = ?
+                """,
+                (campaign_id, candidate_id),
+            ).fetchone()
+            if candidate is None:
+                raise KeyError(f"unknown discovery candidate: {candidate_id}")
+            existing = connection.execute(
+                "SELECT * FROM discovery_trials_v2 WHERE trial_id = ?",
+                (trial_id,),
+            ).fetchone()
+            if existing is not None:
+                return trial_id
+            connection.execute(
+                """
+                INSERT INTO discovery_trials_v2(
+                    trial_id, campaign_id, candidate_id, dataset_sha256, fidelity, status
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    trial_id,
+                    campaign_id,
+                    candidate_id,
+                    dataset_sha256,
+                    fidelity,
                     DiscoveryTrialStatus.DECLARED.value,
                 ),
             )
@@ -366,7 +431,7 @@ class DiscoveryTrialLedger:
         compute_ms: int | None = None,
     ) -> None:
         if status is DiscoveryTrialStatus.DECLARED:
-            raise ValueError("record_result requires a terminal discovery evaluation status")
+            raise ValueError("record_result requires an evaluated/rejected status")
         if compute_ms is not None and compute_ms < 0:
             raise ValueError("compute_ms must be non-negative")
         if status is DiscoveryTrialStatus.REJECTED and not (rejection_reason or "").strip():
@@ -392,24 +457,6 @@ class DiscoveryTrialLedger:
                 if same:
                     return
                 raise RuntimeError("discovery trial result is immutable")
-
-            if status is DiscoveryTrialStatus.SURVIVOR:
-                campaign = connection.execute(
-                    """
-                    SELECT c.survivor_cap,
-                           SUM(CASE WHEN t.status = 'survivor' THEN 1 ELSE 0 END) AS survivors
-                    FROM discovery_campaigns_v2 AS c
-                    LEFT JOIN discovery_trials_v2 AS t USING(campaign_id)
-                    WHERE c.campaign_id = ?
-                    GROUP BY c.campaign_id
-                    """,
-                    (row["campaign_id"],),
-                ).fetchone()
-                if campaign is None:
-                    raise RuntimeError("discovery campaign disappeared")
-                if int(campaign["survivors"] or 0) >= int(campaign["survivor_cap"]):
-                    raise RuntimeError("discovery campaign survivor cap reached")
-
             connection.execute(
                 """
                 UPDATE discovery_trials_v2
@@ -427,11 +474,104 @@ class DiscoveryTrialLedger:
                 ),
             )
 
-    def list_trials(self, campaign_id: str) -> list[dict[str, Any]]:
+    def freeze_survivor_selection(
+        self,
+        *,
+        campaign_id: str,
+        candidate_ids: Sequence[str],
+        definition: Mapping[str, object],
+    ) -> str:
+        selected = tuple(sorted(set(candidate_ids)))
+        if not selected:
+            raise ValueError("survivor selection cannot be empty")
+        if len(selected) != len(candidate_ids):
+            raise ValueError("survivor candidate_ids must be unique")
+        definition_payload = {
+            "authority": DISCOVERY_AUTHORITY,
+            "candidate_ids": list(selected),
+            "definition": dict(definition),
+        }
+        definition_json = canonical_json(definition_payload)
+        definition_sha256 = sha256_text(definition_json)
+        selection_id = f"dsel_{definition_sha256[:24]}"
+
+        with self.store._connection() as connection:
+            campaign = connection.execute(
+                "SELECT * FROM discovery_campaigns_v2 WHERE campaign_id = ?",
+                (campaign_id,),
+            ).fetchone()
+            if campaign is None:
+                raise KeyError(f"unknown discovery campaign: {campaign_id}")
+            if len(selected) > int(campaign["survivor_cap"]):
+                raise RuntimeError("discovery campaign survivor cap exceeded")
+
+            for candidate_id in selected:
+                candidate = connection.execute(
+                    """
+                    SELECT 1 FROM discovery_candidates_v2
+                    WHERE campaign_id = ? AND candidate_id = ?
+                    """,
+                    (campaign_id, candidate_id),
+                ).fetchone()
+                if candidate is None:
+                    raise KeyError(f"unknown discovery candidate: {candidate_id}")
+                evaluated = connection.execute(
+                    """
+                    SELECT COUNT(*) AS evaluated,
+                           SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) AS rejected
+                    FROM discovery_trials_v2
+                    WHERE campaign_id = ? AND candidate_id = ?
+                    """,
+                    (campaign_id, candidate_id),
+                ).fetchone()
+                if int(evaluated["evaluated"] or 0) == 0:
+                    raise RuntimeError("survivor candidate has no discovery evaluation")
+                if int(evaluated["rejected"] or 0) > 0:
+                    raise RuntimeError("rejected discovery candidate cannot become survivor")
+                successful = connection.execute(
+                    """
+                    SELECT COUNT(*) AS n FROM discovery_trials_v2
+                    WHERE campaign_id = ? AND candidate_id = ? AND status = 'evaluated'
+                    """,
+                    (campaign_id, candidate_id),
+                ).fetchone()["n"]
+                if int(successful) == 0:
+                    raise RuntimeError("survivor candidate has no evaluated trial")
+
+            existing = connection.execute(
+                """
+                SELECT * FROM discovery_survivor_selections_v2
+                WHERE campaign_id = ?
+                """,
+                (campaign_id,),
+            ).fetchone()
+            if existing is not None:
+                if existing["definition_sha256"] != definition_sha256:
+                    raise RuntimeError("discovery survivor selection is immutable")
+                return str(existing["selection_id"])
+
+            connection.execute(
+                """
+                INSERT INTO discovery_survivor_selections_v2(
+                    selection_id, campaign_id, definition_sha256,
+                    definition_json, candidate_ids_json
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    selection_id,
+                    campaign_id,
+                    definition_sha256,
+                    definition_json,
+                    canonical_json(list(selected)),
+                ),
+            )
+        return selection_id
+
+    def list_candidates(self, campaign_id: str) -> list[dict[str, Any]]:
         with self.store._connection() as connection:
             rows = connection.execute(
                 """
-                SELECT * FROM discovery_trials_v2
+                SELECT * FROM discovery_candidates_v2
                 WHERE campaign_id = ?
                 ORDER BY search_round, family_id, candidate_id
                 """,
@@ -441,11 +581,45 @@ class DiscoveryTrialLedger:
         for row in rows:
             item = dict(row)
             item["candidate_spec"] = json.loads(item.pop("candidate_spec_json"))
+            output.append(item)
+        return output
+
+    def list_trials(self, campaign_id: str) -> list[dict[str, Any]]:
+        with self.store._connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT t.*, c.family_id, c.candidate_spec_sha256
+                FROM discovery_trials_v2 AS t
+                JOIN discovery_candidates_v2 AS c USING(campaign_id, candidate_id)
+                WHERE t.campaign_id = ?
+                ORDER BY c.search_round, c.family_id, t.candidate_id, t.fidelity
+                """,
+                (campaign_id,),
+            ).fetchall()
+        output: list[dict[str, Any]] = []
+        for row in rows:
+            item = dict(row)
             item["metrics"] = json.loads(item.pop("metrics_json"))
             behavior_json = item.pop("behavior_json")
             item["behavior"] = json.loads(behavior_json) if behavior_json else None
             output.append(item)
         return output
+
+    def get_survivor_selection(self, campaign_id: str) -> dict[str, Any] | None:
+        with self.store._connection() as connection:
+            row = connection.execute(
+                """
+                SELECT * FROM discovery_survivor_selections_v2
+                WHERE campaign_id = ?
+                """,
+                (campaign_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        item = dict(row)
+        item["definition"] = json.loads(item.pop("definition_json"))
+        item["candidate_ids"] = tuple(json.loads(item.pop("candidate_ids_json")))
+        return item
 
 
 def _required_token(value: str, name: str) -> str:
