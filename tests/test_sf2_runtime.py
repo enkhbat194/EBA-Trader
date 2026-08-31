@@ -7,27 +7,27 @@ import pytest
 
 from eba_trader import sf2_runtime
 from eba_trader.sf2_development import candidate_set_sha256
-from eba_trader.sf2_protocol import load_sf2_protocol
+from eba_trader.sf2_protocol import SF2ResearchProtocol, load_sf2_protocol
 
 
-def _materialization(protocol: object) -> SimpleNamespace:
+def _materialization(protocol: SF2ResearchProtocol) -> SimpleNamespace:
     windows = tuple(
         SimpleNamespace(feature_csv_sha256="a" * 64)
-        for _ in getattr(protocol, "corpus").windows
+        for _ in protocol.corpus.windows
     )
     return SimpleNamespace(
         materialization_id="sf2mat_test",
-        corpus_id=getattr(protocol, "corpus").corpus_id,
+        corpus_id=protocol.corpus.corpus_id,
         windows=windows,
     )
 
 
-def _development(protocol: object) -> dict[str, object]:
+def _development(protocol: SF2ResearchProtocol) -> dict[str, object]:
     return {
         "schema": "sf2_development_report_v1",
         "evaluationId": "sf2dev_test",
-        "phaseId": getattr(protocol, "phase_id"),
-        "protocolId": getattr(protocol, "protocol_id"),
+        "phaseId": protocol.phase_id,
+        "protocolId": protocol.protocol_id,
         "materializationId": "sf2mat_test",
         "candidateSetSha256": candidate_set_sha256(protocol),
         "candidateCount": 24,
@@ -43,13 +43,13 @@ def _development(protocol: object) -> dict[str, object]:
     }
 
 
-def _validation(protocol: object) -> dict[str, object]:
+def _validation(protocol: SF2ResearchProtocol) -> dict[str, object]:
     return {
         "schema": "sf2_validation_report_v1",
         "validationId": "sf2val_test",
         "developmentEvaluationId": "sf2dev_test",
-        "phaseId": getattr(protocol, "phase_id"),
-        "protocolId": getattr(protocol, "protocol_id"),
+        "phaseId": protocol.phase_id,
+        "protocolId": protocol.protocol_id,
         "materializationId": "sf2mat_test",
         "candidateSetSha256": candidate_set_sha256(protocol),
         "candidateCount": 24,
@@ -82,8 +82,16 @@ def test_runtime_materializes_custom_corpus_and_writes_safe_terminal_evidence(
         manifest.write_text("{}", encoding="utf-8")
         return _materialization(protocol), manifest
 
-    monkeypatch.setattr(sf2_runtime, "materialize_m5_development_corpus", fake_materialize)
-    monkeypatch.setattr(sf2_runtime, "evaluate_sf2_development", lambda **_: _development(protocol))
+    monkeypatch.setattr(
+        sf2_runtime,
+        "materialize_m5_development_corpus",
+        fake_materialize,
+    )
+    monkeypatch.setattr(
+        sf2_runtime,
+        "evaluate_sf2_development",
+        lambda **_: _development(protocol),
+    )
     monkeypatch.setattr(
         sf2_runtime,
         "validate_sf2_development",
@@ -125,7 +133,11 @@ def test_runtime_reuses_terminal_evidence_without_reevaluating(
         "materialize_m5_development_corpus",
         lambda **_: (materialization, manifest),
     )
-    monkeypatch.setattr(sf2_runtime, "evaluate_sf2_development", lambda **_: _development(protocol))
+    monkeypatch.setattr(
+        sf2_runtime,
+        "evaluate_sf2_development",
+        lambda **_: _development(protocol),
+    )
     monkeypatch.setattr(
         sf2_runtime,
         "validate_sf2_development",
@@ -165,7 +177,11 @@ def test_runtime_failure_writes_safe_failed_status(
     def fail_materialize(**_: object) -> tuple[object, Path]:
         raise RuntimeError("synthetic archive failure")
 
-    monkeypatch.setattr(sf2_runtime, "materialize_m5_development_corpus", fail_materialize)
+    monkeypatch.setattr(
+        sf2_runtime,
+        "materialize_m5_development_corpus",
+        fail_materialize,
+    )
 
     with pytest.raises(RuntimeError, match="synthetic archive failure"):
         sf2_runtime.run_sf2_development(
