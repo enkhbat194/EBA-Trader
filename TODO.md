@@ -19,58 +19,88 @@ continuing.
 - [x] Run and close SF1: 48 candidates, zero verified.
 - [x] Run and close SF2: 24 candidates, zero verified.
 - [x] Run and close SF3: 24 candidates, zero verified.
-- [x] Preserve the fixed 30-trade minimum; do not rescue sparse SF3 compression/expansion outcomes.
+- [x] Preserve the fixed 30-trade minimum; do not rescue sparse SF3 outcomes.
 - [x] Keep every phase development-only and leave Frozen OOS sealed.
 
-## NOW — Strategy Factory v2 discovery foundation
+## DONE — Strategy Factory v2 foundation
 
-- [x] Decide that broad discovery and strict verification remain separate authorities.
-- [x] Create `docs/STRATEGY_FACTORY_V2_DESIGN.md`.
-- [x] Record the architecture decision in `docs/DECISION_STRATEGY_FACTORY_V2_2026-09-01.md`.
-- [x] Create versioned pilot contract `config/strategy_factory_v2_pilot_v1.json`.
-- [x] Hard-cap pilot raw candidates at 500.
-- [x] Hard-cap candidates per family at 64.
-- [x] Hard-cap discovery survivors at 30.
+- [x] Separate broad discovery from strict verification authority.
+- [x] Merge versioned discovery-only pilot contract.
+- [x] Hard-cap raw candidates at 500, per-family candidates at 64, survivors at 30.
 - [x] Add deterministic discovery candidate/spec identity.
-- [x] Separate candidate budget from evaluation-trial count.
-- [x] Add discovery-only immutable candidate/trial ledger.
-- [x] Record dataset SHA and source-code SHA in the correct candidate/trial layers.
-- [x] Add behavioral fingerprints and near-duplicate similarity filtering.
-- [x] Add behavioral cluster report with raw/unique/cluster/family counts kept separate.
-- [x] Add economic-first discovery-priority selection contract with no promotion/statistical authority.
-- [x] Add bounded Strategy Family v2 registry.
-- [x] Add deterministic quasi-random parameter sampling with replay seed/identity.
-- [x] Add structural candidate identity/deduplication before evaluation.
-- [x] Add compact in-process batch-evaluation interface for one loaded D0 dataset context.
-- [x] Add compute-budget stop accounting at the batch boundary.
-- [x] Add immutable discovery-survivor selection separate from evaluation results.
-- [x] Test that a discovery survivor cannot promote durable StrategyLifecycle.
+- [x] Add immutable discovery campaign/candidate/trial ledger.
+- [x] Separate raw candidate budget from evaluation-trial count.
+- [x] Record dataset SHA and source-code SHA at the correct layers.
+- [x] Add behavioral fingerprints, similarity and representative filtering.
+- [x] Add behavioral-cluster reporting with raw/unique/cluster/family counts kept distinct.
+- [x] Add bounded Strategy Family v2 registry and deterministic quasi-random sampling.
+- [x] Add compact in-process batch evaluation with compute-budget stop accounting.
+- [x] Add immutable discovery-survivor selection with no lifecycle promotion authority.
 - [x] Add D1 hidden-confirmation freeze contract without opening D1.
 - [x] Reject D1 dataset hashes already consumed by D0 discovery.
-- [x] Reconcile `PROJECT_STATE.md` through completed SF3 production evidence.
-- [x] Reconcile `BACKTEST_PROTOCOL.md` with lifecycle policy v2 and Strategy Factory v2 data zones.
-- [x] Add pilot-contract parser/validator that fails closed on weakened authority, caps or data locks.
-- [ ] Run full tests/Ruff on exact branch head.
-- [ ] Open one coherent Strategy Factory v2 foundation PR.
-- [ ] Fix every CI failure; merge only with all required checks green.
+- [x] Reconcile `BACKTEST_PROTOCOL.md` with lifecycle policy v2 and Factory v2 data zones.
+- [x] Merge foundation with exact-head CI green.
 
-## NEXT — Strategy Factory v2 500-cap pilot
+## DONE — first executable Factory v2 pilot catalog
 
-Only after the foundation PR is merged and production/runtime regression proof is clean:
+- [x] Register 8 economically distinct families using existing causal EBA engines.
+- [x] Declare 406 bounded raw candidate slots rather than force the 500 maximum.
+- [x] ATR trailing: 30.
+- [x] Donchian breakout: 16.
+- [x] z-score mean reversion: 64.
+- [x] order-flow delta impulse: 40.
+- [x] rolling flow trend: 64.
+- [x] volume-shock momentum: 64.
+- [x] VWAP reversion + flow: 64.
+- [x] compression/expansion: 64.
+- [x] Add deterministic candidate generation and replay tests.
+- [x] Merge PR #100 with exact-head regression/Ruff/runtime/production checks green.
 
-- [ ] Register 8–12 economically distinct families compatible with available causal data.
-- [ ] Generate up to 500 bounded raw candidates; stop early if novelty/compute rules trigger.
-- [ ] Use only declared D0 discovery data.
+## ACTIVE — SF4 prospective replication
+
+- [x] Freeze exact `s3_vsm_s150` and `s3_cex_s075` parameters without retuning.
+- [x] Preregister prospective BTCUSDT USD-M replication windows from 2026-09-01 through 2026-09-13.
+- [x] Prohibit pooling SF3 trades/p-values into replication qualification.
+- [x] Carry forward conservative multiplicity budget 48.
+- [x] Lock evaluation before 2026-09-13T00:00:00Z.
+- [ ] After the declared end time, evaluate the two frozen hypotheses on new data only.
+- [ ] If replication fails, close it without lowering thresholds.
+- [ ] If replication passes, preregister candidate-specific robustness before observing robustness
+      results; passing still does not open Frozen OOS.
+
+## NOW — Strategy Factory v2 D0 execution layer
+
+- [ ] Add one discovery-only evaluator/adaptor interface for the 8 registered families.
+- [ ] Reuse existing causal backtest engines rather than fork strategy semantics.
+- [ ] Normalize low-fidelity D0 metrics: net return/expectancy, trades, drawdown, costs, benchmark
+      delta, exposure and turnover where available.
+- [ ] Generate `BehavioralFingerprint` from actual D0 behavior.
+- [ ] Add static/sanity rejection before performance ranking.
+- [ ] Wire evaluator into `run_discovery_batch` so every inspected candidate is ledgered.
+- [ ] Enforce dataset SHA, source-code SHA, fidelity and compute accounting on every trial.
+- [ ] Add behavioral near-duplicate clustering on batch outputs.
+- [ ] Keep raw candidate count, unique specification count, behavioral clusters and family count
+      separate in reports.
+- [ ] Use stratified D0 subsets rather than chronological first-N racing.
+- [ ] Keep D0 ranking selection-only; no verification/statistical/promotion labels.
+- [ ] Run exact-head tests/Ruff/runtime/production/continuity/hygiene before merge.
+
+## NEXT — bounded D0 pilot run
+
+Only after the common evaluator/adaptor and its tests are merged:
+
+- [ ] Materialize/declare the D0 discovery dataset and immutable dataset hash.
+- [ ] Generate the declared 406 pilot candidates deterministically.
+- [ ] Stop early if compute or behavioral-novelty rules trigger; do not fill unused budget merely to
+      reach a number.
 - [ ] Account for every performance-inspected candidate in the trial ledger.
-- [ ] Apply static sanity filters before performance simulation.
-- [ ] Use stratified low-fidelity evaluation rather than chronological first-N racing.
-- [ ] Cluster behavioral near-duplicates and keep representative candidates.
+- [ ] Apply static sanity filters before low-fidelity simulation.
+- [ ] Cluster behavioral near-duplicates and keep representatives for higher-fidelity D0 racing.
 - [ ] Nominate at most 30 discovery survivors.
-- [ ] Freeze survivor specs before any D1 hidden confirmation is opened.
-- [ ] Treat zero survivors as a valid research result; do not expand the budget just to force a
-      winner.
+- [ ] Treat zero survivors as a valid result.
+- [ ] Freeze survivor specifications before any D1 hidden confirmation is opened.
 
-## THEN — Hidden confirmation and current strict EBA verification
+## THEN — hidden confirmation and strict verification
 
 - [ ] Open D1 only through a separately authorized hidden-confirmation workflow.
 - [ ] Account for broad-search selection/multiple-testing history.
@@ -96,7 +126,7 @@ Only after the foundation PR is merged and production/runtime regression proof i
 - [x] deterministic risk veto remains independent of AI;
 - [x] real-money execution stays locked.
 
-## EXECUTION ARCHITECTURE HARDENING — AFTER FACTORY FOUNDATION
+## EXECUTION ARCHITECTURE HARDENING — AFTER FACTORY D0
 
 - [ ] Formalize strategy -> risk -> execution -> fill reconciliation -> position -> exit -> terminal
       evidence lifecycle.
@@ -121,8 +151,9 @@ Only after the foundation PR is merged and production/runtime regression proof i
 
 - [ ] M5 Frozen OOS access — blocked because no candidate has passed full development/robustness
       gates.
-- [ ] Factory v2 D1 hidden confirmation — blocked until foundation + survivor freeze + separate
-      confirmation authorization.
+- [ ] Factory v2 D1 hidden confirmation — blocked until D0 survivor freeze + separate confirmation
+      authorization.
+- [ ] SF4 evaluation before 2026-09-13T00:00:00Z — intentionally fail-closed.
 - [ ] Real-money Binance orders — intentionally locked.
 - [ ] Resting LOB/order-book claims — require a separate reconstruction/integrity contract.
 
