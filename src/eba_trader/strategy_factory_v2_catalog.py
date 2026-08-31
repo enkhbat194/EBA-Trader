@@ -125,7 +125,9 @@ def pilot_family_plans() -> tuple[PilotFamilyPlan, ...]:
         PilotFamilyPlan(
             family=StrategyFamilyV2(
                 family_id="volume_shock_momentum_v1",
-                economic_mechanism="abnormal executed-volume shock followed by directional continuation",
+                economic_mechanism=(
+                    "abnormal executed-volume shock followed by directional continuation"
+                ),
                 data_plane=StrategyDataPlane.HYBRID,
                 timeframe="1m",
                 features=("closed_candle_return", "executed_volume", "rolling_median_volume"),
