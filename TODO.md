@@ -7,64 +7,64 @@ Actual GitHub/runtime state overrides stale prose. Query `main`, open PRs and wo
 - [x] Canonical GitHub `main` + Linode production path.
 - [x] Production HTTPS/PWA/runtime proof and auto-update path.
 - [x] Encrypted Binance Demo credential vault and reconnect proof.
-- [x] Repository/branch hygiene automation and legacy archive.
 - [x] Fast Momentum remains the sole active paper scanner.
 - [x] Binance USD-M Futures Demo BUY/SELL round-trip execution plumbing proved without real money.
-- [x] Completed one-shot Demo probe disabled while preserving terminal proof.
+- [x] Keep real-money execution locked.
 
-## DONE — M5 chronological development foundation
+## DONE — M5 / SF1
 
-- [x] Seal M5 development range `2026-07-01 -> 2026-08-15` UTC.
-- [x] Seal M5 Frozen OOS `2026-08-15 -> 2026-08-22` UTC.
-- [x] Materialize and verify the original 12-window development corpus.
-- [x] Reject `absorption_020`: 4 trades, negative expectancy, not profitable, not sample-sufficient, not robustness-verified.
-- [x] Keep Frozen OOS closed and real-money execution locked.
+- [x] Seal M5 development `2026-07-01 -> 2026-08-15` UTC and Frozen OOS `2026-08-15 -> 2026-08-22` UTC.
+- [x] Reject historical `absorption_020`: sparse, negative expectancy, not robustness-verified.
+- [x] Evaluate all 48 SF1 ATR, Donchian, z-score mean-reversion and raw order-flow candidates.
+- [x] SF1 production result: zero verified candidates.
+- [x] Close SF1 without post-hoc retuning on its inspected evidence.
 
-## DONE — SF1 independent-family search
+## DONE — SF2 fresh development
 
-- [x] Evaluate 48/48 preregistered ATR, Donchian, z-score mean-reversion and raw order-flow impulse candidates.
-- [x] Use 12 development windows, 4 bps fees, 1.5 bps adverse slippage and causal next-open execution.
-- [x] Apply the fixed 48-hypothesis Bonferroni correction.
-- [x] Production result: `validationState=NO_VERIFIED_CANDIDATE`, `verifiedCandidateCount=0`.
-- [x] Reject `mr_48z15x00` despite 10/12 baseline beats and 30 trades because return/expectancy were negative and adjusted p ~0.246.
-- [x] Reject raw order-flow impulse family: 0/12 baseline wins and negative economics.
-- [x] Close SF1 without an edge/profitability claim and prohibit further post-hoc retuning on the same evidence.
+- [x] Preregister 24 candidates across four independent order-flow families before fresh data inspection.
+- [x] Use 12 fresh four-hour windows with no SF1 reuse and no 2026-08-01 smoke-day reuse.
+- [x] Keep 48-hypothesis Bonferroni correction, 4 bps fees, 1.5 bps slippage and the fixed quality gate.
+- [x] Implement causal next-open execution with no Frozen-OOS or live authority.
+- [x] Build and production-run the fresh corpus -> 24 × 12 evaluator -> exact 4096 sign-flip -> validation pipeline.
+- [x] Add sanitized production evidence proof and verify exact deployed result.
+- [x] SF2 production result: `NO_VERIFIED_CANDIDATE`, `0/24` verified.
+- [x] Reject top `s2_fpc_s030`: mean return about `-0.5505%`, mean expectancy about `-8.39`, 72 trades, only `5/12` baseline wins, adjusted p-value `1.0`.
+- [x] Record the negative result in `docs/SF2_CLOSEOUT_2026-08-31.md`.
+- [x] Close SF2 without promotion and without touching Frozen OOS.
+- [x] Prohibit further SF2 threshold tuning on the inspected 12-window evidence.
 
-## DONE — SF2 preregistration and signal freeze
+## NOW — SF3 preregistration before fresh data
 
-- [x] Preregister 12 fresh non-overlapping four-hour development windows.
-- [x] Exclude all SF1 windows and the previously inspected 2026-08-01 smoke day.
-- [x] Keep Bonferroni budget at 48 with 24 active candidates.
-- [x] Keep fees 4 bps, slippage 1.5 bps, one-bar execution delay, minimum hold 2 bars, maximum hold 12 bars.
-- [x] Keep qualification thresholds fixed: positive mean return/expectancy, >=30 trades, >=9/12 baseline wins, adjusted p <=0.05.
-- [x] Implement and freeze six candidates each for `divergence_reversal_v1`, `absorption_reversal_v1`, `stacked_delta_continuation_v1`, `flow_price_continuation_v1`.
-- [x] Pass causality, no-lookahead, long/short, fee/slippage, hold-time and terminal-close tests.
-- [x] Merge signal implementation and verify exact production build `28c6d12f378433395118b024a0a4132c6d4edf5d`.
+- [x] Create `config/sf3_research_protocol_v1.json` with 24 candidates and 12 new four-hour windows.
+- [x] Exclude all SF1 and SF2 windows plus the original 2026-08-01 smoke day.
+- [x] Keep the statistical correction budget at 48 even though SF3 has 24 active candidates.
+- [x] Keep the quality gate unchanged: positive mean return, positive mean expectancy, >=30 trades, >=9/12 baseline wins, positive mean delta vs baseline, adjusted p <=0.05.
+- [x] Keep fees at 4 bps and adverse slippage at 1.5 bps.
+- [x] Preregister four new families, six candidates each: `rolling_flow_trend_v1`, `volume_shock_momentum_v1`, `vwap_reversion_flow_v1`, `compression_expansion_v1`.
+- [x] Preregister slower anti-churn execution for this new phase: one-bar delay, minimum hold 4 bars, maximum hold 30 bars.
+- [x] Add `sf3_protocol.py` validation that fails closed on prior-window reuse, smoke-day reuse, Frozen-OOS access, lowered search budget or weakened quality gates.
+- [x] Add protocol regression tests.
+- [ ] Finish exact-head CI for PR #95 and fix every failure.
+- [ ] Merge only when regression, Ruff, runtime, continuity, hygiene and deployment checks are green.
 
-## NOW — M5 / SF2 fresh development pipeline
+## NEXT — Implement SF3 strategies before touching SF3 data
 
-- [x] Add custom SF2 corpus/evaluator that consumes only the preregistered fresh corpus.
-- [x] Add fixed EMA 12/26 development comparison baseline with identical 4 bps fee / 1.5 bps slippage assumptions.
-- [x] Add 24 × 12 development evaluation and immutable evidence output.
-- [x] Add exact 4096 sign-flip null-model validation with Bonferroni budget 48.
-- [x] Require positive mean delta vs baseline in addition to the preregistered quality gate.
-- [x] Add resumable production runtime and reusable terminal status.
-- [x] Add sanitized read-only `sf2` dashboard summary; never expose evidence paths, dataset refs or credentials.
-- [x] Integrate SF2 into maintenance as an independent development stage, not under legacy `absorption_020` robustness authority.
-- [x] Add tests for significance, runtime reuse/failure safety, dashboard sanitization and maintenance independence.
-- [ ] Finish exact-head CI for `sf2-fresh-corpus-evaluation-pipeline`; fix every failure before merge.
-- [ ] Merge only when full regression, Ruff, runtime, continuity, repository hygiene and deployment-contract checks are green.
-- [ ] Verify exact merged production build on Linode.
-- [ ] Confirm production maintenance materializes all 12 fresh SF2 windows with archive provenance and SHA-256 integrity.
-- [ ] Read sanitized production SF2 evaluation/validation result from `/api/research/status`.
+- [ ] Implement rolling multi-bar price + executed-flow trend confirmation.
+- [ ] Implement relative-volume shock momentum.
+- [ ] Implement rolling VWAP reversion with executed-flow reversal confirmation.
+- [ ] Implement volatility-compression -> directional-expansion entries.
+- [ ] Add causal/no-lookahead, long/short, fee/slippage, minimum/maximum hold and deterministic-repeat tests.
+- [ ] Freeze SF3 implementation/configuration with green CI before materializing any SF3 fresh window.
 
-## THEN — Decide from fresh SF2 evidence
+## THEN — Fresh SF3 evidence
 
-- [ ] If `verifiedCandidateCount=0`, close SF2 without promotion; do not touch Frozen OOS.
-- [ ] If a candidate becomes robustness-eligible, freeze a candidate-appropriate robustness suite before running it.
-- [ ] Require cost stress, parameter-neighborhood stability, center profitability and sample sufficiency in robustness.
-- [ ] Open M5 Frozen OOS only after the complete development + robustness gates pass.
-- [ ] Keep real-money execution locked throughout this research phase.
+- [ ] Materialize only the 12 preregistered SF3 windows from Binance USD-M archives under a new immutable namespace.
+- [ ] Verify acquisition provenance, hashes and non-overlap with Frozen OOS.
+- [ ] Run all 24 SF3 candidates across all 12 fresh windows.
+- [ ] Apply exact 4096 sign-flip tests and the fixed Bonferroni budget of 48.
+- [ ] Reject every candidate that misses any quality criterion; do not lower thresholds.
+- [ ] If zero pass, close SF3 and design a new fresh phase rather than retuning these windows.
+- [ ] If one passes, build a candidate-specific fixed robustness suite before any Frozen-OOS consideration.
 
 ## FIXED QUALITY GATE — DO NOT LOWER
 
