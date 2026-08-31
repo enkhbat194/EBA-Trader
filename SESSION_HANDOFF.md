@@ -1,6 +1,6 @@
 # EBA Trader — Session Handoff
 
-_Last handoff prepared: 2026-08-30 (Asia/Ulaanbaatar)_
+_Last handoff prepared: 2026-08-31 (Asia/Ulaanbaatar)_
 
 ## Exact continuation point
 
@@ -8,21 +8,60 @@ Repository: `enkhbat194/EBA-Trader`
 
 Canonical production `main`:
 
-`0f6d0c1d7c74f8a42ae16921d24dfe446d805380`
+`28c6d12f378433395118b024a0a4132c6d4edf5d`
 
 Current working branch:
 
-`sf1-closeout-sf2-preregistration`
+`sf2-fresh-corpus-evaluation-pipeline`
 
-Production exact-build proof for `0f6d0c1d...`: **SUCCESS**.
+Exact production proof for `28c6d12...`: **SUCCESS**. Public production smoke also passed.
 
 ## What was completed
 
-- SF1 was production-run at the full preregistered 48/48 candidate budget and closed with zero verified candidates.
-- The final 12 SF1 slots were genuinely independent long/short raw footprint-Delta signal generators rather than EMA gates.
-- Production exact-build evidence kept Frozen OOS closed and real execution locked.
-- The stale repository continuity state was reconciled to the SF1 closeout.
-- A new SF2 fresh-development protocol was preregistered before any fresh SF2 window was materialized or evaluated.
+### SF1 closeout
+
+- SF1 used its full preregistered 48/48 candidate budget and closed with zero verified candidates.
+- Top `mr_48z15x00` had 10/12 baseline wins and 30 trades but negative mean return/expectancy and adjusted p ~0.246, so it was rejected.
+- Raw direct order-flow impulse candidates also failed economically.
+- No SF1 threshold retuning on the same evidence is allowed.
+
+### SF2 preregistration and frozen signal engine
+
+- PR #91 preregistered 12 fresh four-hour windows, 24 candidates and all fixed execution/statistical assumptions before fresh evidence was inspected.
+- PR #92 implemented all four direct-signal families with next-open execution and fixed anti-churn holds.
+- Exact main `28c6d12...` passed regression/runtime checks and external/public production proof.
+- Fresh SF2 production windows had not yet been materialized/evaluated at that freeze point.
+
+### Current branch: fresh SF2 evidence pipeline
+
+Implemented on `sf2-fresh-corpus-evaluation-pipeline`:
+
+- `src/eba_trader/sf2_development.py`
+  - validates a custom SF2 materialization against the preregistered corpus;
+  - uses fixed EMA 12/26 as comparison baseline;
+  - evaluates all 24 candidates across all 12 fresh windows;
+  - computes per-window/aggregate return, expectancy, drawdown, trades, costs and baseline deltas;
+  - runs exact 4096 sign-flip permutations;
+  - retains Bonferroni budget 48;
+  - requires positive mean return, positive mean expectancy, >=30 trades, >=9/12 baseline wins, positive mean baseline delta and adjusted p <=0.05;
+  - produces immutable development and validation reports with no OOS/promotion/live authority.
+- `src/eba_trader/sf2_runtime.py`
+  - invokes the existing resumable Binance USD-M archive materializer with the custom SF2 corpus and namespace `sf2_orderflow_dev`;
+  - checks window count and SHA-256 feature integrity;
+  - persists immutable evidence plus `/var/lib/eba-trader/research/sf2-development-latest.json`;
+  - safely reuses terminal COMPLETE evidence rather than rerunning evaluation;
+  - fails closed.
+- `src/eba_trader/sf2_dashboard.py`
+  - exposes only sanitized scalar research results;
+  - rejects report paths outside the evidence root;
+  - strips credential/path/dataset/evidence-ref fields;
+  - has no mutation, lifecycle, OOS or execution authority.
+- `src/eba_trader/research_dashboard.py`
+  - now includes read-only `sf2` status.
+- `scripts/run_m5_research_maintenance_once.sh`
+  - runs SF2 independently from the legacy `absorption_020` robustness path;
+  - includes SF2 failure in the maintenance fail-closed result.
+- tests added for significance, runtime reuse/failure safety, dashboard sanitization and maintenance independence.
 
 ## What is proven
 
@@ -48,109 +87,60 @@ This proves execution plumbing only, not strategy profitability.
 
 Do not promote it and do not open M5 Frozen OOS.
 
-### SF1 independent-family search
+### SF1
 
-SF1 is now fully consumed and closed:
-
-- 12 ATR candidates;
-- 12 Donchian breakout candidates;
-- 12 z-score mean-reversion candidates;
-- 12 independent raw footprint-delta impulse candidates;
-- total 48/48 candidates;
-- 12 original development windows;
-- 4 bps fees;
-- 1.5 bps slippage;
-- causal next-open execution;
-- Bonferroni search budget 48.
-
-Exact production result on `0f6d0c1d...`:
+Production result remains:
 
 - `validationState=NO_VERIFIED_CANDIDATE`;
 - `verifiedCandidateCount=0`;
-- `topVerifiedCandidate=null`;
 - Frozen OOS closed;
-- live/real execution locked.
+- real execution locked.
 
-Top development-ranked candidate `mr_48z15x00`:
+### SF2 signal implementation
 
-- 10/12 baseline-beating windows;
-- 30 trades;
-- mean return about `-0.0965%`;
-- mean expectancy about `-1.17`;
-- adjusted p-value about `0.246`.
+Production main `28c6d12...` proves the preregistered signal logic and safety tests/deployment path, not the fresh-data performance result. Fresh SF2 performance must be obtained only after the current evaluation pipeline passes CI, merges and production maintenance runs.
 
-It is rejected because the fixed quality gate requires positive mean return, positive expectancy and adjusted p <= 0.05 in addition to activity/cross-window requirements.
+## Fixed SF2 contract
 
-The 12 direct raw-delta impulse candidates also failed despite adequate activity: all beat baseline in 0/12 windows, all had negative mean return/expectancy and adjusted p-value 1.0.
+- 24 active candidates;
+- four families × six candidates;
+- 12 fresh non-overlapping four-hour windows;
+- no SF1 window reuse;
+- 2026-08-01 smoke day excluded;
+- all within M5 development `2026-07-01 -> 2026-08-15`;
+- M5 Frozen OOS `2026-08-15 -> 2026-08-22` sealed;
+- 4 bps fees;
+- 1.5 bps slippage;
+- one-bar signal-to-execution delay;
+- minimum hold 2 bars;
+- maximum hold 12 bars;
+- 64 warmup bars;
+- exact 4096 sign-flip null model;
+- Bonferroni budget 48.
 
-## Fixed quality gate — never weaken silently
-
-A candidate may enter robustness only when all are true:
+Development -> robustness eligibility requires every one of:
 
 1. mean return > 0;
 2. mean expectancy > 0;
 3. total trades >= 30;
-4. baseline beaten in >=9/12 development windows;
-5. Bonferroni-adjusted p-value <= 0.05.
+4. baseline beaten in >=9/12 windows;
+5. mean return delta vs baseline > 0;
+6. Bonferroni-adjusted exact p <= 0.05.
 
-Then robustness remains mandatory before any Frozen-OOS consideration.
-
-## Scientific decision after SF1
-
-Do not add more candidate thresholds to SF1 and do not keep tuning on the same 12 windows. SF1 consumed its full preregistered 48-candidate budget; repeated adaptive use of the same development evidence would create data snooping / overfitting.
-
-SF2 therefore uses new development windows that were not used by SF1. Candidate definitions, execution assumptions and the data-window schedule are preregistered before any SF2 evaluation output is observed.
-
-## Current branch work — SF2 preregistration
-
-Files added/updated:
-
-- `config/sf2_research_protocol_v1.json`
-- `src/eba_trader/sf2_protocol.py`
-- `tests/test_sf2_protocol.py`
-- `PROJECT_STATE.md`
-- `TODO.md`
-- `SESSION_HANDOFF.md`
-
-SF2 locked design:
-
-- 24 active candidates;
-- statistical correction budget remains 48;
-- 12 new 4-hour development windows;
-- no overlap with the original SF1 corpus;
-- 2026-08-01 original smoke day excluded;
-- all new windows remain inside M5 development `2026-07-01 -> 2026-08-15`;
-- M5 Frozen OOS `2026-08-15 -> 2026-08-22` remains sealed;
-- fees 4 bps;
-- slippage 1.5 bps;
-- one-bar signal-to-execution delay;
-- minimum hold 2 bars;
-- maximum hold 12 bars;
-- quality gate unchanged.
-
-Preregistered families, six candidates each:
-
-1. `divergence_reversal_v1`;
-2. `absorption_reversal_v1`;
-3. `stacked_delta_continuation_v1`;
-4. `flow_price_continuation_v1`.
-
-The protocol loader fails closed if an SF1 development window is reused, the original smoke day is reused, execution assumptions change, the multiple-testing budget is lowered, or the quality gate is weakened.
+This still does not open Frozen OOS.
 
 ## Next exact task
 
-1. Inspect PR #91 for `sf1-closeout-sf2-preregistration`.
-2. Run exact-head full regression, Ruff, runtime, continuity and production-bundle checks.
-3. Fix every failure; do not merge red CI.
-4. Merge only when all checks are green.
-5. Verify exact merged build on Linode and confirm SF1 remains `NO_VERIFIED_CANDIDATE`, Frozen OOS closed and real execution locked.
-6. Implement all four SF2 families without materializing or evaluating the fresh SF2 windows.
-7. Add causality, no-lookahead, fee/slippage, long/short and holding-period tests.
-8. Freeze implementation/configuration with green CI.
-9. Only then materialize the preregistered fresh SF2 corpus from Binance USD-M archives.
-10. Run all 24 candidates across all 12 fresh windows with the conservative 48-hypothesis Bonferroni correction.
-11. Reject every candidate that misses any fixed quality criterion.
-12. Do not open M5 Frozen OOS and do not enable real-money execution unless the required later gates actually pass.
+1. Open PR for `sf2-fresh-corpus-evaluation-pipeline`.
+2. Inspect exact-head full regression, Ruff, runtime, continuity, repository hygiene and production-bundle checks.
+3. Fix every red check; do not merge red CI.
+4. Merge only when green.
+5. Verify exact merged `main` on Linode.
+6. Wait for/run the normal versioned maintenance service so SF2 materializes the 12 preregistered archive windows and evaluates 24 × 12 candidates.
+7. Read `/api/research/status` and inspect the sanitized `sf2` object.
+8. If `verifiedCandidateCount=0`, close SF2 without promotion.
+9. If a candidate is robustness-eligible, create a fixed candidate-appropriate robustness suite before any robustness result is observed.
+10. Keep M5 Frozen OOS sealed and real-money execution locked throughout.
 
 ## Hard locks
 
@@ -159,6 +149,7 @@ The protocol loader fails closed if an SF1 development window is reused, the ori
 - Real Binance execution remains locked.
 - Demo execution has no strategy-promotion authority.
 - Development/ranking results have no promotion authority.
+- Fresh development passing does not itself authorize Frozen OOS.
 - Repeated analysis of already-inspected development data cannot be relabelled as fresh verification.
 
 ## Startup rule
