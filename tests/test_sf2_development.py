@@ -5,8 +5,13 @@ from pathlib import Path
 import pytest
 
 from eba_trader.sf2_development import (
+    BASELINE_FAST_EMA,
     BASELINE_ID,
+    BASELINE_SLOW_EMA,
     DEVELOPMENT_REPORT_SCHEMA,
+    FEE_BPS,
+    INITIAL_CASH,
+    SLIPPAGE_BPS,
     candidate_set_sha256,
     validate_sf2_development,
 )
@@ -59,6 +64,14 @@ def _report(first_returns: list[float]) -> dict[str, object]:
         "windowCount": 12,
         "baseline": {
             "baselineId": BASELINE_ID,
+            "adapter": "ema_feature_baseline_v1",
+            "parameters": {
+                "fastEma": BASELINE_FAST_EMA,
+                "slowEma": BASELINE_SLOW_EMA,
+                "initialCash": INITIAL_CASH,
+                "feeBps": FEE_BPS,
+                "slippageBps": SLIPPAGE_BPS,
+            },
             "windows": baseline_windows,
         },
         "candidates": candidates,
@@ -106,4 +119,18 @@ def test_unsafe_development_report_is_rejected() -> None:
     report["liveExecutionAllowed"] = True
 
     with pytest.raises(RuntimeError, match="unsafe SF2 development report"):
+        validate_sf2_development(report, protocol_path=PROTOCOL_PATH)
+
+
+def test_candidate_parameter_tampering_is_rejected() -> None:
+    report = _report([0.01] * 12)
+    candidates = report["candidates"]
+    assert isinstance(candidates, list)
+    first = candidates[0]
+    assert isinstance(first, dict)
+    parameters = first["parameters"]
+    assert isinstance(parameters, dict)
+    parameters["signal_threshold"] = 0.999
+
+    with pytest.raises(RuntimeError, match="candidate parameter mismatch"):
         validate_sf2_development(report, protocol_path=PROTOCOL_PATH)
