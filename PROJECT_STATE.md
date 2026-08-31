@@ -67,6 +67,13 @@ Exact production result on `423cf922...`:
 No SF3 candidate may be rescued by lowering the 30-trade minimum or tuning thresholds on the same
 inspected evidence.
 
+## Validation status
+
+The current canonical production validation result is **no verified strategy**. SF1, SF2 and SF3
+are closed development phases with zero promoted candidates. Frozen OOS has not been opened, and
+real execution remains locked. Strategy Factory v2 work is infrastructure-only until its own
+foundation CI passes and a later, separately authorized discovery pilot is declared.
+
 ## Current work — Strategy Factory v2 foundation
 
 Working branch:
