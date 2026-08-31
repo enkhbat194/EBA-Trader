@@ -2,7 +2,7 @@
 
 _Last reconciled: 2026-09-01 (Asia/Ulaanbaatar)_
 
-Actual GitHub code, workflow state and Linode production proof override stale prose.
+Actual GitHub code, workflow state and production proof override stale prose.
 
 ## Current goal
 
@@ -14,12 +14,13 @@ Real-money execution remains locked.
 
 - Repository: `enkhbat194/EBA-Trader`
 - Production URL: `https://eba-trader-172-236-150-62.sslip.io`
-- Canonical production `main`: `423cf92225cbc75fb8bf3d89d2eddc1d2fba21a6`
-- Main commit: `SF3: evaluate fresh preregistered development evidence`
-- Exact-build SF3 production evidence proof: **PASS**.
-- Linode runtime checks: **PASS**.
-- Linode production bundle: **PASS**.
-- Public production smoke: **PASS**.
+- Canonical `main`: `f9161ab091093d69f725b6b96ab6018443aaa6da`
+- Main commit: `Strategy Factory v2: register executable pilot family catalog (#100)`
+- Linode runtime checks on exact main: **PASS**.
+- Linode production bundle on exact main: **PASS**.
+- Continuity guard on exact main: **PASS**.
+- Repository hygiene on exact main: **PASS**.
+- No open pull requests at this reconciliation point.
 - Fast Momentum remains a paper/runtime test-bed, not a verified profitable strategy.
 - Binance USD-M Futures Demo execution plumbing has a verified demo round-trip.
 - M5 Frozen OOS (`2026-08-15 -> 2026-08-22` UTC): **SEALED / NOT OPENED**.
@@ -54,12 +55,12 @@ Fixed research assumptions included 4 bps fees, 1.5 bps adverse slippage, causal
 execution, a planned multiple-testing budget of 48, exact 4096 sign-flip tests and the unchanged
 30-trade / 9-of-12 / positive-return / positive-expectancy gate.
 
-Exact production result on `423cf922...`:
+Production result:
 
 - `validationState=NO_VERIFIED_CANDIDATE`;
 - `verifiedCandidateCount=0`;
-- top development-ranked `s3_vsm_s150` had 10/12 baseline-beating windows but negative mean return,
-  negative expectancy and only 11 trades;
+- `s3_vsm_s150` had 10/12 baseline-beating windows but negative mean return, negative expectancy
+  and only 11 trades;
 - `s3_cex_s075` was economically positive and had adjusted p `0.046875`, but only 4 trades;
 - `s3_cex_s065` was economically positive but had only 1 trade;
 - sparse compression/expansion outcomes are hypothesis clues only, not verification evidence.
@@ -67,55 +68,79 @@ Exact production result on `423cf922...`:
 No SF3 candidate may be rescued by lowering the 30-trade minimum or tuning thresholds on the same
 inspected evidence.
 
-## Validation status
+## SF4 — prospective replication track
 
-The current canonical production validation result is **no verified strategy**. SF1, SF2 and SF3
-are closed development phases with zero promoted candidates. Frozen OOS has not been opened, and
-real execution remains locked. Strategy Factory v2 work is infrastructure-only until its own
-foundation CI passes and a later, separately authorized discovery pilot is declared.
+PR #99 merged as `755bf719587c274570bf5c7258aaff74eb94d693` and preregistered two exact SF3
+hypotheses for prospective replication:
 
-## Current work — Strategy Factory v2 foundation
+- `s3_vsm_s150` -> `s4_vsm_s150_replication`;
+- `s3_cex_s075` -> `s4_cex_s075_replication`.
 
-Working branch:
+Rules are fail-closed:
 
-`strategy-factory-v2-discovery-foundation`
+- parameters are copied exactly and cannot be retuned;
+- replication uses only new BTCUSDT USD-M data from `2026-09-01T00:00:00Z` through
+  `2026-09-13T00:00:00Z`;
+- evaluation is locked until `2026-09-13T00:00:00Z`;
+- SF3 trades, returns, expectancy and p-values cannot be pooled into the replication result;
+- the conservative prior search budget of 48 remains carried forward for multiplicity control;
+- the unchanged minimum economic/activity/statistical gate remains in force;
+- passing replication would justify only a separately preregistered robustness phase, not Frozen
+  OOS access.
 
-Reason for the change: verification quality is strong, but discovery throughput/diversity is the
-current bottleneck. SF1/SF2/SF3 proved that small fixed batches can be audited correctly, while
-also showing that repeatedly hand-authoring 24-candidate phases is not an efficient long-term
-search architecture.
+SF4 has no Demo, live, real-execution or promotion authority.
 
-Strategy Factory v2 is being added **in front of**, not instead of, the current verification
-pipeline.
+## Strategy Factory v2 — merged discovery-only foundation and pilot catalog
 
-Current foundation scope:
+The generic discovery foundation is merged. The first executable family catalog was merged in PR
+#100 on exact main `f9161ab...`.
 
-- discovery-only authority contract;
-- hard first-pilot raw candidate cap of 500;
-- per-family cap of 64;
-- discovery-survivor cap of 30;
+Current pilot contract:
+
+- authority: `DISCOVERY_ONLY`;
+- hard raw-candidate cap: 500;
+- hard per-family cap: 64;
+- hard survivor cap: 30;
 - deterministic candidate/spec identity;
 - immutable search-trial ledger with dataset and source-code identity;
 - behavioral fingerprint and near-duplicate filtering;
 - D0 discovery / D1 hidden confirmation / D2 robustness reserve / D3 Frozen OOS zoning;
-- explicit rule that discovery survivors cannot transition StrategyLifecycle;
+- discovery survivors cannot transition durable StrategyLifecycle;
 - no Frozen OOS, Demo-promotion or real-execution authority.
 
-Canonical design document:
+The first executable pilot catalog currently declares **8 economically distinct families and 406
+raw candidate slots**, intentionally leaving 94 of the 500 maximum unused rather than manufacturing
+low-value variants:
 
-`docs/STRATEGY_FACTORY_V2_DESIGN.md`
+1. ATR trailing — 30;
+2. Donchian breakout — 16;
+3. z-score mean reversion — 64;
+4. order-flow delta impulse — 40;
+5. rolling flow trend — 64;
+6. volume-shock momentum — 64;
+7. VWAP reversion + flow — 64;
+8. compression/expansion — 64.
 
-Pilot contract:
+Candidate generation is bounded and deterministic. The 406 count is a declaration ceiling for the
+pilot catalog, not evidence of 406 independent edges.
 
-`config/strategy_factory_v2_pilot_v1.json`
+Canonical design document: `docs/STRATEGY_FACTORY_V2_DESIGN.md`.
+Pilot contract: `config/strategy_factory_v2_pilot_v1.json`.
+Pilot family catalog: `src/eba_trader/strategy_factory_v2_catalog.py`.
+
+## Validation status
+
+There is still **no verified profitable strategy**. SF1, SF2 and SF3 are closed with zero promoted
+candidates. SF4 is only prospective replication. Strategy Factory v2 ranking and survivor
+selection remain discovery-only. Frozen OOS has not been opened and real execution remains locked.
 
 ## Verification quality gate — DO NOT LOWER
 
-Broad discovery is not verification. Any candidate that eventually enters the current EBA
-verification pipeline must still satisfy its declared economic, activity, cross-window,
-multiple-testing and robustness requirements before Frozen OOS can be considered.
+Broad discovery is not verification. Any candidate that eventually enters strict EBA verification
+must satisfy its preregistered economic, activity, cross-window, multiple-testing and robustness
+requirements before Frozen OOS can be considered.
 
-The historical SF2/SF3 development gate remains a useful minimum reference:
+The historical SF2/SF3 gate remains a minimum reference:
 
 1. mean return > 0;
 2. mean expectancy > 0;
@@ -143,17 +168,19 @@ multiple-testing method, but it may not weaken promotion integrity.
 
 ## Next exact tasks
 
-1. Finish Strategy Factory v2 foundation code and regression tests on the working branch.
-2. Reconcile `BACKTEST_PROTOCOL.md`, `TODO.md` and decision records with lifecycle policy v2 and
-   completed SF3 evidence.
-3. Add pilot-contract validation that fails closed if discovery authority/caps/data-zone locks are
-   weakened.
-4. Add bounded candidate-family registration/generation and deterministic sampling infrastructure.
-5. Add behavioral-cluster reporting and trial-accounting diagnostics.
-6. Open a single foundation PR only after the package is coherent.
-7. Fix all CI failures; merge only with exact-head regression/Ruff/runtime/continuity/hygiene checks
-   green.
-8. Do **not** run hidden confirmation, Frozen OOS or real execution as part of this foundation PR.
+1. Add a standard D0 evaluator/adaptor layer that maps the 8 catalog families onto their existing
+   causal backtest engines under one discovery-only contract.
+2. Produce common low-fidelity D0 metrics and `BehavioralFingerprint` output without adding
+   promotion authority.
+3. Wire the evaluator into `run_discovery_batch` so every inspected candidate is ledgered with
+   dataset SHA, source-code SHA, fidelity, metrics, behavior and compute accounting.
+4. Add static/sanity rejection before performance ranking and tests for immutable trial accounting.
+5. Add behavioral-cluster diagnostics on real batch outputs while keeping family/raw/cluster counts
+   distinct.
+6. Keep D1 hidden confirmation sealed; do not run it as part of D0 evaluator work.
+7. Keep SF4 prospective replication untouched until its declared evaluation time.
+8. Merge only when exact-head regression, Ruff, runtime, production-bundle, continuity and hygiene
+   checks are green.
 
 ## Continuity protocol
 
