@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .history import parse_utc
-from .m5_study_policy import M5DevelopmentCorpusSpec, M5StudyWindow
+from .m5_study_policy import M5StudyWindow
 from .research_evidence import canonical_json, sha256_text
 from .sf3_protocol import SF3Candidate
 
@@ -123,6 +123,32 @@ class SF4ReplicationCandidate:
 
 
 @dataclass(frozen=True, slots=True)
+class SF4ReplicationCorpusSpec:
+    corpus_id: str
+    symbol: str
+    venue: str
+    interval: str
+    windows: tuple[M5StudyWindow, ...]
+
+    def __post_init__(self) -> None:
+        if self.corpus_id != "sf4_prospective_replication_v1":
+            raise ValueError("SF4 prospective corpus identity changed")
+        if (self.symbol, self.venue, self.interval) != (SYMBOL, VENUE, INTERVAL):
+            raise ValueError("SF4 prospective corpus market identity changed")
+        if len(self.windows) != EXPECTED_WINDOW_COUNT:
+            raise ValueError("SF4 prospective corpus requires exactly 12 windows")
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "corpus_id": self.corpus_id,
+            "symbol": self.symbol,
+            "venue": self.venue,
+            "interval": self.interval,
+            "windows": [window.as_dict() for window in self.windows],
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class SF4ReplicationProtocol:
     phase_id: str
     authority: str
@@ -130,7 +156,7 @@ class SF4ReplicationProtocol:
     source_validation_state: str
     warmup_bars: int
     planned_multiple_testing_budget: int
-    corpus: M5DevelopmentCorpusSpec
+    corpus: SF4ReplicationCorpusSpec
     candidates: tuple[SF4ReplicationCandidate, ...]
     evaluation_not_before_ms: int
 
@@ -154,7 +180,9 @@ class SF4ReplicationProtocol:
         if isinstance(now_ms, bool) or not isinstance(now_ms, int):
             raise TypeError("now_ms must be an integer UTC epoch millisecond value")
         if now_ms < self.evaluation_not_before_ms:
-            raise RuntimeError("SF4 replication cannot be evaluated before all prospective windows close")
+            raise RuntimeError(
+                "SF4 replication cannot be evaluated before all prospective windows close"
+            )
 
 
 def _load_candidate(row: Any, expected: dict[str, Any]) -> SF4ReplicationCandidate:
@@ -169,7 +197,7 @@ def _load_candidate(row: Any, expected: dict[str, Any]) -> SF4ReplicationCandida
     )
 
 
-def _load_windows(rows: Any) -> M5DevelopmentCorpusSpec:
+def _load_windows(rows: Any) -> SF4ReplicationCorpusSpec:
     if not isinstance(rows, list) or len(rows) != EXPECTED_WINDOW_COUNT:
         raise ValueError("SF4 replication requires exactly 12 prospective windows")
     windows: list[M5StudyWindow] = []
@@ -197,8 +225,11 @@ def _load_windows(rows: Any) -> M5DevelopmentCorpusSpec:
         raise ValueError("SF4 replication start time changed")
     if windows[-1].end_ms != EVALUATION_NOT_BEFORE_MS:
         raise ValueError("SF4 replication end time changed")
-    return M5DevelopmentCorpusSpec(
+    return SF4ReplicationCorpusSpec(
         corpus_id="sf4_prospective_replication_v1",
+        symbol=SYMBOL,
+        venue=VENUE,
+        interval=INTERVAL,
         windows=tuple(windows),
     )
 
