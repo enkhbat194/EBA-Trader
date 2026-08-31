@@ -186,9 +186,10 @@ def select_behavioral_representatives(
 class DiscoveryTrialLedger:
     """Audit ledger for discovery candidates, evaluations and frozen survivor selection.
 
-    Candidate budget and evaluation-trial count are intentionally separate. One declared candidate
-    may be evaluated across multiple D0 subsets/fidelities without consuming additional raw-candidate
-    budget. Nothing in this ledger can transition the durable StrategyLifecycle.
+    Candidate budget and evaluation-trial count are intentionally separate. One declared
+    candidate may be evaluated across multiple D0 subsets/fidelities without consuming
+    additional raw-candidate budget. Nothing in this ledger can transition the durable
+    StrategyLifecycle.
     """
 
     def __init__(self, store: ResearchStore) -> None:
