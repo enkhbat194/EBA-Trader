@@ -1,108 +1,129 @@
 # EBA Trader — TODO
 
-Actual GitHub/runtime state overrides stale prose. Query `main`, open PRs and workflows before continuing.
+Actual GitHub/runtime state overrides stale prose. Query `main`, open PRs and workflows before
+continuing.
 
 ## DONE — Repository/runtime foundation
 
 - [x] Canonical GitHub `main` + Linode production path.
 - [x] Production HTTPS/PWA/runtime proof and auto-update path.
 - [x] Encrypted Binance Demo credential vault and reconnect proof.
-- [x] Fast Momentum remains the sole active paper scanner.
+- [x] Fast Momentum paper/runtime scanner.
 - [x] Binance USD-M Futures Demo BUY/SELL round-trip execution plumbing proved without real money.
 - [x] Keep real-money execution locked.
 
-## DONE — M5 / SF1
+## DONE — M5 / SF1 / SF2 / SF3 research history
 
-- [x] Seal M5 development `2026-07-01 -> 2026-08-15` UTC and Frozen OOS `2026-08-15 -> 2026-08-22` UTC.
-- [x] Reject historical `absorption_020`: sparse, negative expectancy, not robustness-verified.
-- [x] Evaluate all 48 SF1 ATR, Donchian, z-score mean-reversion and raw order-flow candidates.
-- [x] SF1 production result: zero verified candidates.
-- [x] Close SF1 without post-hoc retuning on its inspected evidence.
+- [x] Seal M5 development and Frozen OOS boundaries.
+- [x] Reject historical `absorption_020` without promotion.
+- [x] Run and close SF1: 48 candidates, zero verified.
+- [x] Run and close SF2: 24 candidates, zero verified.
+- [x] Run and close SF3: 24 candidates, zero verified.
+- [x] Preserve the fixed 30-trade minimum; do not rescue sparse SF3 compression/expansion outcomes.
+- [x] Keep every phase development-only and leave Frozen OOS sealed.
 
-## DONE — SF2 fresh development
+## NOW — Strategy Factory v2 discovery foundation
 
-- [x] Preregister 24 candidates across four independent order-flow families before fresh data inspection.
-- [x] Use 12 fresh four-hour windows with no SF1 reuse and no 2026-08-01 smoke-day reuse.
-- [x] Keep 48-hypothesis Bonferroni correction, 4 bps fees, 1.5 bps slippage and the fixed quality gate.
-- [x] Implement causal next-open execution with no Frozen-OOS or live authority.
-- [x] Build and production-run the fresh corpus -> 24 × 12 evaluator -> exact 4096 sign-flip -> validation pipeline.
-- [x] Add sanitized production evidence proof and verify exact deployed result.
-- [x] SF2 production result: `NO_VERIFIED_CANDIDATE`, `0/24` verified.
-- [x] Reject top `s2_fpc_s030`: mean return about `-0.5505%`, mean expectancy about `-8.39`, 72 trades, only `5/12` baseline wins, adjusted p-value `1.0`.
-- [x] Record the negative result in `docs/SF2_CLOSEOUT_2026-08-31.md`.
-- [x] Close SF2 without promotion and without touching Frozen OOS.
-- [x] Prohibit further SF2 threshold tuning on the inspected 12-window evidence.
+- [x] Decide that broad discovery and strict verification remain separate authorities.
+- [x] Create `docs/STRATEGY_FACTORY_V2_DESIGN.md`.
+- [x] Create versioned pilot contract `config/strategy_factory_v2_pilot_v1.json`.
+- [x] Hard-cap pilot raw candidates at 500.
+- [x] Hard-cap candidates per family at 64.
+- [x] Hard-cap discovery survivors at 30.
+- [x] Add deterministic discovery candidate/spec identity.
+- [x] Add discovery-only immutable search trial ledger.
+- [x] Record dataset SHA and source-code SHA for each declared trial.
+- [x] Add behavioral fingerprints and near-duplicate similarity filtering.
+- [x] Test that a discovery survivor cannot promote durable StrategyLifecycle.
+- [x] Reconcile `PROJECT_STATE.md` through completed SF3 production evidence.
+- [ ] Reconcile `BACKTEST_PROTOCOL.md` with lifecycle policy v2 and Strategy Factory v2 data zones.
+- [ ] Add pilot-contract parser/validator that fails closed on weakened authority, caps or data locks.
+- [ ] Add bounded Strategy Family v2 registry.
+- [ ] Add deterministic quasi-random parameter sampling with replay seed/identity.
+- [ ] Add structural dedupe before evaluation.
+- [ ] Add behavioral cluster report with raw/unique/cluster/family counts kept separate.
+- [ ] Add discovery-priority scoring contract with no promotion/statistical authority.
+- [ ] Add compact batch-evaluation interface that can evaluate many candidates from one loaded D0
+      dataset without creating one heavyweight process/evidence bundle per raw candidate.
+- [ ] Add compute-budget and stop-rule accounting.
+- [ ] Add D1 hidden-confirmation seal/freeze contract, but do not open D1 in the foundation PR.
+- [ ] Run full tests/Ruff on exact branch head.
+- [ ] Open one coherent Strategy Factory v2 foundation PR.
+- [ ] Fix every CI failure; merge only with all required checks green.
 
-## NOW — SF3 preregistration before fresh data
+## NEXT — Strategy Factory v2 500-cap pilot
 
-- [x] Create `config/sf3_research_protocol_v1.json` with 24 candidates and 12 new four-hour windows.
-- [x] Exclude all SF1 and SF2 windows plus the original 2026-08-01 smoke day.
-- [x] Keep the statistical correction budget at 48 even though SF3 has 24 active candidates.
-- [x] Keep the quality gate unchanged: positive mean return, positive mean expectancy, >=30 trades, >=9/12 baseline wins, positive mean delta vs baseline, adjusted p <=0.05.
-- [x] Keep fees at 4 bps and adverse slippage at 1.5 bps.
-- [x] Preregister four new families, six candidates each: `rolling_flow_trend_v1`, `volume_shock_momentum_v1`, `vwap_reversion_flow_v1`, `compression_expansion_v1`.
-- [x] Preregister slower anti-churn execution for this new phase: one-bar delay, minimum hold 4 bars, maximum hold 30 bars.
-- [x] Add `sf3_protocol.py` validation that fails closed on prior-window reuse, smoke-day reuse, Frozen-OOS access, lowered search budget or weakened quality gates.
-- [x] Add protocol regression tests.
-- [ ] Finish exact-head CI for PR #95 and fix every failure.
-- [ ] Merge only when regression, Ruff, runtime, continuity, hygiene and deployment checks are green.
+Only after the foundation PR is merged and production/runtime regression proof is clean:
 
-## NEXT — Implement SF3 strategies before touching SF3 data
+- [ ] Register 8–12 economically distinct families compatible with available causal data.
+- [ ] Generate up to 500 bounded raw candidates; stop early if novelty/compute rules trigger.
+- [ ] Use only declared D0 discovery data.
+- [ ] Account for every performance-inspected candidate in the trial ledger.
+- [ ] Apply static sanity filters before performance simulation.
+- [ ] Use stratified low-fidelity evaluation rather than chronological first-N racing.
+- [ ] Cluster behavioral near-duplicates and keep representative candidates.
+- [ ] Nominate at most 30 discovery survivors.
+- [ ] Freeze survivor specs before any D1 hidden confirmation is opened.
+- [ ] Treat zero survivors as a valid research result; do not expand the budget just to force a
+      winner.
 
-- [ ] Implement rolling multi-bar price + executed-flow trend confirmation.
-- [ ] Implement relative-volume shock momentum.
-- [ ] Implement rolling VWAP reversion with executed-flow reversal confirmation.
-- [ ] Implement volatility-compression -> directional-expansion entries.
-- [ ] Add causal/no-lookahead, long/short, fee/slippage, minimum/maximum hold and deterministic-repeat tests.
-- [ ] Freeze SF3 implementation/configuration with green CI before materializing any SF3 fresh window.
+## THEN — Hidden confirmation and current strict EBA verification
 
-## THEN — Fresh SF3 evidence
+- [ ] Open D1 only through a separately authorized hidden-confirmation workflow.
+- [ ] Account for broad-search selection/multiple-testing history.
+- [ ] Reject failed survivors without post-hoc retuning on D1.
+- [ ] Use D2 for candidate-specific robustness only after confirmation survives.
+- [ ] Keep robustness before Frozen OOS.
+- [ ] Keep D3 Frozen OOS sealed until all prior gates pass.
+- [ ] Forward paper only after strict research verification.
+- [ ] Binance Demo only after paper and execution criteria; Demo is not a verification shortcut.
+- [ ] Real execution remains separately locked.
 
-- [ ] Materialize only the 12 preregistered SF3 windows from Binance USD-M archives under a new immutable namespace.
-- [ ] Verify acquisition provenance, hashes and non-overlap with Frozen OOS.
-- [ ] Run all 24 SF3 candidates across all 12 fresh windows.
-- [ ] Apply exact 4096 sign-flip tests and the fixed Bonferroni budget of 48.
-- [ ] Reject every candidate that misses any quality criterion; do not lower thresholds.
-- [ ] If zero pass, close SF3 and design a new fresh phase rather than retuning these windows.
-- [ ] If one passes, build a candidate-specific fixed robustness suite before any Frozen-OOS consideration.
+## FIXED RESEARCH-INTEGRITY RULES — DO NOT LOWER
 
-## FIXED QUALITY GATE — DO NOT LOWER
+- [x] causal/no-lookahead execution;
+- [x] fees/slippage included;
+- [x] dataset provenance/integrity;
+- [x] immutable evidence where authority is required;
+- [x] development/confirmation/OOS separation;
+- [x] robustness before Frozen OOS;
+- [x] post-hoc tuning protection;
+- [x] reused data cannot be relabelled fresh;
+- [x] development/discovery ranking has no promotion authority;
+- [x] deterministic risk veto remains independent of AI;
+- [x] real-money execution stays locked.
 
-A candidate may enter robustness only if all are true:
+## EXECUTION ARCHITECTURE HARDENING — AFTER FACTORY FOUNDATION
 
-- [x] mean return > 0;
-- [x] mean expectancy > 0;
-- [x] total trades >= 30;
-- [x] baseline beaten in >=9/12 windows;
-- [x] mean return delta vs baseline > 0;
-- [x] Bonferroni-adjusted exact sign-flip p-value <= 0.05.
-
-Passing this gate still does not open Frozen OOS. Robustness remains mandatory afterward.
-
-## NEXT — execution architecture hardening
-
-- [ ] Formalize strategy -> risk -> execution -> fill reconciliation -> position -> exit -> terminal evidence lifecycle.
-- [ ] Keep exchange-specific connector logic separate from strategy logic.
-- [ ] Move toward identical strategy/time semantics across historical simulation, forward paper and later micro-live.
-- [ ] Strengthen fill/slippage modeling before any profitability claim.
+- [ ] Formalize strategy -> risk -> execution -> fill reconciliation -> position -> exit -> terminal
+      evidence lifecycle.
+- [ ] Keep exchange connector logic separate from strategy logic.
+- [ ] Move toward identical strategy/time semantics across historical simulation, forward paper and
+      later micro-live.
+- [ ] Strengthen fill/slippage/funding/impact modeling before any profitability claim.
 
 ## LATER
 
 - [ ] Verified Strategy Knowledge Base.
+- [ ] Multi-symbol liquid Binance universe with predeclared universe-selection rule.
 - [ ] Forward-paper strategy factory.
-- [ ] Professional trading-dashboard UI/UX pass after core research state is reconciled.
+- [ ] Professional trading-dashboard UI/UX pass after core research engine stabilizes.
 - [ ] Strategy decision trace/chart UI.
 - [ ] Separate sequence-validated LOB/order-book data plane if evidence warrants it.
 - [ ] Market Brain/regime selector after enough independently verified strategies exist.
-- [ ] Strategy/portfolio selector, outcome attribution and drift monitoring.
+- [ ] Portfolio selector, outcome attribution and drift monitoring.
 - [ ] Explicit shadow -> micro-live -> live promotion gates only after required evidence exists.
 
 ## BLOCKED / GATED
 
-- [ ] M5 Frozen OOS access — **blocked because no candidate has passed the full development/robustness/statistical gates**.
+- [ ] M5 Frozen OOS access — blocked because no candidate has passed full development/robustness
+      gates.
+- [ ] Factory v2 D1 hidden confirmation — blocked until foundation + survivor freeze.
 - [ ] Real-money Binance orders — intentionally locked.
 - [ ] Resting LOB/order-book claims — require a separate reconstruction/integrity contract.
 
 ## Handoff rule
 
-At meaningful session end, record exact commits, CI/production proof, risks and the next exact action. Never convert successful execution plumbing, a development leaderboard, or a statistically invalid repeated search into a profitability/live-readiness claim.
+At meaningful session end, record exact commits, CI/production proof, risks and next exact action.
+Never convert successful execution plumbing, a discovery leaderboard, a sparse backtest, or a
+statistically invalid repeated search into a profitability/live-readiness claim.
