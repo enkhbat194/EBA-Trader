@@ -26,6 +26,7 @@ continuing.
 
 - [x] Decide that broad discovery and strict verification remain separate authorities.
 - [x] Create `docs/STRATEGY_FACTORY_V2_DESIGN.md`.
+- [x] Record the architecture decision in `docs/DECISION_STRATEGY_FACTORY_V2_2026-09-01.md`.
 - [x] Create versioned pilot contract `config/strategy_factory_v2_pilot_v1.json`.
 - [x] Hard-cap pilot raw candidates at 500.
 - [x] Hard-cap candidates per family at 64.
@@ -36,13 +37,13 @@ continuing.
 - [x] Add behavioral fingerprints and near-duplicate similarity filtering.
 - [x] Test that a discovery survivor cannot promote durable StrategyLifecycle.
 - [x] Reconcile `PROJECT_STATE.md` through completed SF3 production evidence.
-- [ ] Reconcile `BACKTEST_PROTOCOL.md` with lifecycle policy v2 and Strategy Factory v2 data zones.
-- [ ] Add pilot-contract parser/validator that fails closed on weakened authority, caps or data locks.
-- [ ] Add bounded Strategy Family v2 registry.
-- [ ] Add deterministic quasi-random parameter sampling with replay seed/identity.
-- [ ] Add structural dedupe before evaluation.
+- [x] Reconcile `BACKTEST_PROTOCOL.md` with lifecycle policy v2 and Strategy Factory v2 data zones.
+- [x] Add pilot-contract parser/validator that fails closed on weakened authority, caps or data locks.
+- [x] Add bounded Strategy Family v2 registry.
+- [x] Add deterministic quasi-random parameter sampling with replay seed/identity.
+- [x] Add structural candidate identity/deduplication before evaluation.
 - [ ] Add behavioral cluster report with raw/unique/cluster/family counts kept separate.
-- [ ] Add discovery-priority scoring contract with no promotion/statistical authority.
+- [ ] Add discovery-priority selection contract with no promotion/statistical authority.
 - [ ] Add compact batch-evaluation interface that can evaluate many candidates from one loaded D0
       dataset without creating one heavyweight process/evidence bundle per raw candidate.
 - [ ] Add compute-budget and stop-rule accounting.
