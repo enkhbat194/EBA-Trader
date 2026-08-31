@@ -1,0 +1,54 @@
+{
+  "schema": "strategy_factory_v2_pilot_v1",
+  "campaign_id": "sfv2-discovery-pilot-v1",
+  "authority": "DISCOVERY_ONLY",
+  "objective": "Search broadly while preserving strict downstream verification authority.",
+  "budget": {
+    "raw_candidate_cap": 500,
+    "candidate_cap_per_family": 64,
+    "survivor_cap": 30,
+    "target_family_count_min": 8,
+    "target_family_count_max": 12
+  },
+  "search": {
+    "primary_parameter_sampler": "deterministic_quasi_random",
+    "grid_search_allowed_for": [
+      "small_declared_neighborhoods",
+      "robustness_after_candidate_freeze"
+    ],
+    "bayesian_optimization_authority": false,
+    "genetic_programming_authority": false,
+    "unrestricted_ai_code_generation_authority": false
+  },
+  "selection": {
+    "structural_deduplication_required": true,
+    "behavioral_deduplication_required": true,
+    "behavioral_similarity_threshold": 0.9,
+    "minimum_behavioral_clusters_for_full_budget": 4,
+    "discovery_priority_has_promotion_authority": false
+  },
+  "data_zones": {
+    "discovery_corpus": "D0",
+    "hidden_confirmation": "D1",
+    "robustness_reserve": "D2",
+    "frozen_oos": "D3",
+    "confirmation_must_be_hidden_until_survivor_freeze": true,
+    "frozen_oos_allowed": false
+  },
+  "evidence": {
+    "all_trials_must_be_ledgered": true,
+    "full_immutable_strategy_evidence_required_for_raw_candidates": false,
+    "full_immutable_strategy_evidence_required_for_confirmation_survivors": true,
+    "dataset_hash_required": true,
+    "source_code_sha_required": true,
+    "candidate_spec_hash_required": true
+  },
+  "safety": {
+    "may_transition_strategy_lifecycle": false,
+    "may_open_frozen_oos": false,
+    "may_enable_real_execution": false,
+    "may_call_development_ranking_verified": false,
+    "may_use_demo_as_verification_shortcut": false,
+    "current_eba_verification_pipeline_must_remain_unchanged": true
+  }
+}
