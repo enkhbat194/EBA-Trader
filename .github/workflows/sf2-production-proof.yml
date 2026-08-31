@@ -1,0 +1,124 @@
+name: SF2 production evidence proof
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sf2-production-evidence-proof
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      EBA_PRODUCTION_URL: https://eba-trader-172-236-150-62.sslip.io
+    steps:
+      - name: Wait for exact build and read safe SF2 result
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.request
+
+          base = os.environ["EBA_PRODUCTION_URL"].rstrip("/")
+          expected = os.environ["EXPECTED_SHA"].strip()
+          deadline = time.time() + 900
+          last_error = "not attempted"
+
+          def get_json(path):
+              request = urllib.request.Request(
+                  base + path,
+                  headers={"Accept": "application/json", "User-Agent": "eba-sf2-proof/1"},
+              )
+              with urllib.request.urlopen(request, timeout=15) as response:
+                  payload = json.loads(response.read().decode("utf-8"))
+              if not isinstance(payload, dict):
+                  raise RuntimeError(f"{path} returned non-object JSON")
+              return payload
+
+          while time.time() < deadline:
+              try:
+                  app = get_json("/api/app-info")
+                  build = str(app.get("buildSha") or "")
+                  if build != expected:
+                      last_error = (
+                          f"waiting for build {expected[:8]} "
+                          f"(server {build[:8] or 'unknown'})"
+                      )
+                      time.sleep(20)
+                      continue
+
+                  research = get_json("/api/research/status")
+                  locks = research.get("locks") or {}
+                  sf2 = research.get("sf2") or {}
+
+                  checks = {
+                      "sf2_available": sf2.get("available") is True,
+                      "sf2_complete": sf2.get("phase") == "COMPLETE",
+                      "sf2_candidate_count": sf2.get("candidateCount") == 24,
+                      "sf2_search_budget": sf2.get("multipleTestingBudget") == 48,
+                      "sf2_window_count": sf2.get("windowCount") == 12,
+                      "sf2_development_only": sf2.get("developmentEvidenceOnly") is True,
+                      "sf2_no_edge_claim": sf2.get("edgeClaimAllowed") is False,
+                      "sf2_no_promotion": sf2.get("promotionAuthority") is False,
+                      "sf2_frozen_oos_closed": sf2.get("frozenOosOpened") is False,
+                      "sf2_m5_frozen_oos_closed": sf2.get("m5FrozenOosOpened") is False,
+                      "sf2_live_locked": sf2.get("liveExecutionAllowed") is False,
+                      "frozen_oos_locked": locks.get("frozenOos") is True,
+                      "real_execution_locked": locks.get("realExecution") is True,
+                  }
+                  failed = [name for name, passed in checks.items() if not passed]
+                  if failed:
+                      diagnostic = {
+                          "failed": failed,
+                          "sf2": sf2,
+                          "locks": locks,
+                      }
+                      last_error = json.dumps(
+                          diagnostic,
+                          sort_keys=True,
+                          separators=(",", ":"),
+                      )[:12000]
+                      time.sleep(20)
+                      continue
+
+                  ranking = sf2.get("developmentRanking") or []
+                  validation = sf2.get("candidateValidation") or []
+                  print(
+                      json.dumps(
+                          {
+                              "ok": True,
+                              "build": build,
+                              "candidateCount": sf2.get("candidateCount"),
+                              "windowCount": sf2.get("windowCount"),
+                              "multipleTestingBudget": sf2.get("multipleTestingBudget"),
+                              "validationState": sf2.get("validationState"),
+                              "verifiedCandidateCount": sf2.get("verifiedCandidateCount"),
+                              "topVerifiedCandidate": sf2.get("topVerifiedCandidate"),
+                              "topDevelopmentCandidate": sf2.get("topDevelopmentCandidate"),
+                              "topDevelopmentAggregate": sf2.get("topDevelopmentAggregate") or {},
+                              "topFiveDevelopment": ranking[:5] if isinstance(ranking, list) else [],
+                              "candidateValidation": validation if isinstance(validation, list) else [],
+                              "frozenOosLocked": True,
+                              "realExecutionLocked": True,
+                          },
+                          separators=(",", ":"),
+                      )
+                  )
+                  raise SystemExit(0)
+              except (OSError, ValueError, RuntimeError, urllib.error.URLError) as exc:
+                  last_error = str(exc)[:12000]
+                  time.sleep(20)
+
+          raise SystemExit(f"SF2 production proof timed out: {last_error}")
+          PY
