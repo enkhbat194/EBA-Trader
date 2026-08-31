@@ -11,6 +11,7 @@ from typing import Any
 from .production_proof import read_production_proof
 from .sf1_dashboard import read_sf1_summary
 from .sf2_dashboard import read_sf2_summary
+from .sf3_dashboard import read_sf3_summary
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_RESEARCH_DB = PROJECT_ROOT / "artifacts" / "research" / "eba_research.db"
@@ -300,6 +301,7 @@ def build_research_status(
         "m5Report": read_m5_report_summary(proof, evidence_root=evidence_root),
         "sf1": read_sf1_summary(evidence_root=evidence_root),
         "sf2": read_sf2_summary(evidence_root=evidence_root),
+        "sf3": read_sf3_summary(evidence_root=evidence_root),
         "locks": {
             "frozenOos": True,
             "realExecution": True,
