@@ -51,7 +51,11 @@ def _json_object(path: Path, *, label: str) -> dict[str, Any]:
 def _resolve_under(root: Path, value: str | Path, *, label: str) -> Path:
     resolved_root = root.resolve()
     candidate = Path(value)
-    candidate = candidate.resolve() if candidate.is_absolute() else (resolved_root / candidate).resolve()
+    candidate = (
+        candidate.resolve()
+        if candidate.is_absolute()
+        else (resolved_root / candidate).resolve()
+    )
     try:
         candidate.relative_to(resolved_root)
     except ValueError as exc:
@@ -60,7 +64,9 @@ def _resolve_under(root: Path, value: str | Path, *, label: str) -> Path:
 
 
 def candidate_set_sha256(protocol: SF2ResearchProtocol) -> str:
-    return sha256_text(canonical_json([candidate.as_dict() for candidate in protocol.candidates]))
+    return sha256_text(
+        canonical_json([candidate.as_dict() for candidate in protocol.candidates])
+    )
 
 
 def _load_sf2_materialization(
@@ -98,12 +104,20 @@ def _load_sf2_materialization(
         raise RuntimeError("SF2 materialization window count mismatch")
 
     receipts: list[dict[str, Any]] = []
-    for receipt, expected in zip(materialization.windows, protocol.corpus.windows, strict=True):
+    for receipt, expected in zip(
+        materialization.windows,
+        protocol.corpus.windows,
+        strict=True,
+    ):
         if receipt.window_name != expected.name:
             raise RuntimeError("SF2 receipt window name mismatch")
         if receipt.start_ms != expected.start_ms or receipt.end_ms != expected.end_ms:
             raise RuntimeError("SF2 receipt time range mismatch")
-        path = _resolve_under(dataset_root, receipt.dataset_ref, label="SF2 dataset_ref")
+        path = _resolve_under(
+            dataset_root,
+            receipt.dataset_ref,
+            label="SF2 dataset_ref",
+        )
         if not path.is_file():
             raise RuntimeError(f"SF2 feature dataset is missing: {expected.name}")
         receipts.append(
@@ -170,7 +184,9 @@ def _aggregate(
         result.update(
             {
                 "beatBaselineWindowCount": sum(value > 0.0 for value in deltas),
-                "notWorseThanBaselineWindowCount": sum(value >= 0.0 for value in deltas),
+                "notWorseThanBaselineWindowCount": sum(
+                    value >= 0.0 for value in deltas
+                ),
                 "meanReturnDeltaVsBaseline": statistics.fmean(deltas),
                 "medianReturnDeltaVsBaseline": statistics.median(deltas),
                 "worstReturnDeltaVsBaseline": min(deltas),
@@ -233,7 +249,8 @@ def evaluate_sf2_development(
         )
         if len(candles) <= protocol.warmup_bars + 2:
             raise RuntimeError(
-                f"SF2 window is too short for preregistered warmup: {receipt['window_name']}"
+                "SF2 window is too short for preregistered warmup: "
+                f"{receipt['window_name']}"
             )
         evaluation_start_ms = candles[protocol.warmup_bars].open_time_ms
         baseline_spec = {
@@ -389,6 +406,16 @@ def _exact_sign_flip_p_value(deltas: tuple[float, ...]) -> tuple[float, int, int
     return extreme_count / permutation_count, extreme_count, permutation_count
 
 
+def _expected_baseline_parameters() -> dict[str, float | int]:
+    return {
+        "fastEma": BASELINE_FAST_EMA,
+        "slowEma": BASELINE_SLOW_EMA,
+        "initialCash": INITIAL_CASH,
+        "feeBps": FEE_BPS,
+        "slippageBps": SLIPPAGE_BPS,
+    }
+
+
 def validate_sf2_development(
     report: Mapping[str, Any],
     *,
@@ -399,8 +426,13 @@ def validate_sf2_development(
         raise RuntimeError("unsupported SF2 development report schema")
     if not _safe_contract(report):
         raise RuntimeError("unsafe SF2 development report")
-    if report.get("phaseId") != protocol.phase_id or report.get("protocolId") != protocol.protocol_id:
+    if (
+        report.get("phaseId") != protocol.phase_id
+        or report.get("protocolId") != protocol.protocol_id
+    ):
         raise RuntimeError("SF2 development report protocol identity mismatch")
+    if report.get("candidateSetSha256") != candidate_set_sha256(protocol):
+        raise RuntimeError("SF2 development candidate set identity mismatch")
     if report.get("candidateCount") != len(protocol.candidates):
         raise RuntimeError("SF2 development candidate count mismatch")
     if report.get("multipleTestingBudget") != PLANNED_MULTIPLE_TESTING_BUDGET:
@@ -411,10 +443,17 @@ def validate_sf2_development(
     baseline = report.get("baseline")
     if not isinstance(baseline, Mapping) or baseline.get("baselineId") != BASELINE_ID:
         raise RuntimeError("SF2 baseline identity mismatch")
+    if baseline.get("adapter") != "ema_feature_baseline_v1":
+        raise RuntimeError("SF2 baseline adapter mismatch")
+    if baseline.get("parameters") != _expected_baseline_parameters():
+        raise RuntimeError("SF2 baseline parameter mismatch")
     baseline_returns = _window_returns(baseline.get("windows"), label="SF2 baseline")
     candidates = report.get("candidates")
     if not isinstance(candidates, list) or len(candidates) != len(protocol.candidates):
         raise RuntimeError("SF2 candidate payload count mismatch")
+    protocol_candidates = {
+        candidate.candidate_id: candidate for candidate in protocol.candidates
+    }
 
     rows: list[dict[str, Any]] = []
     verified: list[dict[str, Any]] = []
@@ -426,6 +465,16 @@ def validate_sf2_development(
         aggregate = candidate.get("aggregate")
         if not isinstance(candidate_id, str) or not candidate_id or candidate_id in seen:
             raise RuntimeError("SF2 candidateId is invalid or duplicated")
+        expected = protocol_candidates.get(candidate_id)
+        if expected is None:
+            raise RuntimeError(f"SF2 candidate is not preregistered: {candidate_id}")
+        if candidate.get("family") != expected.family:
+            raise RuntimeError(f"SF2 candidate family mismatch: {candidate_id}")
+        raw_parameters = candidate.get("parameters")
+        if not isinstance(raw_parameters, Mapping):
+            raise RuntimeError(f"SF2 candidate parameters are missing: {candidate_id}")
+        if dict(raw_parameters) != dict(expected.parameters):
+            raise RuntimeError(f"SF2 candidate parameter mismatch: {candidate_id}")
         if not isinstance(aggregate, Mapping):
             raise RuntimeError("SF2 candidate aggregate is missing")
         seen.add(candidate_id)
@@ -441,7 +490,10 @@ def validate_sf2_development(
         candidate_returns = _window_returns(candidate.get("windows"), label=candidate_id)
         if set(candidate_returns) != set(baseline_returns):
             raise RuntimeError(f"SF2 candidate window set mismatch: {candidate_id}")
-        deltas = tuple(candidate_returns[name] - baseline_returns[name] for name in baseline_returns)
+        deltas = tuple(
+            candidate_returns[name] - baseline_returns[name]
+            for name in baseline_returns
+        )
         observed_mean = statistics.fmean(deltas)
         raw_p, extreme_count, permutation_count = _exact_sign_flip_p_value(deltas)
         adjusted_p = min(1.0, raw_p * PLANNED_MULTIPLE_TESTING_BUDGET)
@@ -463,13 +515,19 @@ def validate_sf2_development(
             failed.append("baselineCoverageSufficient")
         if not positive_delta:
             failed.append("positiveMeanDeltaVsBaseline")
-        if profitable and sample_sufficient and coverage_sufficient and positive_delta and adjusted_p > ADJUSTED_ALPHA_MAX:
+        if (
+            profitable
+            and sample_sufficient
+            and coverage_sufficient
+            and positive_delta
+            and adjusted_p > ADJUSTED_ALPHA_MAX
+        ):
             failed.append("statisticalSignificance")
 
         row = {
             "candidateId": candidate_id,
-            "family": candidate.get("family"),
-            "parameters": dict(candidate.get("parameters") or {}),
+            "family": expected.family,
+            "parameters": dict(expected.parameters),
             "qualified": profitable and sample_sufficient and coverage_sufficient,
             "verifiedForRobustness": significant,
             "failedChecks": failed,
@@ -494,10 +552,17 @@ def validate_sf2_development(
         if significant:
             verified.append(row)
 
+    if seen != set(protocol_candidates):
+        raise RuntimeError("SF2 development candidate set is incomplete")
+
     state = "VERIFIED_CANDIDATE_AVAILABLE" if verified else "NO_VERIFIED_CANDIDATE"
     ranking = report.get("developmentRanking")
     rank_order = (
-        {row.get("candidateId"): index for index, row in enumerate(ranking) if isinstance(row, Mapping)}
+        {
+            row.get("candidateId"): index
+            for index, row in enumerate(ranking)
+            if isinstance(row, Mapping)
+        }
         if isinstance(ranking, list)
         else {}
     )
