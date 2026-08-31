@@ -7,9 +7,17 @@ from typing import Any
 
 from .atr_backtest import AtrTrailingConfig, atr_trailing_regime, run_atr_trailing_backtest
 from .backtest import BacktestResult
-from .breakout_backtest import DonchianBreakoutConfig, donchian_signals, run_donchian_breakout_backtest
+from .breakout_backtest import (
+    DonchianBreakoutConfig,
+    donchian_signals,
+    run_donchian_breakout_backtest,
+)
 from .history import Candle
-from .mean_reversion_backtest import MeanReversionConfig, mean_reversion_signals, run_mean_reversion_backtest
+from .mean_reversion_backtest import (
+    MeanReversionConfig,
+    mean_reversion_signals,
+    run_mean_reversion_backtest,
+)
 from .orderflow_feature_dataset import OrderFlowFeatureRow
 from .orderflow_impulse_backtest import (
     OrderFlowDeltaImpulseConfig,
@@ -22,13 +30,15 @@ from .strategy_discovery_batch import DiscoveryEvaluation
 from .strategy_discovery_v2 import BehavioralFingerprint, DiscoveryCandidate
 
 PRICE_FAMILIES = frozenset({"atr_trailing_v1", "donchian_breakout_v1", "mean_reversion_z_v1"})
-ORDERFLOW_FAMILIES = frozenset({
-    "orderflow_delta_impulse_v1",
-    "rolling_flow_trend_v1",
-    "volume_shock_momentum_v1",
-    "vwap_reversion_flow_v1",
-    "compression_expansion_v1",
-})
+ORDERFLOW_FAMILIES = frozenset(
+    {
+        "orderflow_delta_impulse_v1",
+        "rolling_flow_trend_v1",
+        "volume_shock_momentum_v1",
+        "vwap_reversion_flow_v1",
+        "compression_expansion_v1",
+    }
+)
 SUPPORTED_FAMILIES = PRICE_FAMILIES | ORDERFLOW_FAMILIES
 REGIME_BUCKET_COUNT = 4
 
@@ -56,7 +66,12 @@ class DiscoveryDatasetV2:
                 self.trade_start_time_ms, int
             ):
                 raise TypeError("trade_start_time_ms must be an integer UTC epoch millisecond")
-            if not self.candles[0].open_time_ms <= self.trade_start_time_ms < self.candles[-1].close_time_ms:
+            inside = (
+                self.candles[0].open_time_ms
+                <= self.trade_start_time_ms
+                < self.candles[-1].close_time_ms
+            )
+            if not inside:
                 raise ValueError("trade_start_time_ms must be inside the loaded D0 dataset")
 
 
@@ -151,7 +166,11 @@ def execute_discovery_candidate(
         signal_keys = _orderflow_signal_keys(rows, entries, side=config.side, start_ms=start)
         return CandidateExecution(result=result, signal_keys=signal_keys, side=config.side)
 
-    sf3_candidate = SF3Candidate(candidate_id=candidate.candidate_id, family=family, parameters=parameters)
+    sf3_candidate = SF3Candidate(
+        candidate_id=candidate.candidate_id,
+        family=family,
+        parameters=parameters,
+    )
     observations = sf3_candidate_signals(rows, sf3_candidate)
     result = run_sf3_candidate_backtest(rows, sf3_candidate, trade_start_time_ms=start)
     side = _candidate_side(parameters)
