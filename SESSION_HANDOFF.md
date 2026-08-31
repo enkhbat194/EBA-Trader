@@ -23,7 +23,7 @@ Exact-main proof:
 
 No open pull requests existed before this reconciliation branch was created.
 
-## Research status
+## What was completed
 
 ### SF1 / SF2 / SF3
 
@@ -53,7 +53,7 @@ SF3 evidence cannot be pooled into the replication result. Parameters cannot be 
 conservative prior search budget of 48 remains carried forward. Passing replication would only
 justify a separately preregistered robustness phase.
 
-## Strategy Factory v2 state
+### Strategy Factory v2
 
 The discovery-only foundation is merged. PR #100 added the first executable family catalog and was
 merged to `f9161ab...` with exact-head checks green.
@@ -88,7 +88,7 @@ First executable pilot catalog:
 
 Total declared raw candidate slots: **406**, deliberately below the 500 maximum.
 
-## Current highest-priority implementation task
+## Next exact task
 
 Build the common D0 discovery evaluator/adaptor layer.
 
