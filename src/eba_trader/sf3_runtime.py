@@ -9,6 +9,7 @@ from typing import Any
 
 from .m5_corpus_materializer import DEFAULT_RESEARCH_ROOT, materialize_m5_development_corpus
 from .m5_multiwindow_runtime import DEFAULT_REPO_ROOT
+from .sf2_development import write_immutable_report
 from .sf3_development import (
     DEVELOPMENT_REPORT_SCHEMA,
     ORDERFLOW_SOURCE,
@@ -18,7 +19,6 @@ from .sf3_development import (
     candidate_set_sha256,
     evaluate_sf3_development,
     validate_sf3_development,
-    write_immutable_report,
 )
 from .sf3_protocol import load_sf3_protocol
 
