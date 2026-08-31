@@ -18,10 +18,11 @@ def test_sf2_runs_as_independent_development_stage() -> None:
     assert 'sf2_state="complete"' in script
     assert 'sf2_state="failed"' in script
 
-    # SF2 must not be nested under the legacy robustness success condition.
-    robustness_guard = "if [[ $robustness_exit -eq 0 ]]; then"
-    guard_index = script.index(robustness_guard)
-    assert script.index(sf2) < guard_index
+    # The final robustness guard controls only the disabled Demo proof. SF2 must run
+    # before that guard, independently of the legacy candidate-specific robustness path.
+    robustness_demo_guard = "if [[ $robustness_exit -eq 0 ]]; then"
+    guard_index = script.rindex(robustness_demo_guard)
+    assert script.index(sf2) < guard_index < script.index(demo)
 
 
 def test_sf2_maintenance_comment_preserves_no_authority_contract() -> None:
