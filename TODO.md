@@ -17,25 +17,54 @@ Actual GitHub/runtime state overrides stale prose. Query `main`, open PRs and wo
 - [x] Seal M5 development range `2026-07-01 -> 2026-08-15` UTC.
 - [x] Seal M5 Frozen OOS `2026-08-15 -> 2026-08-22` UTC.
 - [x] Materialize and verify the original 12-window development corpus.
-- [x] Run multi-window order-flow development research.
-- [x] Diagnose `absorption_020` as a sparse EMA-crossover entry filter rather than an independent signal generator.
-- [x] Reject `absorption_020`: only 4 trades, negative expectancy, not profitable, not sample-sufficient, not robustness-verified.
+- [x] Reject `absorption_020`: 4 trades, negative expectancy, not profitable, not sample-sufficient, not robustness-verified.
 - [x] Keep Frozen OOS closed and real-money execution locked.
 
 ## DONE — SF1 independent-family search
 
-- [x] Add 12 ATR trailing-stop candidates.
-- [x] Add 12 Donchian breakout candidates.
-- [x] Add 12 z-score mean-reversion candidates.
-- [x] Add 12 independent long/short raw footprint-delta impulse candidates.
-- [x] Fill the entire preregistered SF1 search budget: `48/48` candidates.
-- [x] Use the same 12 development windows, 4 bps fees, 1.5 bps adverse slippage and causal next-open execution.
+- [x] Evaluate 48/48 preregistered ATR, Donchian, z-score mean-reversion and raw order-flow impulse candidates.
+- [x] Use 12 development windows, 4 bps fees, 1.5 bps adverse slippage and causal next-open execution.
 - [x] Apply the fixed 48-hypothesis Bonferroni correction.
-- [x] Production-run all 48 candidates on exact build `0f6d0c1d7c74f8a42ae16921d24dfe446d805380`.
-- [x] Production proof passed structurally with `validationState=NO_VERIFIED_CANDIDATE` and `verifiedCandidateCount=0`.
-- [x] Reject top development candidate `mr_48z15x00`: 10/12 baseline beats and 30 trades, but negative mean return, negative mean expectancy and adjusted p-value ~0.246.
-- [x] Reject all 12 raw order-flow impulse candidates: adequate sample but 0/12 baseline beats, negative return/expectancy and adjusted p-value 1.0.
-- [x] Close SF1 without an edge/profitability claim.
+- [x] Production result: `validationState=NO_VERIFIED_CANDIDATE`, `verifiedCandidateCount=0`.
+- [x] Reject `mr_48z15x00` despite 10/12 baseline beats and 30 trades because return/expectancy were negative and adjusted p ~0.246.
+- [x] Reject raw order-flow impulse family: 0/12 baseline wins and negative economics.
+- [x] Close SF1 without an edge/profitability claim and prohibit further post-hoc retuning on the same evidence.
+
+## DONE — SF2 preregistration and signal freeze
+
+- [x] Preregister 12 fresh non-overlapping four-hour development windows.
+- [x] Exclude all SF1 windows and the previously inspected 2026-08-01 smoke day.
+- [x] Keep Bonferroni budget at 48 with 24 active candidates.
+- [x] Keep fees 4 bps, slippage 1.5 bps, one-bar execution delay, minimum hold 2 bars, maximum hold 12 bars.
+- [x] Keep qualification thresholds fixed: positive mean return/expectancy, >=30 trades, >=9/12 baseline wins, adjusted p <=0.05.
+- [x] Implement and freeze six candidates each for `divergence_reversal_v1`, `absorption_reversal_v1`, `stacked_delta_continuation_v1`, `flow_price_continuation_v1`.
+- [x] Pass causality, no-lookahead, long/short, fee/slippage, hold-time and terminal-close tests.
+- [x] Merge signal implementation and verify exact production build `28c6d12f378433395118b024a0a4132c6d4edf5d`.
+
+## NOW — M5 / SF2 fresh development pipeline
+
+- [x] Add custom SF2 corpus/evaluator that consumes only the preregistered fresh corpus.
+- [x] Add fixed EMA 12/26 development comparison baseline with identical 4 bps fee / 1.5 bps slippage assumptions.
+- [x] Add 24 × 12 development evaluation and immutable evidence output.
+- [x] Add exact 4096 sign-flip null-model validation with Bonferroni budget 48.
+- [x] Require positive mean delta vs baseline in addition to the preregistered quality gate.
+- [x] Add resumable production runtime and reusable terminal status.
+- [x] Add sanitized read-only `sf2` dashboard summary; never expose evidence paths, dataset refs or credentials.
+- [x] Integrate SF2 into maintenance as an independent development stage, not under legacy `absorption_020` robustness authority.
+- [x] Add tests for significance, runtime reuse/failure safety, dashboard sanitization and maintenance independence.
+- [ ] Finish exact-head CI for `sf2-fresh-corpus-evaluation-pipeline`; fix every failure before merge.
+- [ ] Merge only when full regression, Ruff, runtime, continuity, repository hygiene and deployment-contract checks are green.
+- [ ] Verify exact merged production build on Linode.
+- [ ] Confirm production maintenance materializes all 12 fresh SF2 windows with archive provenance and SHA-256 integrity.
+- [ ] Read sanitized production SF2 evaluation/validation result from `/api/research/status`.
+
+## THEN — Decide from fresh SF2 evidence
+
+- [ ] If `verifiedCandidateCount=0`, close SF2 without promotion; do not touch Frozen OOS.
+- [ ] If a candidate becomes robustness-eligible, freeze a candidate-appropriate robustness suite before running it.
+- [ ] Require cost stress, parameter-neighborhood stability, center profitability and sample sufficiency in robustness.
+- [ ] Open M5 Frozen OOS only after the complete development + robustness gates pass.
+- [ ] Keep real-money execution locked throughout this research phase.
 
 ## FIXED QUALITY GATE — DO NOT LOWER
 
@@ -45,43 +74,10 @@ A candidate may enter robustness only if all are true:
 - [x] mean expectancy > 0;
 - [x] total trades >= 30;
 - [x] baseline beaten in >=9/12 windows;
-- [x] Bonferroni-adjusted p-value <= 0.05.
+- [x] mean return delta vs baseline > 0;
+- [x] Bonferroni-adjusted exact sign-flip p-value <= 0.05.
 
 Passing this gate still does not open Frozen OOS. Robustness remains mandatory afterward.
-
-## NOW — SF2 fresh-development preregistration
-
-- [x] Stop adding candidates to SF1 after its 48/48 budget is consumed.
-- [x] Explicitly prohibit pretending another pass over the same 12 SF1 windows is fresh verification.
-- [x] Select 12 new non-overlapping 4-hour windows inside the sealed M5 development period.
-- [x] Exclude every SF1 window and the previously inspected 2026-08-01 smoke day.
-- [x] Keep the statistical correction budget at 48 even though SF2 has only 24 active candidates.
-- [x] Keep fees at 4 bps and slippage at 1.5 bps.
-- [x] Keep the quality gate unchanged.
-- [x] Preregister four SF2 families with six candidates each in `config/sf2_research_protocol_v1.json`.
-- [x] Add code validation that rejects SF1-window reuse, smoke-day reuse, changed execution assumptions, lowered statistical budget or weakened qualification gates.
-- [x] Add regression tests for the protocol.
-- [ ] Finish CI for `sf1-closeout-sf2-preregistration` and merge only if all checks pass.
-
-## NEXT — Implement SF2 candidates before touching fresh data
-
-- [ ] Implement `divergence_reversal_v1` as an independent entry generator from already-closed price/Delta divergence.
-- [ ] Implement `absorption_reversal_v1` as an independent executed-flow response signal, not an EMA filter.
-- [ ] Implement `stacked_delta_continuation_v1` with stacked imbalance + Delta confirmation.
-- [ ] Implement `flow_price_continuation_v1` using only already-closed price response plus already-available executed flow.
-- [ ] Enforce fixed `minimum_hold_bars=2` and `max_hold_bars=12` to reduce the raw-delta churn failure mode.
-- [ ] Add long/short, no-lookahead, causality, cost, hold-time and terminal-close tests.
-- [ ] Freeze candidate implementation/configuration before any fresh SF2 dataset is materialized or evaluated.
-
-## THEN — Fresh SF2 evidence
-
-- [ ] Materialize the preregistered 12-window SF2 corpus from Binance USD-M daily aggregate-trade archives using a distinct immutable corpus/materialization ID.
-- [ ] Verify archive checksum, acquisition provenance, feature hashes and non-overlap with M5 Frozen OOS.
-- [ ] Run all 24 SF2 candidates across all 12 fresh development windows.
-- [ ] Use 4096 sign-flip permutations and the conservative 48-hypothesis Bonferroni budget.
-- [ ] Reject every candidate that misses any fixed quality-gate condition.
-- [ ] Run robustness only for a candidate that passes the entire development gate.
-- [ ] Keep M5 Frozen OOS sealed unless development + robustness both pass.
 
 ## NEXT — execution architecture hardening
 
