@@ -14,7 +14,7 @@ from eba_trader.strategy_factory_v2_catalog import (
 )
 
 
-def test_pilot_catalog_uses_eight_executable_families_without_filling_cap_for_its_own_sake() -> None:
+def test_pilot_catalog_uses_eight_families_without_forcing_full_cap() -> None:
     plans = pilot_family_plans()
     assert len(plans) == 8
     assert planned_raw_candidate_count() == 406
