@@ -32,22 +32,24 @@ continuing.
 - [x] Hard-cap candidates per family at 64.
 - [x] Hard-cap discovery survivors at 30.
 - [x] Add deterministic discovery candidate/spec identity.
-- [x] Add discovery-only immutable search trial ledger.
-- [x] Record dataset SHA and source-code SHA for each declared trial.
+- [x] Separate candidate budget from evaluation-trial count.
+- [x] Add discovery-only immutable candidate/trial ledger.
+- [x] Record dataset SHA and source-code SHA in the correct candidate/trial layers.
 - [x] Add behavioral fingerprints and near-duplicate similarity filtering.
-- [x] Test that a discovery survivor cannot promote durable StrategyLifecycle.
-- [x] Reconcile `PROJECT_STATE.md` through completed SF3 production evidence.
-- [x] Reconcile `BACKTEST_PROTOCOL.md` with lifecycle policy v2 and Strategy Factory v2 data zones.
-- [x] Add pilot-contract parser/validator that fails closed on weakened authority, caps or data locks.
+- [x] Add behavioral cluster report with raw/unique/cluster/family counts kept separate.
+- [x] Add economic-first discovery-priority selection contract with no promotion/statistical authority.
 - [x] Add bounded Strategy Family v2 registry.
 - [x] Add deterministic quasi-random parameter sampling with replay seed/identity.
 - [x] Add structural candidate identity/deduplication before evaluation.
-- [ ] Add behavioral cluster report with raw/unique/cluster/family counts kept separate.
-- [ ] Add discovery-priority selection contract with no promotion/statistical authority.
-- [ ] Add compact batch-evaluation interface that can evaluate many candidates from one loaded D0
-      dataset without creating one heavyweight process/evidence bundle per raw candidate.
-- [ ] Add compute-budget and stop-rule accounting.
-- [ ] Add D1 hidden-confirmation seal/freeze contract, but do not open D1 in the foundation PR.
+- [x] Add compact in-process batch-evaluation interface for one loaded D0 dataset context.
+- [x] Add compute-budget stop accounting at the batch boundary.
+- [x] Add immutable discovery-survivor selection separate from evaluation results.
+- [x] Test that a discovery survivor cannot promote durable StrategyLifecycle.
+- [x] Add D1 hidden-confirmation freeze contract without opening D1.
+- [x] Reject D1 dataset hashes already consumed by D0 discovery.
+- [x] Reconcile `PROJECT_STATE.md` through completed SF3 production evidence.
+- [x] Reconcile `BACKTEST_PROTOCOL.md` with lifecycle policy v2 and Strategy Factory v2 data zones.
+- [x] Add pilot-contract parser/validator that fails closed on weakened authority, caps or data locks.
 - [ ] Run full tests/Ruff on exact branch head.
 - [ ] Open one coherent Strategy Factory v2 foundation PR.
 - [ ] Fix every CI failure; merge only with all required checks green.
@@ -119,7 +121,8 @@ Only after the foundation PR is merged and production/runtime regression proof i
 
 - [ ] M5 Frozen OOS access — blocked because no candidate has passed full development/robustness
       gates.
-- [ ] Factory v2 D1 hidden confirmation — blocked until foundation + survivor freeze.
+- [ ] Factory v2 D1 hidden confirmation — blocked until foundation + survivor freeze + separate
+      confirmation authorization.
 - [ ] Real-money Binance orders — intentionally locked.
 - [ ] Resting LOB/order-book claims — require a separate reconstruction/integrity contract.
 
