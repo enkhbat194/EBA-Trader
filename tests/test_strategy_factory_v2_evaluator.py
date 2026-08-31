@@ -1,14 +1,22 @@
 from __future__ import annotations
 
 import math
+from pathlib import Path
 
 from eba_trader.history import Candle
 from eba_trader.orderflow_feature_dataset import OrderFlowFeatureRow
-from eba_trader.strategy_discovery_v2 import DiscoveryCandidate, DiscoveryTrialStatus
+from eba_trader.research_store import ResearchStore
+from eba_trader.strategy_discovery_batch import DiscoveryBatchContext, run_discovery_batch
+from eba_trader.strategy_discovery_v2 import (
+    DiscoveryCampaignPolicy,
+    DiscoveryCandidate,
+    DiscoveryTrialLedger,
+    DiscoveryTrialStatus,
+)
 from eba_trader.strategy_factory_v2_catalog import generate_pilot_candidates
 from eba_trader.strategy_factory_v2_evaluator import (
-    DiscoveryDatasetV2,
     SUPPORTED_FAMILIES,
+    DiscoveryDatasetV2,
     execute_discovery_candidate,
     make_d0_candidate_evaluator,
 )
@@ -137,3 +145,49 @@ def test_dataset_rejects_misaligned_price_and_orderflow_rows() -> None:
         assert "time-aligned" in str(exc) or "identical lengths" in str(exc)
     else:
         raise AssertionError("misaligned D0 data must fail closed")
+
+
+def test_common_evaluator_is_wired_through_immutable_trial_ledger(tmp_path: Path) -> None:
+    dataset = _dataset()
+    store = ResearchStore(tmp_path / "research.db")
+    ledger = DiscoveryTrialLedger(store)
+    campaign = DiscoveryCampaignPolicy(
+        campaign_id="d0-adapter-test",
+        raw_candidate_cap=4,
+        candidate_cap_per_family=4,
+        survivor_cap=2,
+    )
+    ledger.register_campaign(
+        campaign,
+        definition={"dataset_zone": "D0", "selection_only": True},
+    )
+    candidates = tuple(
+        item
+        for item in generate_pilot_candidates(seed="ledger-integration")
+        if item.family_id == "donchian_breakout_v1"
+    )[:2]
+    context = DiscoveryBatchContext(
+        campaign_id=campaign.campaign_id,
+        dataset_sha256="d" * 64,
+        source_code_sha="333a0f242564455652e7c20cf2fe943e72e3864f",
+        fidelity="low-stratified-test",
+        search_round=0,
+        max_compute_ms=60_000,
+    )
+
+    summary = run_discovery_batch(
+        ledger=ledger,
+        context=context,
+        candidates=candidates,
+        evaluator=make_d0_candidate_evaluator(dataset),
+    )
+    trials = ledger.list_trials(campaign.campaign_id)
+
+    assert len(summary.declared_candidate_ids) == 2
+    assert len(summary.evaluated_trial_ids) == 2
+    assert len(trials) == 2
+    assert all(trial["dataset_sha256"] == "d" * 64 for trial in trials)
+    assert all(trial["fidelity"] == "low-stratified-test" for trial in trials)
+    assert all(trial["metrics"]["selection_only"] is True for trial in trials)
+    assert all(trial["behavior"] is not None for trial in trials)
+    assert all(trial["compute_ms"] is not None for trial in trials)
