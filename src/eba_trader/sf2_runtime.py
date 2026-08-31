@@ -175,14 +175,6 @@ def run_sf2_development(
 
     protocol = load_sf2_protocol(protocol_path)
     candidate_sha = candidate_set_sha256(protocol)
-    _atomic_write(
-        chosen_status,
-        {
-            **_base_status(phase="RUNNING", status_path=chosen_status),
-            "protocolId": protocol.protocol_id,
-            "candidateSetSha256": candidate_sha,
-        },
-    )
 
     try:
         materialization, manifest_path = materialize_m5_development_corpus(
