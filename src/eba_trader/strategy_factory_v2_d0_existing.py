@@ -7,8 +7,11 @@ from .m5_corpus_materializer import (
     M5DevelopmentCorpusMaterialization,
     materialize_m5_development_corpus,
 )
-from .strategy_factory_v2_d0_source import D0SourceDeclaration, declare_d0_from_inspected_m5_development
 from .orderflow_feature_dataset import OrderFlowFeatureRow
+from .strategy_factory_v2_d0_source import (
+    D0SourceDeclaration,
+    declare_d0_from_inspected_m5_development,
+)
 
 
 def load_existing_d0_from_inspected_m5(
@@ -17,7 +20,11 @@ def load_existing_d0_from_inspected_m5(
     price_bucket: float = 1.0,
     namespace: str = DEFAULT_NAMESPACE,
     orderflow_source: str = "archive",
-) -> tuple[D0SourceDeclaration, tuple[OrderFlowFeatureRow, ...], M5DevelopmentCorpusMaterialization]:
+) -> tuple[
+    D0SourceDeclaration,
+    tuple[OrderFlowFeatureRow, ...],
+    M5DevelopmentCorpusMaterialization,
+]:
     """Load D0 from already-materialized inspected M5 development evidence only.
 
     The injected builder always fails before acquisition. Therefore this path can validate and
