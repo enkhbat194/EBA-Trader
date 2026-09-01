@@ -56,6 +56,18 @@ continuing.
 - [x] Add deterministic candidate generation and replay tests.
 - [x] Merge PR #100 with exact-head regression/Ruff/runtime/production checks green.
 
+## DONE — Strategy Factory v2 common D0 evaluator
+
+- [x] Add one discovery-only evaluator/adaptor interface for all 8 registered families.
+- [x] Reuse existing causal backtest engines rather than fork strategy semantics.
+- [x] Normalize low-fidelity D0 metrics: net return/expectancy, trades, drawdown, costs, benchmark
+      delta, exposure and turnover.
+- [x] Generate `BehavioralFingerprint` from actual D0 signals/trades/exposure/turnover.
+- [x] Fail closed on invalid specs, unavailable order-flow data and zero-opportunity candidates.
+- [x] Wire evaluator into `run_discovery_batch` so every inspected candidate is ledgered.
+- [x] Enforce dataset SHA, source-code SHA, fidelity and compute accounting on every trial.
+- [x] Merge PR #102 as `4c5a6a9fe30f29b772a5c2fe4d1e99b38b4262b1` with exact-head checks green.
+
 ## ACTIVE — SF4 prospective replication
 
 - [x] Freeze exact `s3_vsm_s150` and `s3_cex_s075` parameters without retuning.
@@ -68,34 +80,34 @@ continuing.
 - [ ] If replication passes, preregister candidate-specific robustness before observing robustness
       results; passing still does not open Frozen OOS.
 
-## NOW — Strategy Factory v2 D0 execution layer
+## NOW — immutable D0 dataset + stratified pilot input
 
-- [ ] Add one discovery-only evaluator/adaptor interface for the 8 registered families.
-- [ ] Reuse existing causal backtest engines rather than fork strategy semantics.
-- [ ] Normalize low-fidelity D0 metrics: net return/expectancy, trades, drawdown, costs, benchmark
-      delta, exposure and turnover where available.
-- [ ] Generate `BehavioralFingerprint` from actual D0 behavior.
-- [ ] Add static/sanity rejection before performance ranking.
-- [ ] Wire evaluator into `run_discovery_batch` so every inspected candidate is ledgered.
-- [ ] Enforce dataset SHA, source-code SHA, fidelity and compute accounting on every trial.
-- [ ] Add behavioral near-duplicate clustering on batch outputs.
-- [ ] Keep raw candidate count, unique specification count, behavioral clusters and family count
-      separate in reports.
-- [ ] Use stratified D0 subsets rather than chronological first-N racing.
-- [ ] Keep D0 ranking selection-only; no verification/statistical/promotion labels.
-- [ ] Run exact-head tests/Ruff/runtime/production/continuity/hygiene before merge.
+- [ ] Add a versioned D0 dataset manifest with deterministic content hash.
+- [ ] Explicitly label D0 as inspected/reusable discovery data, never fresh confirmation evidence.
+- [ ] Hash candle content and executed-order-flow feature content independently plus composite
+      dataset identity.
+- [ ] Fail closed on time misalignment or non-causal order-flow availability.
+- [ ] Partition D0 into declared temporal strata for low-fidelity racing.
+- [ ] Require low-fidelity evaluation to cover every declared stratum instead of chronological
+      first-N racing.
+- [ ] Add tests proving content changes alter dataset identity and strata cover the full dataset.
+- [ ] Reconcile `PROJECT_STATE.md` and `SESSION_HANDOFF.md` after merge.
+- [ ] Merge only when exact-head regression, Ruff, runtime, production-bundle, continuity and hygiene
+      checks are green.
 
 ## NEXT — bounded D0 pilot run
 
-Only after the common evaluator/adaptor and its tests are merged:
+Only after the D0 manifest/stratification layer is merged:
 
-- [ ] Materialize/declare the D0 discovery dataset and immutable dataset hash.
+- [ ] Materialize/declare the actual D0 discovery dataset and immutable dataset hash in production.
 - [ ] Generate the declared 406 pilot candidates deterministically.
+- [ ] Evaluate each low-fidelity candidate across all declared temporal strata.
 - [ ] Stop early if compute or behavioral-novelty rules trigger; do not fill unused budget merely to
       reach a number.
 - [ ] Account for every performance-inspected candidate in the trial ledger.
 - [ ] Apply static sanity filters before low-fidelity simulation.
-- [ ] Cluster behavioral near-duplicates and keep representatives for higher-fidelity D0 racing.
+- [ ] Cluster behavioral near-duplicates and keep raw/unique/cluster/family counts distinct.
+- [ ] Keep diverse representatives for higher-fidelity D0 racing.
 - [ ] Nominate at most 30 discovery survivors.
 - [ ] Treat zero survivors as a valid result.
 - [ ] Freeze survivor specifications before any D1 hidden confirmation is opened.
