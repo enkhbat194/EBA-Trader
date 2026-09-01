@@ -267,7 +267,10 @@ def freeze_d0_pilot_survivors(
     if campaign_run.candidate_count != planned_candidate_count:
         raise RuntimeError("campaign run candidate count does not match immutable campaign")
     registered_source_sha = str(registered.get("source_code_sha") or "")
-    if any(str(row.get("source_code_sha") or "") != registered_source_sha for row in declared_candidates):
+    if any(
+        str(row.get("source_code_sha") or "") != registered_source_sha
+        for row in declared_candidates
+    ):
         raise RuntimeError("declared candidate source provenance drifted")
 
     report = build_low_fidelity_report(
