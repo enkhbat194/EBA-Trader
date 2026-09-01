@@ -1,6 +1,6 @@
 # EBA Trader — TODO
 
-Actual merged code, exact production evidence and latest explicit decisions override stale prose. Query `main`, open PRs and workflows before continuing. Latest code-bearing research baseline reconciled here: `48bdb0fa95cb6b1ae6a32e3ff6c9cf519fba68c3` (PR #127).
+Actual merged code, exact production evidence and latest explicit decisions override stale prose. Query `main`, open PRs and workflows before continuing. The pre-package code-bearing research baseline is `48bdb0fa95cb6b1ae6a32e3ff6c9cf519fba68c3` (PR #127); this branch deliberately replaces the former operator-shell-only D0 invocation requirement with the single-use local authorization recorded in `docs/SFV2_D0_PRODUCTION_AUTHORIZATION_2026-09-01.md`.
 
 ## DONE — repository/runtime and research foundation
 
@@ -30,11 +30,11 @@ Actual merged code, exact production evidence and latest explicit decisions over
 - [x] PR #122: rebuild survivor eligibility from immutable campaign/candidate/trial ledger; require terminal full-catalog D0 coverage.
 - [x] PR #124: allow an immutable zero-survivor negative outcome after the same full-catalog prerequisite; forbid later rewrite into a winner.
 - [x] PR #127 / issue #126: freeze exact `stratum_id -> materialized dataset_sha256` in campaign registration and require every candidate/stratum D0 trial to match it before either non-empty or zero-survivor freeze.
-- [x] Keep campaign invocation non-public and non-automatic.
+- [x] Preserve a non-public invocation boundary; no PWA/HTTP mutation endpoint exists.
 
-## EXACT D0 EVIDENCE
+## EXACT D0 SOURCE EVIDENCE
 
-Latest exact production D0 source proof: merged PR #127 build `48bdb0fa95cb6b1ae6a32e3ff6c9cf519fba68c3`, Actions run `33498788797`, verify job `99827022315`, completed successfully.
+Latest exact production D0 source proof before this completion package: merged PR #127 build `48bdb0fa95cb6b1ae6a32e3ff6c9cf519fba68c3`, Actions run `33498788797`, verify job `99827022315`, completed successfully.
 
 - [x] exact-build wait succeeded;
 - [x] existing-only D0 inspection succeeded;
@@ -47,7 +47,7 @@ Latest exact production D0 source proof: merged PR #127 build `48bdb0fa95cb6b1ae
 - [x] fresh-confirmation evidence false; verification authority false;
 - [x] D1/Frozen OOS/live closed/closed/locked.
 
-This is source/readiness evidence only. The 406×12 campaign has not run.
+This remains source/readiness evidence only until the 406×12 campaign completes.
 
 ## ACTIVE — SF4 prospective replication
 
@@ -70,26 +70,28 @@ This is source/readiness evidence only. The 406×12 campaign has not run.
 - [x] Existing empty outcome cannot later be rewritten to a non-empty winner under the same campaign.
 - [x] Survivor freeze keeps D1, Frozen OOS and live authority false.
 
-## NOW — D0 invocation
+## NOW — one-time authorized D0 production completion
 
-- [ ] When an authorized Linode shell path is available, invoke only `scripts/run_sfv2_d0_pilot_production_once.sh`.
-- [ ] Do not add an unauthenticated public trigger to bypass shell-access limitations.
-- [ ] Keep execution `DISCOVERY_ONLY`; no lifecycle/D1/Frozen-OOS/demo/live authority.
+- [x] Stop the ChatGPT hourly EBA automation; this completion is handled as one explicit owner-directed package.
+- [x] Record single-use request `sfv2-d0-prod-20260901-v1` in a strict versioned authorization file.
+- [x] Keep the authorization local-only: no HTTP/PWA/public mutation trigger.
+- [x] Reuse the existing root-side research-maintenance timer and shared checkout lock.
+- [x] Predeclare the D0 survivor rule before campaign results are observed: positive mean return, expectancy and benchmark delta; >=12 D0 trades; one candidate per behavioral cluster; deterministic ranking; max 30; zero valid.
+- [x] Add sanitized read-only Strategy Factory v2 progress/result status to `/api/research/status`.
+- [x] Add an external exact-build completion proof workflow that cannot mutate research state.
+- [ ] Merge this package only after exact-head regression/Ruff/deployment/continuity checks are green.
+- [ ] Wait for the exact package build to reach Linode.
+- [ ] Let the local root-side maintenance path run/resume all 406 candidates across all 12 D0 strata.
+- [ ] Require all 4,872 candidate/stratum trials to be terminal before selection freeze.
+- [ ] Freeze the deterministic cluster-diverse survivor set (0–30) through `freeze_d0_pilot_survivors()` only.
+- [ ] Capture external production proof and record empirical counts/metrics.
 
-## NEXT — bounded D0 pilot
+## NEXT — hidden confirmation and strict verification
 
-- [ ] Run/resume exact 406 candidates across all 12 declared D0 strata while checkout lock is held.
-- [ ] Account for every performance-inspected candidate in immutable trial ledger.
-- [ ] Record empirical raw/unique-spec/family/eligible/cluster counts after campaign execution.
-- [ ] Apply higher-fidelity D0 racing only under the existing diversity/search contract.
-- [ ] Nominate at most 30 discovery survivors; zero is valid.
-- [ ] Freeze survivor outcome only through `freeze_d0_pilot_survivors()` after actual D0 evidence exists.
-
-## THEN — hidden confirmation and strict verification
-
-- [ ] Open D1 only through a separately authorized hidden-confirmation workflow after survivor freeze prerequisites pass.
-- [ ] Account for broad-search/multiple-testing history.
-- [ ] No post-hoc retuning of failed D1 survivors.
+- [ ] Design/version D1 hidden confirmation only after the D0 survivor outcome is frozen.
+- [ ] Open D1 only through a separately authorized hidden-confirmation workflow.
+- [ ] Account for the full broad-search/multiple-testing history.
+- [ ] Do not post-hoc retune failed D1 survivors.
 - [ ] D2 robustness only after confirmation survives.
 - [ ] Robustness before D3 Frozen OOS.
 - [ ] Forward paper and Binance Demo remain later execution stages, not verification authority.
@@ -112,9 +114,7 @@ This is source/readiness evidence only. The 406×12 campaign has not run.
 
 ## BLOCKED / GATED
 
-- [ ] Production 406-candidate D0 invocation — connected project tools still do not expose an authorized Linode operator shell action; do not weaken access controls to work around this.
-- [ ] Factory survivor freeze — mechanism is ready, but there is no production D0 campaign result yet.
-- [ ] Factory D1 — separately gated; no authorization exists.
+- [ ] Factory D1 — intentionally not part of this D0 completion package; requires a separately sealed hidden-confirmation design after survivor freeze.
 - [ ] SF4 evaluation before `2026-09-13T00:00:00Z` — intentionally fail-closed.
 - [ ] M5 Frozen OOS — sealed until strict prerequisites pass.
 - [ ] Real-money Binance orders — intentionally locked.
