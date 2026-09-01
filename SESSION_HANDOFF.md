@@ -21,7 +21,9 @@ shell/collector syntax and deployment contract.
 PR #107 is the active audit-hardening branch. Do not run the production 406-candidate D0 pilot
 until #107 exact-head checks pass and it is merged.
 
-## Audit completed before further work
+## What was completed
+
+### Audit completed before further work
 
 Merged PRs #104, #105 and #106 were re-reviewed at code, CI, production-proof and research-integrity
 levels. Their exact-head required workflows had passed before merge. `main` contains no accidental
