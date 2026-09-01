@@ -27,6 +27,7 @@ jobs:
           with urllib.request.urlopen(request, timeout=15) as response:
               payload = json.loads(response.read().decode('utf-8'))
           sfv2 = payload.get('strategyFactoryV2') or {}
+          proof = payload.get('productionProof') or {}
           safe = {
               'available': sfv2.get('available'),
               'reason': sfv2.get('reason'),
@@ -51,5 +52,11 @@ jobs:
               'liveExecutionAllowed': sfv2.get('liveExecutionAllowed'),
               'realExecutionAllowed': sfv2.get('realExecutionAllowed'),
           }
+          diagnostics = {
+              'services': proof.get('services'),
+              'journald': proof.get('journald'),
+              'researchRuntime': proof.get('researchRuntime'),
+          }
           print('SFV2_STATUS=' + json.dumps(safe, separators=(',', ':')))
+          print('PRODUCTION_DIAGNOSTICS=' + json.dumps(diagnostics, separators=(',', ':')))
           PY
