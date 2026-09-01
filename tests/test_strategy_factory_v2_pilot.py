@@ -189,12 +189,21 @@ def test_report_requires_all_strata_before_behavioral_representative_selection()
 
     assert by_id["a"].complete is True
     assert by_id["a"].total_trade_count == 4
+    assert by_id["a"].mean_expectancy == 1.0
     assert by_id["b"].complete is False
+    assert by_id["b"].mean_total_return is None
+    assert by_id["b"].mean_expectancy is None
+    assert by_id["b"].total_trade_count == 0
+    assert by_id["b"].mean_benchmark_relative_return is None
+    assert by_id["b"].mean_max_drawdown is None
+    assert by_id["b"].mean_total_cost is None
+    assert by_id["b"].mean_exposure is None
+    assert by_id["b"].mean_turnover is None
     assert report.complete_candidate_count == 1
     assert report.representative_candidate_ids == ("a",)
 
 
-def test_rejected_candidate_never_enters_behavioral_representatives() -> None:
+def test_rejected_candidate_never_exposes_selection_metrics_or_behavior() -> None:
     expected = ("d0-t01", "d0-t02")
     trials = [
         _trial("a", "family-a", "d0-t01", 1),
@@ -208,6 +217,10 @@ def test_rejected_candidate_never_enters_behavioral_representatives() -> None:
 
     assert by_id["b"].complete is True
     assert by_id["b"].rejected is True
+    assert by_id["b"].mean_total_return is None
+    assert by_id["b"].mean_expectancy is None
+    assert by_id["b"].total_trade_count == 0
+    assert by_id["b"].behavior is None
     assert report.rejected_candidate_count == 1
     assert report.representative_candidate_ids == ("a",)
 
