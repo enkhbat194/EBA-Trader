@@ -34,10 +34,10 @@ Actual merged code, exact production evidence and latest explicit decisions over
 
 ## EXACT D0 EVIDENCE
 
-Latest completed exact production D0 source proof before PR #127: build `81e30bda98ce1709277c0ccfee91be8977f52720`, Actions run `33485440135`, verify job `99784309005`, completed successfully.
+Latest exact production D0 source proof: merged PR #127 build `48bdb0fa95cb6b1ae6a32e3ff6c9cf519fba68c3`, Actions run `33498788797`, verify job `99827022315`, completed successfully.
 
-Merged PR #127 build `48bdb0fa95cb6b1ae6a32e3ff6c9cf519fba68c3` has an exact-current-build D0 proof running in Actions run `33498788797`, verify job `99827022315`. Do not invoke the production campaign until this proof succeeds.
-
+- [x] exact-build wait succeeded;
+- [x] existing-only D0 inspection succeeded;
 - [x] declaration SHA `88365779d6821c1fb30372148bbcedbfadf11471843f57722723286a43cbc77c`;
 - [x] dataset SHA `aa13bcfc111c00f6da19621353a3ca8044f58eca1ab95e837d9490a205aa72eb`;
 - [x] candle SHA `6368c9f41ff635d2474860a8d4579fc00e57488871020a9df38222f32d9f4744`;
@@ -70,9 +70,8 @@ This is source/readiness evidence only. The 406×12 campaign has not run.
 - [x] Existing empty outcome cannot later be rewritten to a non-empty winner under the same campaign.
 - [x] Survivor freeze keeps D1, Frozen OOS and live authority false.
 
-## NOW — exact production proof, then D0 invocation
+## NOW — D0 invocation
 
-- [ ] Require Actions run `33498788797` for merged build `48bdb0fa95cb6b1ae6a32e3ff6c9cf519fba68c3` to complete successfully.
 - [ ] When an authorized Linode shell path is available, invoke only `scripts/run_sfv2_d0_pilot_production_once.sh`.
 - [ ] Do not add an unauthenticated public trigger to bypass shell-access limitations.
 - [ ] Keep execution `DISCOVERY_ONLY`; no lifecycle/D1/Frozen-OOS/demo/live authority.
@@ -113,7 +112,7 @@ This is source/readiness evidence only. The 406×12 campaign has not run.
 
 ## BLOCKED / GATED
 
-- [ ] Production 406-candidate D0 invocation — first requires exact PR #127 production proof; connected project tools also still do not expose an authorized Linode operator shell action. Do not weaken access controls to work around either prerequisite.
+- [ ] Production 406-candidate D0 invocation — connected project tools still do not expose an authorized Linode operator shell action; do not weaken access controls to work around this.
 - [ ] Factory survivor freeze — mechanism is ready, but there is no production D0 campaign result yet.
 - [ ] Factory D1 — separately gated; no authorization exists.
 - [ ] SF4 evaluation before `2026-09-13T00:00:00Z` — intentionally fail-closed.
