@@ -263,7 +263,9 @@ def test_survivor_freeze_rebuilds_complete_evidence_from_ledger_and_keeps_d1_clo
     assert definition["live_execution_allowed"] is False
 
 
-def test_survivor_freeze_rejects_fabricated_complete_run_when_ledger_catalog_is_incomplete(tmp_path):
+def test_survivor_freeze_rejects_fabricated_complete_run_when_ledger_catalog_is_incomplete(
+    tmp_path,
+):
     ledger, run, candidates = _freeze_ledger(tmp_path, incomplete_candidate_index=1)
 
     with pytest.raises(RuntimeError, match="terminal D0 strata for the full catalog"):
