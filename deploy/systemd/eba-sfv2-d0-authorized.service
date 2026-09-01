@@ -1,0 +1,24 @@
+[Unit]
+Description=EBA Trader authorized Strategy Factory v2 D0 campaign slice
+After=network-online.target eba-runtime-api.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/Eba-Trader
+ExecStart=/bin/bash /opt/Eba-Trader/scripts/run_sfv2_d0_authorized_production.sh
+User=root
+Group=root
+Nice=10
+CPUQuota=50%
+MemoryMax=1G
+TasksMax=128
+IOSchedulingClass=idle
+TimeoutStartSec=35min
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/eba-trader/research
+
+# The invoked wrapper is single-use and DISCOVERY_ONLY. It acquires the shared
+# checkout lock itself, so deployment and research code cannot mutate concurrently.
