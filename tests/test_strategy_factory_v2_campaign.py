@@ -5,7 +5,13 @@ import pytest
 import eba_trader.strategy_factory_v2_campaign as campaign
 from eba_trader.research_store import ResearchStore
 from eba_trader.strategy_discovery_batch import DiscoveryBatchSummary
-from eba_trader.strategy_discovery_v2 import DiscoveryCandidate, DiscoveryTrialLedger
+from eba_trader.strategy_discovery_v2 import (
+    BehavioralFingerprint,
+    DiscoveryCampaignPolicy,
+    DiscoveryCandidate,
+    DiscoveryTrialLedger,
+    DiscoveryTrialStatus,
+)
 
 
 def _declaration():
@@ -132,74 +138,124 @@ def test_clean_checkout_sha_rejects_expected_mismatch(monkeypatch):
         campaign._clean_checkout_sha(expected_source_code_sha="b" * 40)
 
 
-class _FreezeLedger:
-    def __init__(self):
-        self.calls = []
+def _trial_metrics() -> dict[str, float | int]:
+    return {
+        "total_return": 0.01,
+        "expectancy": 1.0,
+        "trade_count": 2,
+        "benchmark_relative_return": 0.005,
+        "max_drawdown": -0.01,
+        "total_cost": 1.5,
+        "exposure": 0.25,
+        "turnover_round_trips_per_1000_bars": 2.0,
+    }
 
-    def freeze_survivor_selection(self, **kwargs):
-        self.calls.append(kwargs)
-        return "dsel_test"
 
-
-def _freeze_run(*, candidate_rows, clusters, stopped=False):
-    report = SimpleNamespace(
-        expected_strata=("d0s_00", "d0s_01"),
-        candidates=tuple(candidate_rows),
+def _behavior(seed: int, *, duplicate: bool = False) -> BehavioralFingerprint:
+    key_seed = 1 if duplicate else seed
+    return BehavioralFingerprint(
+        signal_keys=(f"{key_seed:013d}:+1",),
+        trade_keys=(f"{key_seed:013d}:{key_seed + 60_000:013d}:+1",),
+        regime_returns=(0.01 * key_seed, 0.0, 0.0, 0.0),
+        exposure_fraction=0.25,
+        turnover=2.0,
     )
-    accounting = SimpleNamespace(
-        clusters=tuple(clusters),
-        authority="DISCOVERY_ONLY",
+
+
+def _freeze_ledger(
+    tmp_path,
+    *,
+    incomplete_candidate_index: int | None = None,
+    duplicate_behavior: bool = False,
+):
+    ledger = DiscoveryTrialLedger(ResearchStore(tmp_path / "freeze.db"))
+    candidates = (
+        DiscoveryCandidate("family_a", "hyp_a", {"x": 1}),
+        DiscoveryCandidate("family_b", "hyp_b", {"x": 2}),
     )
-    return SimpleNamespace(
+    source_sha = "1" * 40
+    expected_strata = ("d0s_00", "d0s_01")
+    definition = {
+        "schema": "strategy_factory_v2_d0_campaign_v1",
+        "authority": campaign.PILOT_AUTHORITY,
+        "catalog_seed": campaign.PILOT_SEED,
+        "planned_candidate_count": len(candidates),
+        "d0_source_kind": "INSPECTED_M5_DEVELOPMENT_CORPUS",
+        "d0_declaration_sha256": "a" * 64,
+        "d0_dataset_sha256": "d" * 64,
+        "d0_provenance_class": "INSPECTED_REUSABLE_DISCOVERY_DATA",
+        "expected_strata": list(expected_strata),
+        "warmup_bars": campaign.DEFAULT_WARMUP_BARS,
+        "behavioral_similarity_threshold": campaign.PILOT_BEHAVIORAL_SIMILARITY_THRESHOLD,
+        "search_round": campaign.PILOT_SEARCH_ROUND,
+        "source_code_sha": source_sha,
+        "d1_opened": False,
+        "frozen_oos_opened": False,
+        "live_execution_allowed": False,
+    }
+    ledger.register_campaign(
+        DiscoveryCampaignPolicy(
+            campaign_id=campaign.PILOT_CAMPAIGN_ID,
+            raw_candidate_cap=10,
+            candidate_cap_per_family=10,
+            survivor_cap=10,
+        ),
+        definition=definition,
+    )
+    for candidate_index, candidate in enumerate(candidates):
+        ledger.declare_candidate(
+            campaign_id=campaign.PILOT_CAMPAIGN_ID,
+            candidate=candidate,
+            source_code_sha=source_sha,
+            search_round=campaign.PILOT_SEARCH_ROUND,
+        )
+        for stratum_index, stratum_id in enumerate(expected_strata):
+            if candidate_index == incomplete_candidate_index and stratum_index == 1:
+                continue
+            trial_id = ledger.declare_trial(
+                campaign_id=campaign.PILOT_CAMPAIGN_ID,
+                candidate_id=candidate.candidate_id,
+                dataset_sha256=f"{candidate_index}{stratum_index}".ljust(64, "0"),
+                fidelity=f"d0-low-v1:{stratum_id}",
+            )
+            ledger.record_result(
+                trial_id=trial_id,
+                status=DiscoveryTrialStatus.EVALUATED,
+                metrics=_trial_metrics(),
+                behavior=_behavior(candidate_index + 1, duplicate=duplicate_behavior),
+                compute_ms=1,
+            )
+    run = SimpleNamespace(
         campaign_id=campaign.PILOT_CAMPAIGN_ID,
-        source_code_sha="1" * 40,
+        source_code_sha=source_sha,
         d0_declaration_sha256="a" * 64,
         d0_dataset_sha256="d" * 64,
-        candidate_count=len(candidate_rows),
-        stratum_count=2,
-        stopped_for_compute_budget=stopped,
-        report=report,
-        accounting=accounting,
-        authority="DISCOVERY_ONLY",
+        candidate_count=len(candidates),
+        stratum_count=len(expected_strata),
+        authority=campaign.PILOT_AUTHORITY,
         d1_opened=False,
         frozen_oos_opened=False,
         live_execution_allowed=False,
     )
+    return ledger, run, candidates
 
 
-def _eligible_candidate(candidate_id, *, complete=True, rejected=False, stratum_count=2):
-    return SimpleNamespace(
-        candidate_id=candidate_id,
-        complete=complete,
-        rejected=rejected,
-        stratum_count=stratum_count,
-        behavior=object() if complete and not rejected else None,
-    )
-
-
-def test_survivor_freeze_binds_complete_d0_evidence_and_keeps_d1_closed():
-    ledger = _FreezeLedger()
-    run = _freeze_run(
-        candidate_rows=[_eligible_candidate("a"), _eligible_candidate("b")],
-        clusters=[
-            SimpleNamespace(representative_candidate_id="a", member_candidate_ids=("a",)),
-            SimpleNamespace(representative_candidate_id="b", member_candidate_ids=("b",)),
-        ],
-    )
+def test_survivor_freeze_rebuilds_complete_evidence_from_ledger_and_keeps_d1_closed(tmp_path):
+    ledger, run, candidates = _freeze_ledger(tmp_path)
+    selected = tuple(candidate.candidate_id for candidate in candidates)
 
     selection_id = campaign.freeze_d0_pilot_survivors(
         ledger=ledger,
         campaign_run=run,
-        candidate_ids=("a", "b"),
+        candidate_ids=selected,
         selection_definition={"ranking_schema": "frozen-test-v1"},
     )
 
-    assert selection_id == "dsel_test"
-    assert len(ledger.calls) == 1
-    call = ledger.calls[0]
-    assert call["campaign_id"] == campaign.PILOT_CAMPAIGN_ID
-    assert call["candidate_ids"] == ("a", "b")
-    definition = call["definition"]
+    frozen = ledger.get_survivor_selection(campaign.PILOT_CAMPAIGN_ID)
+    assert selection_id.startswith("dsel_")
+    assert frozen is not None
+    assert tuple(frozen["candidate_ids"]) == tuple(sorted(selected))
+    definition = frozen["definition"]["definition"]
     assert definition["schema"] == campaign.SURVIVOR_SELECTION_SCHEMA
     assert definition["expected_strata"] == ["d0s_00", "d0s_01"]
     assert definition["d1_opened"] is False
@@ -207,61 +263,46 @@ def test_survivor_freeze_binds_complete_d0_evidence_and_keeps_d1_closed():
     assert definition["live_execution_allowed"] is False
 
 
-def test_survivor_freeze_rejects_incomplete_candidate_before_ledger_write():
-    ledger = _FreezeLedger()
-    run = _freeze_run(
-        candidate_rows=[_eligible_candidate("a", complete=False, stratum_count=1)],
-        clusters=[],
-    )
+def test_survivor_freeze_rejects_fabricated_complete_run_when_ledger_catalog_is_incomplete(
+    tmp_path,
+):
+    ledger, run, candidates = _freeze_ledger(tmp_path, incomplete_candidate_index=1)
 
-    with pytest.raises(RuntimeError, match="not complete behaviorally eligible"):
+    with pytest.raises(RuntimeError, match="terminal D0 strata for the full catalog"):
         campaign.freeze_d0_pilot_survivors(
             ledger=ledger,
             campaign_run=run,
-            candidate_ids=("a",),
+            candidate_ids=(candidates[0].candidate_id,),
             selection_definition={"ranking_schema": "frozen-test-v1"},
         )
 
-    assert ledger.calls == []
+    assert ledger.get_survivor_selection(campaign.PILOT_CAMPAIGN_ID) is None
 
 
-def test_survivor_freeze_rejects_multiple_candidates_from_same_behavioral_cluster():
-    ledger = _FreezeLedger()
-    run = _freeze_run(
-        candidate_rows=[_eligible_candidate("a"), _eligible_candidate("b")],
-        clusters=[
-            SimpleNamespace(
-                representative_candidate_id="a",
-                member_candidate_ids=("a", "b"),
-            )
-        ],
-    )
+def test_survivor_freeze_rejects_multiple_candidates_from_same_behavioral_cluster(tmp_path):
+    ledger, run, candidates = _freeze_ledger(tmp_path, duplicate_behavior=True)
 
     with pytest.raises(RuntimeError, match="multiple candidates from one cluster"):
         campaign.freeze_d0_pilot_survivors(
             ledger=ledger,
             campaign_run=run,
-            candidate_ids=("a", "b"),
+            candidate_ids=tuple(candidate.candidate_id for candidate in candidates),
             selection_definition={"ranking_schema": "frozen-test-v1"},
         )
 
-    assert ledger.calls == []
+    assert ledger.get_survivor_selection(campaign.PILOT_CAMPAIGN_ID) is None
 
 
-def test_survivor_freeze_rejects_compute_budget_stopped_campaign():
-    ledger = _FreezeLedger()
-    run = _freeze_run(
-        candidate_rows=[_eligible_candidate("a")],
-        clusters=[SimpleNamespace(representative_candidate_id="a", member_candidate_ids=("a",))],
-        stopped=True,
-    )
+def test_survivor_freeze_rejects_run_identity_that_disagrees_with_immutable_campaign(tmp_path):
+    ledger, run, candidates = _freeze_ledger(tmp_path)
+    run.source_code_sha = "2" * 40
 
-    with pytest.raises(RuntimeError, match="completed D0 campaign pass"):
+    with pytest.raises(RuntimeError, match="source code does not match immutable campaign"):
         campaign.freeze_d0_pilot_survivors(
             ledger=ledger,
             campaign_run=run,
-            candidate_ids=("a",),
+            candidate_ids=(candidates[0].candidate_id,),
             selection_definition={"ranking_schema": "frozen-test-v1"},
         )
 
-    assert ledger.calls == []
+    assert ledger.get_survivor_selection(campaign.PILOT_CAMPAIGN_ID) is None
