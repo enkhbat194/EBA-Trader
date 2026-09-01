@@ -47,18 +47,24 @@ jobs:
           bash -n scripts/bootstrap_linode_public_https.sh
           bash -n scripts/run_m5_research_maintenance_once.sh
           bash -n scripts/run_sfv2_d0_pilot_production_once.sh
+          bash -n scripts/run_sfv2_d0_authorized_production.sh
           python -m py_compile scripts/collect_linode_proof.py
+          python -m py_compile scripts/run_sfv2_d0_authorized_until_frozen.py
 
       - name: Deployment contract
         run: |
           test -f deploy/systemd/eba-auto-update.service
           test -f deploy/systemd/eba-auto-update.timer
+          test -f config/sfv2_d0_production_authorization_v1.json
           grep -q 'OnUnitActiveSec=5min' deploy/systemd/eba-auto-update.timer
           grep -q 'rollback' scripts/update_linode_runtime.sh
           grep -q 'bootstrap_linode_public_https.sh' scripts/update_linode_runtime.sh
           grep -q 'eba-trader-runtime-mutation.lock' scripts/auto_update_entrypoint.sh
           grep -q 'eba-trader-runtime-mutation.lock' scripts/run_sfv2_d0_pilot_production_once.sh
+          grep -q 'eba-trader-runtime-mutation.lock' scripts/run_sfv2_d0_authorized_production.sh
           grep -q 'expected-source-code-sha' scripts/run_sfv2_d0_pilot_production_once.sh
+          grep -q 'run_sfv2_d0_authorized_production.sh' scripts/run_m5_research_maintenance_once.sh
+          grep -q 'public_trigger_allowed' config/sfv2_d0_production_authorization_v1.json
           grep -q 'sslip.io' scripts/bootstrap_linode_public_https.sh
           grep -q '127.0.0.1:8000' scripts/configure_linode_https.sh
           grep -q 'run_m5_research_maintenance_once.sh' deploy/systemd/eba-m5-real-ablation.service
