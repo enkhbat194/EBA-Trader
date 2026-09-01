@@ -9,7 +9,11 @@ from typing import Any
 from .history import Candle
 from .orderflow_feature_dataset import OrderFlowFeatureRow
 from .research_evidence import canonical_json, sha256_text
-from .strategy_discovery_batch import DiscoveryBatchContext, DiscoveryBatchSummary, run_discovery_batch
+from .strategy_discovery_batch import (
+    DiscoveryBatchContext,
+    DiscoveryBatchSummary,
+    run_discovery_batch,
+)
 from .strategy_discovery_v2 import (
     BehavioralFingerprint,
     DiscoveryCandidate,
