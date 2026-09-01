@@ -61,6 +61,7 @@ class DiscoveryBatchSummary:
     evaluated_trial_ids: tuple[str, ...]
     total_compute_ms: int
     stopped_for_compute_budget: bool
+    reused_terminal_trial_ids: tuple[str, ...] = ()
 
 
 CandidateEvaluator = Callable[[DiscoveryCandidate], DiscoveryEvaluation]
@@ -77,15 +78,34 @@ def run_discovery_batch(
     if len(candidate_ids) != len(set(candidate_ids)):
         raise ValueError("discovery batch contains duplicate candidate specifications")
 
+    existing_trials = {
+        (
+            str(row["candidate_id"]),
+            str(row["dataset_sha256"]),
+            str(row["fidelity"]),
+        ): row
+        for row in ledger.list_trials(context.campaign_id)
+    }
+    terminal_statuses = {
+        DiscoveryTrialStatus.EVALUATED.value,
+        DiscoveryTrialStatus.REJECTED.value,
+    }
+
     declared: list[str] = []
     evaluated: list[str] = []
+    reused: list[str] = []
     total_compute_ms = 0
     stopped = False
 
     for candidate in candidates:
-        if total_compute_ms >= context.max_compute_ms:
+        trial_key = (candidate.candidate_id, context.dataset_sha256, context.fidelity)
+        existing = existing_trials.get(trial_key)
+        already_terminal = existing is not None and str(existing["status"]) in terminal_statuses
+
+        if not already_terminal and total_compute_ms >= context.max_compute_ms:
             stopped = True
             break
+
         candidate_id = ledger.declare_candidate(
             campaign_id=context.campaign_id,
             candidate=candidate,
@@ -99,6 +119,13 @@ def run_discovery_batch(
             dataset_sha256=context.dataset_sha256,
             fidelity=context.fidelity,
         )
+
+        if already_terminal:
+            if str(existing["trial_id"]) != trial_id:
+                raise RuntimeError("discovery trial identity changed during resume")
+            reused.append(trial_id)
+            continue
+
         evaluation = evaluator(candidate)
         ledger.record_result(
             trial_id=trial_id,
@@ -111,11 +138,13 @@ def run_discovery_batch(
         evaluated.append(trial_id)
         total_compute_ms += evaluation.compute_ms
 
-    if len(evaluated) < len(candidates) and total_compute_ms >= context.max_compute_ms:
+    handled = len(evaluated) + len(reused)
+    if handled < len(candidates) and total_compute_ms >= context.max_compute_ms:
         stopped = True
     return DiscoveryBatchSummary(
         declared_candidate_ids=tuple(declared),
         evaluated_trial_ids=tuple(evaluated),
         total_compute_ms=total_compute_ms,
         stopped_for_compute_budget=stopped,
+        reused_terminal_trial_ids=tuple(reused),
     )
