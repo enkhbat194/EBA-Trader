@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import math
+
+import pytest
+
 from eba_trader.history import Candle
 from eba_trader.strategy_factory_v2_d0 import build_d0_dataset_manifest
 from eba_trader.strategy_factory_v2_pilot import (
@@ -223,6 +227,36 @@ def test_rejected_candidate_never_exposes_selection_metrics_or_behavior() -> Non
     assert by_id["b"].behavior is None
     assert report.rejected_candidate_count == 1
     assert report.representative_candidate_ids == ("a",)
+
+
+def test_complete_candidate_fails_closed_when_any_stratum_metric_is_missing() -> None:
+    expected = ("d0-t01", "d0-t02")
+    first = _trial("a", "family-a", "d0-t01", 1)
+    second = _trial("a", "family-a", "d0-t02", 2)
+    del second["metrics"]["expectancy"]  # type: ignore[index]
+
+    with pytest.raises(ValueError, match="missing selection metrics"):
+        build_low_fidelity_report(trials=[first, second], expected_strata=expected)
+
+
+def test_complete_candidate_fails_closed_on_nonfinite_selection_metric() -> None:
+    expected = ("d0-t01", "d0-t02")
+    first = _trial("a", "family-a", "d0-t01", 1)
+    second = _trial("a", "family-a", "d0-t02", 2)
+    second["metrics"]["total_return"] = math.nan  # type: ignore[index]
+
+    with pytest.raises(ValueError, match="total_return must be finite"):
+        build_low_fidelity_report(trials=[first, second], expected_strata=expected)
+
+
+def test_complete_candidate_fails_closed_on_invalid_trade_count() -> None:
+    expected = ("d0-t01", "d0-t02")
+    first = _trial("a", "family-a", "d0-t01", 1)
+    second = _trial("a", "family-a", "d0-t02", 2)
+    second["metrics"]["trade_count"] = 1.5  # type: ignore[index]
+
+    with pytest.raises(ValueError, match="trade_count must be a non-negative integer"):
+        build_low_fidelity_report(trials=[first, second], expected_strata=expected)
 
 
 def test_behavioral_near_duplicates_collapse_after_full_stratified_coverage() -> None:
