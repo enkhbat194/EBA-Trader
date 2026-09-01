@@ -82,6 +82,30 @@ class LowFidelityDiscoveryReport:
         return sum(item.rejected for item in self.candidates)
 
 
+def _contiguous_warmup_start(
+    candles: tuple[Candle, ...],
+    *,
+    stratum_start_index: int,
+    warmup_bars: int,
+) -> int:
+    """Walk backward only across truly contiguous candles.
+
+    D0 may concatenate independently sampled historical windows. A requested warmup must never
+    bridge a temporal gap and make indicators treat days-apart observations as adjacent bars.
+    """
+
+    start = stratum_start_index
+    remaining = warmup_bars
+    while start > 0 and remaining > 0:
+        previous = candles[start - 1]
+        current = candles[start]
+        if previous.close_time_ms + 1 != current.open_time_ms:
+            break
+        start -= 1
+        remaining -= 1
+    return start
+
+
 def materialize_low_fidelity_strata(
     *,
     manifest: D0DatasetManifest,
@@ -93,7 +117,8 @@ def materialize_low_fidelity_strata(
 
     The parent manifest is recomputed from supplied content before any slice is returned. This
     prevents a caller from pairing a trusted dataset SHA with different in-memory data. Warmup
-    rows are context only; trading begins exactly at each declared stratum start.
+    rows are context only; trading begins exactly at each declared stratum start. Warmup never
+    crosses a temporal discontinuity between independently sampled source windows.
     """
 
     if warmup_bars < 0:
@@ -111,7 +136,11 @@ def materialize_low_fidelity_strata(
 
     output: list[LowFidelityStratumDataset] = []
     for stratum in manifest.temporal_strata:
-        warmup_start = max(0, stratum.start_index - warmup_bars)
+        warmup_start = _contiguous_warmup_start(
+            candles,
+            stratum_start_index=stratum.start_index,
+            warmup_bars=warmup_bars,
+        )
         candle_slice = candles[warmup_start : stratum.end_index_exclusive]
         orderflow_slice = (
             orderflow_rows[warmup_start : stratum.end_index_exclusive] if orderflow_rows else ()
