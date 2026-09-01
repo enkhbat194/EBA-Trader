@@ -6,67 +6,78 @@ _Last handoff prepared: 2026-09-01 (Asia/Ulaanbaatar)_
 
 Repository: `enkhbat194/EBA-Trader`
 
-Canonical `main` before current PR #107:
+Canonical `main` before current PR #109:
 
-`78fcb3d8ad4bc7eef559932bb836a4eedf251630`
+`ff849e25c741ff0170ab90db03e22fda18082fde`
 
-Main commit:
+Latest merged work: PR #108, `Strategy Factory v2: prove existing D0 source on production`.
 
-`Strategy Factory v2: add existing-only D0 production loader`
+Exact-main production checks are green, including Linode runtime checks, public production smoke, D0 existing-source production proof, SF3 production evidence proof and Linode external production proof.
 
-Exact-main push workflows are green: Linode production bundle run 385 and Linode runtime checks
-run 397 both passed. The production-bundle job also passed the full regression suite, Ruff,
-shell/collector syntax and deployment contract.
+PR #109 is the active Strategy Factory v2 D0 campaign-orchestration branch. Do not run the production 406-candidate campaign until #109 exact-head checks pass and it is merged.
 
-PR #107 is the active audit-hardening branch. Do not run the production 406-candidate D0 pilot
-until #107 exact-head checks pass and it is merged.
+## What changed since the previous handoff
 
-## What was completed
+PR #107 merged the pre-pilot audit hardening:
 
-### Audit completed before further work
+1. D0 warmup stops at temporal discontinuities and cannot bridge independently sampled M5 windows.
+2. `run_discovery_batch` reuses terminal evaluated/rejected trials during resume without evaluator re-execution or new compute accounting.
 
-Merged PRs #104, #105 and #106 were re-reviewed at code, CI, production-proof and research-integrity
-levels. Their exact-head required workflows had passed before merge. `main` contains no accidental
-`PLACEHOLDER` content from the temporary #106 branch mistake.
+PR #108 then proved the existing-only D0 source on the exact production build. The prior production-data blocker is closed.
 
-The audit found two material pre-pilot infrastructure defects:
+Exact D0 proof on build `ff849e25c741ff0170ab90db03e22fda18082fde`:
 
-1. The low-fidelity warmup slicer could bridge the multi-day gaps between the 12 independently
-   sampled M5 development windows. PR #107 now walks backward only through truly contiguous candles,
-   so a temporal gap terminates warmup context.
-2. `run_discovery_batch` could re-evaluate a terminal immutable trial after a compute-budget stop.
-   A repeated measurement could then differ only in runtime `compute_ms` and collide with immutable
-   evidence. PR #107 now reuses matching terminal evaluated/rejected trials without evaluator
-   execution or new compute accounting; only new/declared trials consume the current compute budget.
+- source kind: `INSPECTED_M5_DEVELOPMENT_CORPUS`;
+- materialization ID: `m5corpusmat_25007f47e456b5f2d42ef16b`;
+- policy ID: `m5policy_3b90b051bd27eeab0e79be74`;
+- corpus ID: `m5corpus_28c69171b3657be02bffd556`;
+- declaration SHA-256: `88365779d6821c1fb30372148bbcedbfadf11471843f57722723286a43cbc77c`;
+- dataset SHA-256: `aa13bcfc111c00f6da19621353a3ca8044f58eca1ab95e837d9490a205aa72eb`;
+- candle SHA-256: `6368c9f41ff635d2474860a8d4579fc00e57488871020a9df38222f32d9f4744`;
+- order-flow SHA-256: `3398d17c48dd282c86a13a3ccf9daafcd2784e1e64732bb52c29b9b294e82da3`;
+- row count: 2,880;
+- windows/strata: 12 / 12;
+- authority: `DISCOVERY_ONLY`;
+- provenance: `INSPECTED_REUSABLE_DISCOVERY_DATA`;
+- fresh confirmation evidence: false;
+- verification authority: false;
+- D1/Frozen OOS/live: closed/closed/locked.
 
-Focused regression tests cover multi-day gap isolation, partial-run resume and fully idempotent
-terminal replay.
+## PR #109 scope
 
-## Strategy Factory v2 merged state
+The minimum missing layer was campaign-level production orchestration. Existing code had candidate generation, evaluator, per-stratum execution and immutable ledger primitives, but no single deterministic runner tying them together.
+
+PR #109 adds:
+
+- `strategy_factory_v2_campaign.py` campaign runner;
+- immutable binding to D0 declaration/dataset hashes, exact pilot seed/count, source-code SHA, warmup and behavioral threshold;
+- all-stratum run/resume through the existing immutable trial ledger;
+- `scripts/run_sfv2_d0_pilot_once.py` explicit existing-only entrypoint;
+- tests for campaign immutability and downstream safety locks.
+
+The runner intentionally does **not** open D1, freeze survivors, transition StrategyLifecycle, open Frozen OOS or enable demo/live execution.
+
+## Strategy Factory v2 state
 
 - discovery authority remains `DISCOVERY_ONLY`;
-- raw cap 500, executable pilot catalog 406, per-family cap 64, survivor cap 30;
-- common D0 evaluator across 8 existing causal strategy engines;
+- raw cap 500, exact executable pilot catalog 406, per-family cap 64, survivor cap 30;
+- 8 existing causal strategy families;
+- common D0 evaluator with existing execution/cost semantics;
 - immutable campaign/candidate/trial accounting;
-- immutable D0 candle/order-flow/composite hashes;
-- explicit `INSPECTED_REUSABLE_DISCOVERY_DATA` provenance;
-- one declared D0 stratum per inspected M5 development source window;
-- all-strata completion required before behavioral representative selection;
-- source binding rejects alternate corpus, tampered hashes and path escape;
-- existing-only production loader cannot fetch, rebuild or extend missing evidence.
+- exact inspected production D0 source now proven;
+- 12 D0 strata; all required strata must be terminal before complete-candidate aggregation;
+- behavioral dedup foundation present;
+- D1 hidden confirmation remains sealed.
 
 ## Research status and hard locks
 
-There is still no verified profitable strategy. SF1, SF2 and SF3 closed with zero promoted
-candidates. D0 discovery ranking is not verification.
+There is still no verified profitable strategy. SF1, SF2 and SF3 closed with zero promoted candidates. D0 discovery ranking is not verification.
 
-SF4 keeps exact `s3_vsm_s150` and `s3_cex_s075` parameters frozen for prospective replication using
-only `2026-09-01T00:00:00Z` through `2026-09-13T00:00:00Z`. Evaluation before the declared end time
-is fail-closed. SF3 evidence cannot be pooled into the replication result.
+SF4 keeps exact `s3_vsm_s150` and `s3_cex_s075` parameters frozen for prospective replication using only `2026-09-01T00:00:00Z` through `2026-09-13T00:00:00Z`. Evaluation before the declared end time is fail-closed. SF3 evidence cannot be pooled into the replication result.
 
 Hard locks:
 
-- M5 Frozen OOS (`2026-08-15 -> 2026-08-22` UTC) remains sealed/not opened.
+- M5 Frozen OOS remains sealed/not opened.
 - Factory v2 D1 hidden confirmation remains sealed.
 - SF4 cannot be evaluated before `2026-09-13T00:00:00Z`.
 - Real Binance execution remains locked.
@@ -77,20 +88,14 @@ Hard locks:
 
 ## Next exact task
 
-1. Finish PR #107 exact-head CI; merge only if regression, Ruff, runtime, production-bundle,
-   continuity and hygiene are all green.
-2. On merged exact `main`, invoke the existing-only D0 loader against production research storage.
-   If the complete inspected M5 materialization is absent, incomplete or hash-mismatched, stop and
-   report the blocker without acquiring replacement evidence.
-3. If it validates, record the immutable D0 declaration/dataset SHA and generate the deterministic
-   406 candidates.
-4. Execute low-fidelity trials across every declared stratum with resumable immutable accounting.
-   Never rank candidates until required stratum coverage is terminal.
-5. Aggregate selection-only metrics and behavioral clusters only after full coverage; keep raw
-   candidate, unique spec, behavioral cluster and family counts distinct.
+1. Finish PR #109 exact-head CI; merge only if regression, Ruff, runtime and production-bundle checks are green.
+2. On merged exact `main`, run/resume the frozen 406 candidates over all 12 proven D0 strata with the immutable campaign ledger.
+3. Never rank incomplete candidates.
+4. After terminal all-strata coverage, aggregate selection-only economics/activity/cost/drawdown/benchmark metrics and behavioral fingerprints.
+5. Deduplicate behavior while preserving raw candidate, unique specification, behavioral cluster and family counts.
+6. Continue only under the predeclared D0 racing/diversity contract; keep D1 closed until survivor freeze and separate authorization.
+7. Leave SF4 untouched before its preregistered end time.
 
 ## Startup rule
 
-Read `AGENTS.md`, `PROJECT_STATE.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TODO.md`, `CHANGELOG.md`,
-this file, `BACKTEST_PROTOCOL.md`, `docs/CONTINUITY_PROTOCOL.md` and
-`docs/STRATEGY_FACTORY_V2_DESIGN.md`; then query actual GitHub/production proof before editing.
+Read `AGENTS.md`, `PROJECT_STATE.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TODO.md`, `CHANGELOG.md`, this file, `BACKTEST_PROTOCOL.md`, `docs/CONTINUITY_PROTOCOL.md` and `docs/STRATEGY_FACTORY_V2_DESIGN.md`; then query actual GitHub/production proof before editing.
