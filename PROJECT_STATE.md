@@ -33,9 +33,7 @@ Build a research-first autonomous trading system that discovers genuinely repeat
 
 ## Exact production D0 evidence
 
-Latest completed exact production D0 proof before PR #127 is build `81e30bda98ce1709277c0ccfee91be8977f52720`, GitHub Actions run `33485440135`, verify job `99784309005`. The exact-build wait and existing-only D0 source inspection both completed successfully.
-
-A new exact-build D0 proof for merged PR #127 build `48bdb0fa95cb6b1ae6a32e3ff6c9cf519fba68c3` is running as Actions run `33498788797`, verify job `99827022315`. Until that run succeeds, the prior completed proof remains the latest completed production D0 evidence.
+Latest completed exact production D0 proof is merged PR #127 build `48bdb0fa95cb6b1ae6a32e3ff6c9cf519fba68c3`, GitHub Actions run `33498788797`, verify job `99827022315`. The exact-build wait and existing-only D0 source inspection both completed successfully.
 
 Canonical existing D0 source:
 
@@ -107,15 +105,14 @@ Historical SF2/SF3 strict reference gates remain unchanged: positive mean return
 
 ## Next exact tasks
 
-1. Require the merged PR #127 exact-production D0 proof to succeed before production campaign invocation.
-2. When an authorized Linode operator shell path is available, invoke only `scripts/run_sfv2_d0_pilot_production_once.sh`; do not add an unauthenticated/public trigger as an access workaround.
-3. Run/resume the exact 406 candidates across all 12 D0 strata while the shared checkout lock is held.
-4. Record actual raw/unique-spec/family/eligible/cluster counts from immutable production campaign evidence.
-5. Continue higher-fidelity D0 racing only under the existing predeclared diversity/search contract; no new family, threshold or ranking weight is authorized by this reconciliation.
-6. Freeze at most 30 survivors only through the ledger-backed Factory guard after actual D0 evidence exists; zero survivors is valid.
-7. Open D1 only through a separately authorized hidden-confirmation workflow after survivor freeze prerequisites pass.
-8. Keep SF4 untouched until `2026-09-13T00:00:00Z`.
-9. Keep Frozen OOS and real-money execution locked.
+1. When an authorized Linode operator shell path is available, invoke only `scripts/run_sfv2_d0_pilot_production_once.sh`; do not add an unauthenticated/public trigger as an access workaround.
+2. Run/resume the exact 406 candidates across all 12 D0 strata while the shared checkout lock is held.
+3. Record actual raw/unique-spec/family/eligible/cluster counts from immutable production campaign evidence.
+4. Continue higher-fidelity D0 racing only under the existing predeclared diversity/search contract; no new family, threshold or ranking weight is authorized by this reconciliation.
+5. Freeze at most 30 survivors only through the ledger-backed Factory guard after actual D0 evidence exists; zero survivors is valid.
+6. Open D1 only through a separately authorized hidden-confirmation workflow after survivor freeze prerequisites pass.
+7. Keep SF4 untouched until `2026-09-13T00:00:00Z`.
+8. Keep Frozen OOS and real-money execution locked.
 
 ## Continuity protocol
 
