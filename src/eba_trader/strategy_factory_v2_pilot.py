@@ -244,9 +244,9 @@ def build_low_fidelity_report(
     """Aggregate completed D0 strata and deduplicate behavior without promotion authority.
 
     Only candidates with one terminal trial for every expected stratum are marked complete.
-    Rejected or incomplete candidates never enter behavioral representative selection. The report
-    is discovery selection evidence only; it does not implement profitability or verification
-    gates.
+    Rejected or incomplete candidates never expose aggregate selection economics and never enter
+    behavioral representative selection. The report is discovery selection evidence only; it does
+    not implement profitability or verification gates.
     """
 
     strata = tuple(expected_strata)
@@ -284,6 +284,7 @@ def build_low_fidelity_report(
 
         metrics_rows = [row.get("metrics") for row in rows if row.get("status") == "evaluated"]
         metrics = [item for item in metrics_rows if isinstance(item, Mapping)]
+        selection_metrics = metrics if complete and not rejected else []
         behavior = None
         if complete and not rejected:
             behavior = _combine_behaviors(rows)
@@ -296,14 +297,18 @@ def build_low_fidelity_report(
                 complete=complete,
                 rejected=rejected,
                 stratum_count=len(rows),
-                mean_total_return=_mean_metric(metrics, "total_return"),
-                mean_expectancy=_mean_metric(metrics, "expectancy"),
-                total_trade_count=_sum_int_metric(metrics, "trade_count"),
-                mean_benchmark_relative_return=_mean_metric(metrics, "benchmark_relative_return"),
-                mean_max_drawdown=_mean_metric(metrics, "max_drawdown"),
-                mean_total_cost=_mean_metric(metrics, "total_cost"),
-                mean_exposure=_mean_metric(metrics, "exposure"),
-                mean_turnover=_mean_metric(metrics, "turnover_round_trips_per_1000_bars"),
+                mean_total_return=_mean_metric(selection_metrics, "total_return"),
+                mean_expectancy=_mean_metric(selection_metrics, "expectancy"),
+                total_trade_count=_sum_int_metric(selection_metrics, "trade_count"),
+                mean_benchmark_relative_return=_mean_metric(
+                    selection_metrics, "benchmark_relative_return"
+                ),
+                mean_max_drawdown=_mean_metric(selection_metrics, "max_drawdown"),
+                mean_total_cost=_mean_metric(selection_metrics, "total_cost"),
+                mean_exposure=_mean_metric(selection_metrics, "exposure"),
+                mean_turnover=_mean_metric(
+                    selection_metrics, "turnover_round_trips_per_1000_bars"
+                ),
                 behavior=behavior,
             )
         )
