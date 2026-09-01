@@ -1,6 +1,6 @@
 # EBA Trader — TODO
 
-Actual merged code, exact production evidence and latest explicit decisions override stale prose. Query `main`, open PRs and workflows before continuing. Documentation commits may move `main`; the latest code-bearing research baseline reconciled here is `4f4fa8b27b8e297d6e49fc5c9639ef3abbf256f7` (PR #117).
+Actual merged code, exact production evidence and latest explicit decisions override stale prose. Query `main`, open PRs and workflows before continuing. Documentation commits may move `main`; the latest code-bearing research baseline reconciled here is `6024bb069f458ffae4253b493a87cfd15aaaca93` (PR #119).
 
 ## DONE — Repository/runtime and research foundation
 
@@ -26,17 +26,18 @@ Actual merged code, exact production evidence and latest explicit decisions over
 - [x] Merge PR #110: derive campaign source SHA from the actual clean checkout and fail closed on dirty/mismatched source provenance.
 - [x] Merge PR #112: shared `flock` checkout guard between the five-minute updater and operator-only D0 production wrapper.
 - [x] Keep campaign invocation non-public and non-automatic.
-- [x] Confirm exact-build production proof for `59f6a21e8736b53473fd99a7cb00236c407f5573` in Actions run `33466706747`.
 - [x] Merge PR #115: discovery-only behavioral cluster accounting with separate raw/unique-spec/family/eligible/cluster counts; incomplete/rejected candidates excluded; representative drift fails closed.
-- [x] Confirm exact-build production proof for `cbe8cfd07587dda126234f853b47624f241f416e` in Actions run `33470607755`, verify job `99739433912`.
 - [x] Merge PR #117: aggregate D0 selection economics are exposed only for complete, non-rejected candidates; incomplete/rejected trial accounting remains immutable but cannot leak partial economics into ranking.
-- [x] Confirm exact-current-build D0 production proof for `4f4fa8b27b8e297d6e49fc5c9639ef3abbf256f7` in Actions run `33474180718`, verify job `99749881404`.
+- [x] Merge PR #119: complete non-rejected candidates must expose the full fixed finite D0 selection-metric schema on every stratum; missing/non-numeric/non-finite metrics and invalid `trade_count` fail closed.
+- [x] Confirm exact-current-build D0 production proof for `6024bb069f458ffae4253b493a87cfd15aaaca93` in Actions run `33483175058`, verify job `99777142101`.
 
 ## EXACT D0 EVIDENCE
 
-Latest completed exact production D0 proof is build `4f4fa8b27b8e297d6e49fc5c9639ef3abbf256f7`:
+Latest completed exact production D0 proof is build `6024bb069f458ffae4253b493a87cfd15aaaca93`:
 
-- [x] Actions proof run `33474180718`, verify job `99749881404`, completed successfully;
+- [x] Actions proof run `33483175058`, verify job `99777142101`, completed successfully;
+- [x] exact-build wait completed successfully;
+- [x] existing-only D0 source inspection completed successfully;
 - [x] declaration SHA `88365779d6821c1fb30372148bbcedbfadf11471843f57722723286a43cbc77c`;
 - [x] dataset SHA `aa13bcfc111c00f6da19621353a3ca8044f58eca1ab95e837d9490a205aa72eb`;
 - [x] candle SHA `6368c9f41ff635d2474860a8d4579fc00e57488871020a9df38222f32d9f4744`;
@@ -51,8 +52,15 @@ Latest completed exact production D0 proof is build `4f4fa8b27b8e297d6e49fc5c963
 - [x] Freeze exact `s3_vsm_s150` and `s3_cex_s075` parameters without retuning.
 - [x] Preregister new BTCUSDT USD-M data from `2026-09-01T00:00:00Z` through `2026-09-13T00:00:00Z`.
 - [x] Prohibit pooling SF3 evidence into replication qualification.
+- [x] Carry forward the conservative 48-test search budget.
 - [x] Lock evaluation before `2026-09-13T00:00:00Z`.
 - [ ] After the declared end time, evaluate the two frozen hypotheses on new data only.
+
+## NOW — pre-D1 integrity guard
+
+- [ ] Add a fail-closed Factory v2 survivor-freeze completeness guard before any survivor freeze or D1 authorization.
+- [ ] Require every selected survivor to have exactly the declared terminal D0 strata, no rejected stratum, and eligibility under the frozen D0 report before writing immutable survivor selection.
+- [ ] Keep D1 sealed until this guard is merged, tested and exact-head green.
 
 ## NOW — D0 invocation
 
@@ -67,14 +75,15 @@ Latest completed exact production D0 proof is build `4f4fa8b27b8e297d6e49fc5c963
 - [x] Mechanism: never place incomplete/rejected candidates into behavioral representative/clustering selection.
 - [x] Mechanism: keep raw candidate, unique specification, independent-family and behavioral-cluster counts distinct.
 - [x] Mechanism: expose aggregate selection-only economics/activity/cost/drawdown/benchmark metrics only after terminal all-strata coverage and only for non-rejected candidates.
+- [x] Mechanism: fail closed if any complete non-rejected stratum lacks a required finite selection metric.
 - [ ] Evidence: after production campaign execution, record actual raw/unique/family/eligible/cluster counts from the immutable ledger/report.
 - [ ] Apply diversity-aware higher-fidelity D0 racing under the predeclared contract only.
 - [ ] Nominate at most 30 discovery survivors; zero survivors is valid.
-- [ ] Freeze survivor specifications before any separately authorized D1 access.
+- [ ] Freeze survivor specifications only after the pre-D1 completeness guard is active.
 
 ## THEN — hidden confirmation and strict verification
 
-- [ ] Open D1 only through separately authorized hidden-confirmation workflow.
+- [ ] Open D1 only through separately authorized hidden-confirmation workflow after survivor freeze prerequisites pass.
 - [ ] Account for broad-search selection/multiple-testing history.
 - [ ] Reject failed survivors without post-hoc retuning on D1.
 - [ ] Use D2 for candidate-specific robustness only after confirmation survives.
@@ -99,7 +108,7 @@ Latest completed exact production D0 proof is build `4f4fa8b27b8e297d6e49fc5c963
 ## BLOCKED / GATED
 
 - [ ] Production 406-candidate D0 invocation — operator-only production shell action is not exposed through the currently connected project tools; do not weaken access controls to work around this.
-- [ ] Factory v2 D1 hidden confirmation — blocked until D0 survivor freeze + separate authorization.
+- [ ] Factory v2 survivor freeze/D1 — blocked until the expected-strata completeness guard is merged and the D0 campaign actually yields frozen survivor evidence.
 - [ ] SF4 evaluation before `2026-09-13T00:00:00Z` — intentionally fail-closed.
 - [ ] M5 Frozen OOS — sealed until strict prerequisites pass.
 - [ ] Real-money Binance orders — intentionally locked.
