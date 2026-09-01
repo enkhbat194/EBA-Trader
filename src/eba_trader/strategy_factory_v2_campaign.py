@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -31,6 +32,7 @@ PILOT_CAMPAIGN_ID = "sfv2-discovery-pilot-v1"
 PILOT_AUTHORITY = "DISCOVERY_ONLY"
 PILOT_SEARCH_ROUND = 0
 PILOT_BEHAVIORAL_SIMILARITY_THRESHOLD = 0.90
+SURVIVOR_SELECTION_SCHEMA = "strategy_factory_v2_d0_survivor_selection_v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -168,6 +170,94 @@ def run_d0_pilot_campaign(
         stopped_for_compute_budget=stopped,
         report=report,
         accounting=accounting,
+    )
+
+
+def freeze_d0_pilot_survivors(
+    *,
+    ledger: DiscoveryTrialLedger,
+    campaign_run: D0PilotCampaignRun,
+    candidate_ids: Sequence[str],
+    selection_definition: Mapping[str, object],
+) -> str:
+    """Freeze D0 survivor identities without opening D1 or any execution authority.
+
+    This is the Strategy Factory-specific safety boundary around the generic immutable ledger.
+    Every selected candidate must be complete across the exact frozen D0 strata, non-rejected,
+    behaviorally eligible, and diversity-safe (at most one selected candidate per behavioral
+    cluster). The caller must provide a non-empty frozen selection/racing definition; this helper
+    records it but does not invent ranking rules or grant confirmation authority.
+    """
+
+    if campaign_run.campaign_id != PILOT_CAMPAIGN_ID:
+        raise ValueError("survivor freeze requires the frozen Strategy Factory v2 pilot campaign")
+    if campaign_run.authority != PILOT_AUTHORITY:
+        raise ValueError("survivor freeze must remain DISCOVERY_ONLY")
+    if campaign_run.d1_opened or campaign_run.frozen_oos_opened or campaign_run.live_execution_allowed:
+        raise RuntimeError("survivor freeze cannot run with downstream authority already open")
+    if campaign_run.stopped_for_compute_budget:
+        raise RuntimeError("survivor freeze requires a completed D0 campaign pass")
+
+    selected = tuple(candidate_ids)
+    if not selected:
+        raise ValueError("survivor selection cannot be empty")
+    if len(selected) != len(set(selected)):
+        raise ValueError("survivor candidate_ids must be unique")
+    if len(selected) > MAX_SURVIVORS:
+        raise RuntimeError("Strategy Factory v2 survivor cap exceeded")
+    if not selection_definition:
+        raise ValueError("a frozen selection_definition is required")
+
+    expected_strata = tuple(campaign_run.report.expected_strata)
+    if not expected_strata or len(expected_strata) != campaign_run.stratum_count:
+        raise RuntimeError("D0 report strata do not match the frozen campaign run")
+    if len(expected_strata) != len(set(expected_strata)):
+        raise RuntimeError("D0 report expected strata must be unique")
+
+    report_by_id = {item.candidate_id: item for item in campaign_run.report.candidates}
+    if len(report_by_id) != len(campaign_run.report.candidates):
+        raise RuntimeError("D0 report candidate identities are not unique")
+
+    cluster_by_candidate: dict[str, str] = {}
+    for cluster in campaign_run.accounting.clusters:
+        for candidate_id in cluster.member_candidate_ids:
+            if candidate_id in cluster_by_candidate:
+                raise RuntimeError("behavioral cluster membership is not unique")
+            cluster_by_candidate[candidate_id] = cluster.representative_candidate_id
+
+    selected_clusters: set[str] = set()
+    for candidate_id in selected:
+        item = report_by_id.get(candidate_id)
+        if item is None:
+            raise KeyError(f"survivor candidate missing from frozen D0 report: {candidate_id}")
+        if not item.complete or item.rejected or item.behavior is None:
+            raise RuntimeError("survivor candidate is not complete behaviorally eligible D0 evidence")
+        if item.stratum_count != len(expected_strata):
+            raise RuntimeError("survivor candidate does not cover every expected D0 stratum")
+        cluster_id = cluster_by_candidate.get(candidate_id)
+        if cluster_id is None:
+            raise RuntimeError("survivor candidate is missing from behavioral cluster accounting")
+        if cluster_id in selected_clusters:
+            raise RuntimeError("survivor selection cannot take multiple candidates from one cluster")
+        selected_clusters.add(cluster_id)
+
+    frozen_definition = {
+        "schema": SURVIVOR_SELECTION_SCHEMA,
+        "authority": PILOT_AUTHORITY,
+        "source_code_sha": campaign_run.source_code_sha,
+        "d0_declaration_sha256": campaign_run.d0_declaration_sha256,
+        "d0_dataset_sha256": campaign_run.d0_dataset_sha256,
+        "expected_strata": list(expected_strata),
+        "behavioral_similarity_threshold": PILOT_BEHAVIORAL_SIMILARITY_THRESHOLD,
+        "selection_definition": dict(selection_definition),
+        "d1_opened": False,
+        "frozen_oos_opened": False,
+        "live_execution_allowed": False,
+    }
+    return ledger.freeze_survivor_selection(
+        campaign_id=PILOT_CAMPAIGN_ID,
+        candidate_ids=selected,
+        definition=frozen_definition,
     )
 
 
