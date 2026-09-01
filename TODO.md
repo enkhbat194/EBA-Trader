@@ -26,15 +26,20 @@ Actual merged code, exact production evidence and latest explicit decisions over
 - [x] Merge PR #110: derive campaign source SHA from the actual clean checkout and fail closed on dirty/mismatched source provenance.
 - [x] Merge PR #112: shared `flock` checkout guard between the five-minute updater and operator-only D0 production wrapper.
 - [x] Keep campaign invocation non-public and non-automatic.
+- [x] Confirm final exact-build production proof for `2ffb7ce23a6c2fdb7507ce3d9b264ef1966f99bd` in Actions run `33464296457` on 2026-09-01 UTC.
 
 ## EXACT D0 EVIDENCE
 
-Latest completed exact production D0 proof before the current deployment cycle was `9b2d31efd00981282acc405b944d0b913960fca1` with:
+Latest completed exact production D0 proof is final main build `2ffb7ce23a6c2fdb7507ce3d9b264ef1966f99bd` with:
 
+- [x] Actions proof run `33464296457` completed successfully;
 - [x] declaration SHA `88365779d6821c1fb30372148bbcedbfadf11471843f57722723286a43cbc77c`;
 - [x] dataset SHA `aa13bcfc111c00f6da19621353a3ca8044f58eca1ab95e837d9490a205aa72eb`;
 - [x] candle SHA `6368c9f41ff635d2474860a8d4579fc00e57488871020a9df38222f32d9f4744`;
 - [x] order-flow SHA `3398d17c48dd282c86a13a3ccf9daafcd2784e1e64732bb52c29b9b294e82da3`;
+- [x] row count 2,880; windows/strata 12/12;
+- [x] authority `DISCOVERY_ONLY` and provenance `INSPECTED_REUSABLE_DISCOVERY_DATA`;
+- [x] fresh-confirmation evidence false; verification authority false;
 - [x] D1/Frozen OOS/live remain closed/closed/locked.
 
 ## ACTIVE — SF4 prospective replication
@@ -45,9 +50,9 @@ Latest completed exact production D0 proof before the current deployment cycle w
 - [x] Lock evaluation before `2026-09-13T00:00:00Z`.
 - [ ] After the declared end time, evaluate the two frozen hypotheses on new data only.
 
-## NOW — final production proof and D0 invocation
+## NOW — D0 invocation
 
-- [ ] Confirm exact-build production proof for the final merged main containing PR #112.
+- [x] Confirm exact-build production proof for final merged main containing PR #112 and continuity reconciliation.
 - [ ] When an authorized Linode shell path is available, invoke only `scripts/run_sfv2_d0_pilot_production_once.sh`.
 - [ ] Do not add an unauthenticated public trigger merely to bypass shell-access limitations.
 - [ ] Keep the execution mechanism `DISCOVERY_ONLY`; it must not open D1, lifecycle promotion, Frozen OOS, demo authority or live execution.
