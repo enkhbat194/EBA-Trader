@@ -6,16 +6,16 @@ _Last handoff prepared: 2026-09-01 (Asia/Ulaanbaatar)_
 
 Repository: `enkhbat194/EBA-Trader`
 
-Canonical `main` before the current D0 dataset-contract PR:
+Canonical `main` before current PR #104:
 
-`4c5a6a9fe30f29b772a5c2fe4d1e99b38b4262b1`
+`14472dee7224d5caff6819ea142f01ba6729d3a0`
 
 Main commit:
 
-`Strategy Factory v2: add common D0 evaluator adapters (#102)`
+`Strategy Factory v2: add immutable D0 dataset contract`
 
-Exact-main production/continuity proof is green, including external production proof. No open PR
-existed before the current branch was created.
+Exact-main Linode runtime and production evidence proof are green. PR #104 is the active
+low-fidelity D0 orchestration branch.
 
 ## What was completed
 
@@ -28,33 +28,39 @@ SF4 keeps exact `s3_vsm_s150` and `s3_cex_s075` parameters frozen for prospectiv
 only `2026-09-01T00:00:00Z` through `2026-09-13T00:00:00Z`. Evaluation before the end time is
 fail-closed. SF3 evidence cannot be pooled into the replication result.
 
-### Strategy Factory v2
+### Strategy Factory v2 merged state
 
-The discovery-only foundation, 8-family/406-candidate pilot catalog and common D0 evaluator are
-merged. PR #102 added:
+The discovery-only foundation, 8-family/406-candidate pilot catalog, common D0 evaluator and
+immutable D0 dataset contract are merged. PR #103 added deterministic candle/order-flow/composite
+hashes, explicit `INSPECTED_REUSABLE_DISCOVERY_DATA` provenance, causal alignment checks and
+declared temporal strata.
 
-- one evaluator/adaptor path for all 8 existing causal engines;
-- common selection-only metrics;
-- actual behavioral fingerprints from signals/trades/exposure/turnover;
-- fail-closed invalid/zero-opportunity handling;
-- `run_discovery_batch` ledger integration with dataset SHA, source SHA, fidelity and compute time.
+### Current PR #104
 
-The current branch advances the next missing boundary: immutable D0 input identity. It adds a
-versioned manifest that hashes candle and executed-order-flow content, labels the data explicitly as
-`INSPECTED_REUSABLE_DISCOVERY_DATA`, rejects time-misaligned/non-causal order-flow rows and declares
-temporal strata for non-first-N low-fidelity racing.
+PR #104 adds:
+
+- recomputation of the parent D0 manifest before any pilot slice can run;
+- causal pre-stratum warmup while trading starts exactly at the declared stratum boundary;
+- immutable per-stratum dataset SHA derived from parent identity, stratum, warmup and content;
+- a ledgered one-stratum execution wrapper using the common D0 evaluator;
+- all-strata completion accounting;
+- selection-only metric aggregation across completed strata;
+- behavioral fingerprint combination across all declared strata;
+- near-duplicate representative filtering only for complete, non-rejected candidates.
+
+Initial PR #104 regression tests passed. Ruff found only import formatting/line-length issues, which
+were fixed on the branch before continuing.
 
 ## Next exact task
 
-Finish and merge the D0 dataset-contract PR only after exact-head checks are green. Then materialize
-the actual production D0 dataset, record its immutable composite hash, generate the deterministic
-406 candidates, and evaluate every low-fidelity candidate across all declared temporal strata.
-Every inspected trial must enter the immutable discovery ledger.
+Finish PR #104 exact-head CI and merge only when regression, Ruff, runtime, production-bundle,
+continuity and hygiene checks are green. Then materialize/declare the actual production D0 dataset,
+generate the deterministic 406 candidates, and execute resumable low-fidelity D0 evaluation across
+every declared temporal stratum. Do not rank incomplete candidates.
 
-After low-fidelity evaluation, compute behavioral clusters and keep raw candidate, unique spec,
-behavioral cluster and independent family counts distinct. Higher-fidelity D0 racing may use diverse
-representatives only. D1 must remain sealed until survivor specs are frozen under separate
-authority.
+After complete low-fidelity coverage, report raw candidates, unique specs, behavioral clusters and
+independent families separately. Higher-fidelity D0 racing may use diverse representatives only.
+D1 remains sealed until survivor specs are frozen under separate authority.
 
 ## Hard locks
 
