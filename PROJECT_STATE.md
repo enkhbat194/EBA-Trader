@@ -12,10 +12,12 @@ Build a research-first automated trading system that can discover repeatable tra
 
 - Repository: `enkhbat194/EBA-Trader`
 - Production URL: `https://eba-trader-172-236-150-62.sslip.io`
-- Engine baseline before this documentation reconciliation: `425952afbf1a1f057ad659670004c8defcd7edd5`.
+- Current canonical `main`: `2ffb7ce23a6c2fdb7507ce3d9b264ef1966f99bd`.
 - PR #109 merged the resume-safe Strategy Factory v2 D0 pilot campaign runner.
 - PR #110 merged clean-checkout source-provenance binding.
 - PR #112 merged the production checkout concurrency guard: the five-minute automatic updater and the operator-only D0 wrapper use the same nonblocking `flock` lock, so an active campaign cannot have its checkout reset by the updater.
+- PR #113 reconciled continuity after the production checkout guard.
+- Exact-build production D0 proof for final main `2ffb7ce23a6c2fdb7507ce3d9b264ef1966f99bd` passed in GitHub Actions run `33464296457` on 2026-09-01 UTC.
 - No public or automatic campaign trigger was introduced.
 - Fast Momentum remains a paper/runtime test-bed, not a verified profitable strategy.
 - Binance USD-M Futures Demo execution plumbing is execution proof only.
@@ -54,7 +56,7 @@ PR #99 froze exact `s3_vsm_s150` and `s3_cex_s075` hypotheses. Replication uses 
 
 ## Exact production D0 evidence
 
-The latest completed exact production D0 proof before the current deployment cycle was build `9b2d31efd00981282acc405b944d0b913960fca1` with:
+The latest completed exact production D0 proof is final main build `2ffb7ce23a6c2fdb7507ce3d9b264ef1966f99bd`, GitHub Actions run `33464296457`:
 
 - source kind: `INSPECTED_M5_DEVELOPMENT_CORPUS`;
 - materialization ID: `m5corpusmat_25007f47e456b5f2d42ef16b`;
@@ -74,7 +76,7 @@ The latest completed exact production D0 proof before the current deployment cyc
 - Frozen OOS opened: false;
 - live execution allowed: false.
 
-The data-source, campaign-orchestration, source-provenance and automatic-update concurrency blockers are closed in merged code. Before executing the campaign, require exact-production proof for the final deployed main build. Actual invocation remains operator-only; the currently connected project tools do not provide an authorized Linode shell action.
+The data-source, campaign-orchestration, source-provenance, automatic-update concurrency and final exact-build production-proof blockers are closed. Actual campaign invocation remains operator-only; the currently connected project tools do not provide an authorized Linode shell action. Do not add an unauthenticated public trigger as an access workaround.
 
 ## Verification quality gate — DO NOT LOWER
 
@@ -104,15 +106,14 @@ Factory v2 D0 metrics are selection-only and do not satisfy these gates. A later
 
 ## Next exact tasks
 
-1. Confirm exact-build production proof for the final merged main build containing PR #112.
-2. When an authorized Linode shell path is available, invoke only `scripts/run_sfv2_d0_pilot_production_once.sh`; do not add an unauthenticated public trigger merely to bypass access limitations.
-3. Run/resume the exact 406-candidate catalog across all 12 D0 strata while keeping the checkout fixed.
-4. Never rank incomplete candidates; require terminal required-stratum coverage before aggregate selection metrics.
-5. Build behavioral near-duplicate clusters while keeping raw candidate, unique spec, behavioral cluster and family counts distinct.
-6. Continue higher-fidelity D0 racing only under the predeclared diversity/search contract; D0 remains selection-only.
-7. Freeze at most 30 survivors before any separately authorized D1 access. Zero survivors is valid.
-8. Keep SF4 untouched until `2026-09-13T00:00:00Z`.
-9. Keep Frozen OOS and real-money execution locked.
+1. When an authorized Linode shell path is available, invoke only `scripts/run_sfv2_d0_pilot_production_once.sh`; do not add an unauthenticated public trigger merely to bypass access limitations.
+2. Run/resume the exact 406-candidate catalog across all 12 D0 strata while keeping the checkout fixed.
+3. Never rank incomplete candidates; require terminal required-stratum coverage before aggregate selection metrics.
+4. Build behavioral near-duplicate clusters while keeping raw candidate, unique spec, behavioral cluster and family counts distinct.
+5. Continue higher-fidelity D0 racing only under the predeclared diversity/search contract; D0 remains selection-only.
+6. Freeze at most 30 survivors before any separately authorized D1 access. Zero survivors is valid.
+7. Keep SF4 untouched until `2026-09-13T00:00:00Z`.
+8. Keep Frozen OOS and real-money execution locked.
 
 ## Continuity protocol
 
