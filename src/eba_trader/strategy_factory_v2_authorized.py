@@ -3,13 +3,13 @@ from __future__ import annotations
 import json
 import math
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Mapping
 
 from .research_store import ResearchStore
-from .strategy_discovery_v2 import DiscoveryTrialLedger, MAX_SURVIVORS
+from .strategy_discovery_v2 import MAX_SURVIVORS, DiscoveryTrialLedger
 from .strategy_factory_v2_campaign import (
     PILOT_AUTHORITY,
     PILOT_BEHAVIORAL_SIMILARITY_THRESHOLD,
@@ -420,7 +420,11 @@ def run_authorized_d0_cycle(
         raise RuntimeError("authorized D0 run candidate count changed")
     if campaign_run.stratum_count != EXPECTED_STRATUM_COUNT:
         raise RuntimeError("authorized D0 run stratum count changed")
-    if campaign_run.d1_opened or campaign_run.frozen_oos_opened or campaign_run.live_execution_allowed:
+    if (
+        campaign_run.d1_opened
+        or campaign_run.frozen_oos_opened
+        or campaign_run.live_execution_allowed
+    ):
         raise RuntimeError("authorized D0 run attempted downstream authority")
 
     ledger = DiscoveryTrialLedger(ResearchStore(research_db_path))
