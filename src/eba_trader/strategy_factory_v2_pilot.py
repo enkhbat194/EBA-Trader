@@ -346,7 +346,9 @@ def _validated_selection_metrics(
             raise ValueError("complete evaluated candidate is missing selection metrics")
         missing = [key for key in REQUIRED_SELECTION_METRICS if key not in metrics]
         if missing:
-            raise ValueError(f"complete evaluated candidate is missing selection metrics: {missing}")
+            raise ValueError(
+                f"complete evaluated candidate is missing selection metrics: {missing}"
+            )
         for key in REQUIRED_SELECTION_METRICS:
             value = metrics[key]
             if isinstance(value, bool):
