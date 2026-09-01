@@ -35,7 +35,11 @@ def test_d0_pilot_campaign_is_resume_safe_and_keeps_downstream_gates_closed(tmp_
         DiscoveryCandidate("family_b", "hyp_b", {"x": 2}),
     )
     fake_strata = tuple(
-        SimpleNamespace(stratum=item) for item in _declaration().manifest.temporal_strata
+        SimpleNamespace(
+            stratum=item,
+            dataset_sha256=str(index) * 64,
+        )
+        for index, item in enumerate(_declaration().manifest.temporal_strata)
     )
     monkeypatch.setattr(campaign, "generate_pilot_candidates", lambda *, seed: candidates)
     monkeypatch.setattr(
@@ -76,6 +80,11 @@ def test_d0_pilot_campaign_is_resume_safe_and_keeps_downstream_gates_closed(tmp_
     assert result.frozen_oos_opened is False
     assert result.live_execution_allowed is False
     assert ledger.get_survivor_selection(campaign.PILOT_CAMPAIGN_ID) is None
+    registered = campaign._registered_pilot_definition(ledger)
+    assert registered["stratum_dataset_sha256"] == {
+        "d0s_00": "0" * 64,
+        "d0s_01": "1" * 64,
+    }
 
     campaign.run_d0_pilot_campaign(
         ledger=ledger,
@@ -167,6 +176,7 @@ def _freeze_ledger(
     *,
     incomplete_candidate_index: int | None = None,
     duplicate_behavior: bool = False,
+    wrong_dataset_candidate_index: int | None = None,
 ):
     ledger = DiscoveryTrialLedger(ResearchStore(tmp_path / "freeze.db"))
     candidates = (
@@ -175,6 +185,10 @@ def _freeze_ledger(
     )
     source_sha = "1" * 40
     expected_strata = ("d0s_00", "d0s_01")
+    stratum_dataset_sha256 = {
+        "d0s_00": "0" * 64,
+        "d0s_01": "1" * 64,
+    }
     definition = {
         "schema": "strategy_factory_v2_d0_campaign_v1",
         "authority": campaign.PILOT_AUTHORITY,
@@ -185,6 +199,7 @@ def _freeze_ledger(
         "d0_dataset_sha256": "d" * 64,
         "d0_provenance_class": "INSPECTED_REUSABLE_DISCOVERY_DATA",
         "expected_strata": list(expected_strata),
+        "stratum_dataset_sha256": stratum_dataset_sha256,
         "warmup_bars": campaign.DEFAULT_WARMUP_BARS,
         "behavioral_similarity_threshold": campaign.PILOT_BEHAVIORAL_SIMILARITY_THRESHOLD,
         "search_round": campaign.PILOT_SEARCH_ROUND,
@@ -212,10 +227,13 @@ def _freeze_ledger(
         for stratum_index, stratum_id in enumerate(expected_strata):
             if candidate_index == incomplete_candidate_index and stratum_index == 1:
                 continue
+            dataset_sha256 = stratum_dataset_sha256[stratum_id]
+            if candidate_index == wrong_dataset_candidate_index and stratum_index == 1:
+                dataset_sha256 = "f" * 64
             trial_id = ledger.declare_trial(
                 campaign_id=campaign.PILOT_CAMPAIGN_ID,
                 candidate_id=candidate.candidate_id,
-                dataset_sha256=f"{candidate_index}{stratum_index}".ljust(64, "0"),
+                dataset_sha256=dataset_sha256,
                 fidelity=f"d0-low-v1:{stratum_id}",
             )
             ledger.record_result(
@@ -258,6 +276,10 @@ def test_survivor_freeze_rebuilds_complete_evidence_from_ledger_and_keeps_d1_clo
     definition = frozen["definition"]["definition"]
     assert definition["schema"] == campaign.SURVIVOR_SELECTION_SCHEMA
     assert definition["expected_strata"] == ["d0s_00", "d0s_01"]
+    assert definition["stratum_dataset_sha256"] == {
+        "d0s_00": "0" * 64,
+        "d0s_01": "1" * 64,
+    }
     assert definition["d1_opened"] is False
     assert definition["frozen_oos_opened"] is False
     assert definition["live_execution_allowed"] is False
@@ -268,7 +290,24 @@ def test_survivor_freeze_rejects_fabricated_complete_run_when_ledger_catalog_is_
 ):
     ledger, run, candidates = _freeze_ledger(tmp_path, incomplete_candidate_index=1)
 
-    with pytest.raises(RuntimeError, match="terminal D0 strata for the full catalog"):
+    with pytest.raises(RuntimeError, match="D0 trial provenance is incomplete"):
+        campaign.freeze_d0_pilot_survivors(
+            ledger=ledger,
+            campaign_run=run,
+            candidate_ids=(candidates[0].candidate_id,),
+            selection_definition={"ranking_schema": "frozen-test-v1"},
+        )
+
+    assert ledger.get_survivor_selection(campaign.PILOT_CAMPAIGN_ID) is None
+
+
+def test_survivor_freeze_rejects_terminal_trial_with_wrong_stratum_dataset_sha(tmp_path):
+    ledger, run, candidates = _freeze_ledger(tmp_path, wrong_dataset_candidate_index=1)
+
+    with pytest.raises(
+        RuntimeError,
+        match="D0 trial dataset SHA does not match registered stratum",
+    ):
         campaign.freeze_d0_pilot_survivors(
             ledger=ledger,
             campaign_run=run,

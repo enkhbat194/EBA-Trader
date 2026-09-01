@@ -105,6 +105,20 @@ def run_d0_pilot_campaign(
         candidate_cap_per_family=MAX_CANDIDATES_PER_FAMILY,
         survivor_cap=MAX_SURVIVORS,
     )
+
+    candles = tuple(row.candle for row in rows)
+    strata = materialize_low_fidelity_strata(
+        manifest=declaration.manifest,
+        candles=candles,
+        orderflow_rows=rows,
+        warmup_bars=warmup_bars,
+    )
+    stratum_dataset_sha256 = {
+        item.stratum.stratum_id: item.dataset_sha256 for item in strata
+    }
+    if len(stratum_dataset_sha256) != len(strata):
+        raise RuntimeError("materialized D0 stratum identities must be unique")
+
     campaign_definition = {
         "schema": "strategy_factory_v2_d0_campaign_v1",
         "authority": PILOT_AUTHORITY,
@@ -115,6 +129,7 @@ def run_d0_pilot_campaign(
         "d0_dataset_sha256": declaration.manifest.dataset_sha256,
         "d0_provenance_class": declaration.provenance_class,
         "expected_strata": [item.stratum_id for item in declaration.manifest.temporal_strata],
+        "stratum_dataset_sha256": stratum_dataset_sha256,
         "warmup_bars": warmup_bars,
         "behavioral_similarity_threshold": PILOT_BEHAVIORAL_SIMILARITY_THRESHOLD,
         "search_round": PILOT_SEARCH_ROUND,
@@ -124,14 +139,6 @@ def run_d0_pilot_campaign(
         "live_execution_allowed": False,
     }
     ledger.register_campaign(policy, definition=campaign_definition)
-
-    candles = tuple(row.candle for row in rows)
-    strata = materialize_low_fidelity_strata(
-        manifest=declaration.manifest,
-        candles=candles,
-        orderflow_rows=rows,
-        warmup_bars=warmup_bars,
-    )
 
     newly_evaluated = 0
     reused_terminal = 0
@@ -200,6 +207,76 @@ def _registered_pilot_definition(ledger: DiscoveryTrialLedger) -> Mapping[str, o
     return definition
 
 
+def _registered_stratum_dataset_sha256(
+    *,
+    registered: Mapping[str, object],
+    expected_strata: Sequence[str],
+) -> dict[str, str]:
+    raw = registered.get("stratum_dataset_sha256")
+    if not isinstance(raw, Mapping):
+        raise RuntimeError("registered D0 stratum dataset SHA mapping is missing or invalid")
+
+    mapping: dict[str, str] = {}
+    for raw_stratum_id, raw_sha in raw.items():
+        stratum_id = str(raw_stratum_id).strip()
+        dataset_sha256 = str(raw_sha).strip().lower()
+        if not stratum_id or not dataset_sha256:
+            raise RuntimeError("registered D0 stratum dataset SHA mapping is invalid")
+        if len(dataset_sha256) != 64 or any(
+            character not in "0123456789abcdef" for character in dataset_sha256
+        ):
+            raise RuntimeError("registered D0 stratum dataset SHA is invalid")
+        if stratum_id in mapping:
+            raise RuntimeError("registered D0 stratum dataset SHA mapping is duplicated")
+        mapping[stratum_id] = dataset_sha256
+
+    if set(mapping) != set(expected_strata):
+        raise RuntimeError(
+            "registered D0 stratum dataset SHA mapping does not match expected strata"
+        )
+    return mapping
+
+
+def _validate_low_fidelity_trial_provenance(
+    *,
+    trials: Sequence[Mapping[str, object]],
+    declared_candidate_ids: set[str],
+    expected_strata: Sequence[str],
+    stratum_dataset_sha256: Mapping[str, str],
+) -> None:
+    expected_fidelity_sha = {
+        f"d0-low-v1:{stratum_id}": stratum_dataset_sha256[stratum_id]
+        for stratum_id in expected_strata
+    }
+    expected_pairs = {
+        (candidate_id, fidelity)
+        for candidate_id in declared_candidate_ids
+        for fidelity in expected_fidelity_sha
+    }
+    seen_pairs: set[tuple[str, str]] = set()
+
+    for trial in trials:
+        fidelity = str(trial.get("fidelity") or "").strip()
+        if not fidelity.startswith("d0-low-v1:"):
+            continue
+        candidate_id = str(trial.get("candidate_id") or "").strip()
+        if candidate_id not in declared_candidate_ids:
+            raise RuntimeError("D0 trial provenance references an undeclared candidate")
+        expected_sha = expected_fidelity_sha.get(fidelity)
+        if expected_sha is None:
+            raise RuntimeError("D0 trial provenance contains an unexpected stratum")
+        pair = (candidate_id, fidelity)
+        if pair in seen_pairs:
+            raise RuntimeError("D0 trial provenance contains a duplicate candidate/stratum trial")
+        seen_pairs.add(pair)
+        dataset_sha256 = str(trial.get("dataset_sha256") or "").strip().lower()
+        if dataset_sha256 != expected_sha:
+            raise RuntimeError("D0 trial dataset SHA does not match registered stratum")
+
+    if seen_pairs != expected_pairs:
+        raise RuntimeError("D0 trial provenance is incomplete for the full catalog")
+
+
 def _freeze_empty_pilot_selection(
     *,
     ledger: DiscoveryTrialLedger,
@@ -258,9 +335,10 @@ def freeze_d0_pilot_survivors(
 
     The caller-supplied run object is cross-checked against the immutable campaign registration,
     but eligibility is rebuilt from ledger candidates/trials rather than trusted from that object.
-    The entire declared D0 catalog must be terminal across the exact frozen strata before any
-    survivor selection can be written. A zero-survivor outcome is valid and is persisted as an
-    immutable negative discovery result. This helper never opens D1, Frozen OOS or execution.
+    The entire declared D0 catalog must be terminal across the exact frozen strata and exact
+    materialized stratum dataset identities before any survivor selection can be written. A
+    zero-survivor outcome is valid and is persisted as an immutable negative discovery result.
+    This helper never opens D1, Frozen OOS or execution.
     """
 
     if campaign_run.campaign_id != PILOT_CAMPAIGN_ID:
@@ -304,6 +382,10 @@ def freeze_d0_pilot_survivors(
         raise RuntimeError("registered D0 expected_strata must be unique")
     if len(expected_strata) != campaign_run.stratum_count:
         raise RuntimeError("campaign run stratum count does not match immutable campaign")
+    stratum_dataset_sha256 = _registered_stratum_dataset_sha256(
+        registered=registered,
+        expected_strata=expected_strata,
+    )
 
     declared_candidates = ledger.list_candidates(PILOT_CAMPAIGN_ID)
     planned_candidate_count = registered.get("planned_candidate_count")
@@ -320,12 +402,19 @@ def freeze_d0_pilot_survivors(
     ):
         raise RuntimeError("declared candidate source provenance drifted")
 
+    declared_ids = {str(row.get("candidate_id") or "") for row in declared_candidates}
+    trials = ledger.list_trials(PILOT_CAMPAIGN_ID)
+    _validate_low_fidelity_trial_provenance(
+        trials=trials,
+        declared_candidate_ids=declared_ids,
+        expected_strata=expected_strata,
+        stratum_dataset_sha256=stratum_dataset_sha256,
+    )
     report = build_low_fidelity_report(
-        trials=ledger.list_trials(PILOT_CAMPAIGN_ID),
+        trials=trials,
         expected_strata=expected_strata,
         behavioral_similarity_threshold=PILOT_BEHAVIORAL_SIMILARITY_THRESHOLD,
     )
-    declared_ids = {str(row.get("candidate_id") or "") for row in declared_candidates}
     report_by_id = {item.candidate_id: item for item in report.candidates}
     if set(report_by_id) != declared_ids:
         raise RuntimeError("survivor freeze requires D0 evidence for every declared candidate")
@@ -369,6 +458,7 @@ def freeze_d0_pilot_survivors(
         "d0_declaration_sha256": registered["d0_declaration_sha256"],
         "d0_dataset_sha256": registered["d0_dataset_sha256"],
         "expected_strata": list(expected_strata),
+        "stratum_dataset_sha256": dict(sorted(stratum_dataset_sha256.items())),
         "behavioral_similarity_threshold": PILOT_BEHAVIORAL_SIMILARITY_THRESHOLD,
         "selection_definition": dict(selection_definition),
         "d1_opened": False,
