@@ -8,9 +8,11 @@ on:
       - 'src/eba_trader/strategy_factory_v2_authorized.py'
       - 'src/eba_trader/sfv2_dashboard.py'
       - 'src/eba_trader/research_dashboard.py'
+      - 'scripts/auto_update_entrypoint.sh'
       - 'scripts/run_sfv2_d0_authorized_until_frozen.py'
       - 'scripts/run_sfv2_d0_authorized_production.sh'
       - 'scripts/run_m5_research_maintenance_once.sh'
+      - 'deploy/systemd/eba-sfv2-d0-authorized.service'
       - '.github/workflows/sfv2-d0-campaign-proof.yml'
   workflow_dispatch:
 
