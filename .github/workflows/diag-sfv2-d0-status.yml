@@ -1,0 +1,55 @@
+name: Diagnostic SFv2 D0 status probe
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/diag-sfv2-d0-status.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Read sanitized production SFv2 status
+        run: |
+          python - <<'PY'
+          import json
+          import urllib.request
+
+          url = 'https://eba-trader-172-236-150-62.sslip.io/api/research/status'
+          request = urllib.request.Request(
+              url,
+              headers={'Accept': 'application/json', 'User-Agent': 'eba-sfv2-diagnostic/1'},
+          )
+          with urllib.request.urlopen(request, timeout=15) as response:
+              payload = json.loads(response.read().decode('utf-8'))
+          sfv2 = payload.get('strategyFactoryV2') or {}
+          safe = {
+              'available': sfv2.get('available'),
+              'reason': sfv2.get('reason'),
+              'phase': sfv2.get('phase'),
+              'requestId': sfv2.get('requestId'),
+              'sourceCodeSha': sfv2.get('sourceCodeSha'),
+              'candidateCount': sfv2.get('candidateCount'),
+              'stratumCount': sfv2.get('stratumCount'),
+              'expectedTrialCount': sfv2.get('expectedTrialCount'),
+              'terminalTrialCount': sfv2.get('terminalTrialCount'),
+              'progressFraction': sfv2.get('progressFraction'),
+              'completeCandidateCount': sfv2.get('completeCandidateCount'),
+              'rejectedCandidateCount': sfv2.get('rejectedCandidateCount'),
+              'behaviorallyEligibleCandidateCount': sfv2.get('behaviorallyEligibleCandidateCount'),
+              'behavioralClusterCount': sfv2.get('behavioralClusterCount'),
+              'selectionFrozen': sfv2.get('selectionFrozen'),
+              'survivorCount': sfv2.get('survivorCount'),
+              'survivorCandidateIds': sfv2.get('survivorCandidateIds'),
+              'topDiscoveryCandidates': sfv2.get('topDiscoveryCandidates'),
+              'd1Opened': sfv2.get('d1Opened'),
+              'frozenOosOpened': sfv2.get('frozenOosOpened'),
+              'liveExecutionAllowed': sfv2.get('liveExecutionAllowed'),
+              'realExecutionAllowed': sfv2.get('realExecutionAllowed'),
+          }
+          print('SFV2_STATUS=' + json.dumps(safe, separators=(',', ':')))
+          PY
