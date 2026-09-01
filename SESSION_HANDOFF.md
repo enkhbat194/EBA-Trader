@@ -18,12 +18,14 @@ PR #109, #110, #112, #115, #117, #119, #121, #122, #124 and #127 are merged. The
 - PR #124: the canonical `zero survivors is valid` rule is executable and immutable;
 - PR #127: closes issue #126 by freezing an exact `stratum_id -> materialized dataset_sha256` mapping in the immutable campaign registration and validating every low-fidelity candidate/stratum trial against that mapping before either non-empty or zero-survivor freeze.
 
+Exact-current-build D0 production proof for `48bdb0fa95cb6b1ae6a32e3ff6c9cf519fba68c3` completed successfully in Actions run `33498788797`, verify job `99827022315`; exact-build wait and existing-only D0 inspection both succeeded.
+
 The production 406-candidate × 12-strata campaign has **not** been executed. No survivor selection has been frozen. D1 remains sealed. No public/automatic campaign trigger was added.
 
 ## What was completed in the latest engineering run
 
 1. Re-read current GitHub `main`, production evidence and every required canonical document before making changes.
-2. Confirmed current main and the last exact production proof still had D1/Frozen OOS/live closed and the production 406×12 campaign unrun.
+2. Confirmed current main and production evidence still had D1/Frozen OOS/live closed and the production 406×12 campaign unrun.
 3. Revalidated issue #126 as a real freeze-boundary provenance defect: a correct `d0-low-v1:<stratum>` fidelity label did not prove the trial used the exact materialized dataset for that stratum.
 4. Implemented the minimum fix in `strategy_factory_v2_campaign.py`: materialize strata before immutable campaign registration and bind exact per-stratum dataset SHAs.
 5. Added freeze-time ledger reconstruction requiring the full candidate × registered-stratum trial matrix, with fail-closed rejection for missing, duplicate, unexpected-stratum or dataset-SHA-mismatched low-fidelity evidence.
@@ -32,13 +34,13 @@ The production 406-candidate × 12-strata campaign has **not** been executed. No
 8. Initial functional regression suite passed; CI exposed only Ruff line-length failures. Those formatting-only failures were fixed without changing research logic.
 9. Final PR #127 head `3ffe788f8930e075a3073d9195cf1ea265ecf323` passed the four required PR workflows: runtime checks, production bundle/full regression + Ruff, repository hygiene and continuity guard.
 10. PR #127 was squash-merged with an exact expected-head SHA guard to code-bearing main `48bdb0fa95cb6b1ae6a32e3ff6c9cf519fba68c3`; issue #126 closed as completed.
-11. A new exact-current-build D0 production proof started as Actions run `33498788797`, verify job `99827022315`. Until it succeeds, the last completed exact D0 proof remains build `81e30bda98ce1709277c0ccfee91be8977f52720`, run `33485440135`, job `99784309005`.
+11. Exact merged-build D0 production proof run `33498788797`, verify job `99827022315`, completed successfully.
 12. No SF4 replication data was inspected, evaluated or retuned.
 13. No candidate family, catalog size, 500 cap, 0.90 behavioral threshold, selection economics, D1 policy, Frozen OOS policy or live-execution authority changed.
 
 ## Exact completed D0 proof baseline
 
-Latest completed proof before PR #127: build `81e30bda98ce1709277c0ccfee91be8977f52720`, Actions run `33485440135`, verify job `99784309005`:
+Build `48bdb0fa95cb6b1ae6a32e3ff6c9cf519fba68c3`, Actions run `33498788797`, verify job `99827022315`:
 
 - source kind: `INSPECTED_M5_DEVELOPMENT_CORPUS`;
 - materialization ID: `m5corpusmat_25007f47e456b5f2d42ef16b`;
@@ -96,14 +98,13 @@ Hard locks:
 
 ## Next exact tasks
 
-1. Require Actions run `33498788797` for code-bearing build `48bdb0fa95cb6b1ae6a32e3ff6c9cf519fba68c3` to prove the exact current production D0 source successfully.
-2. When an authorized Linode shell path is available, invoke only `scripts/run_sfv2_d0_pilot_production_once.sh`; do not add an unauthenticated/public trigger.
-3. Run/resume exact 406 candidates across all 12 D0 strata while the shared checkout lock is held.
-4. Record empirical raw/unique-spec/family/eligible/cluster counts from immutable production campaign evidence.
-5. Continue only under the existing D0 diversity/racing contract; no new family, threshold or ranking weight is authorized by this handoff.
-6. Freeze at most 30 survivors only through the ledger-backed Factory guard after actual D0 evidence exists; zero survivors is valid.
-7. Open D1 only through a separately authorized hidden-confirmation workflow after survivor freeze prerequisites pass.
-8. Keep SF4 untouched until `2026-09-13T00:00:00Z`, and keep Frozen OOS/live locked.
+1. When an authorized Linode shell path is available, invoke only `scripts/run_sfv2_d0_pilot_production_once.sh`; do not add an unauthenticated/public trigger.
+2. Run/resume exact 406 candidates across all 12 D0 strata while the shared checkout lock is held.
+3. Record empirical raw/unique-spec/family/eligible/cluster counts from immutable production campaign evidence.
+4. Continue only under the existing D0 diversity/racing contract; no new family, threshold or ranking weight is authorized by this handoff.
+5. Freeze at most 30 survivors only through the ledger-backed Factory guard after actual D0 evidence exists; zero survivors is valid.
+6. Open D1 only through a separately authorized hidden-confirmation workflow after survivor freeze prerequisites pass.
+7. Keep SF4 untouched until `2026-09-13T00:00:00Z`, and keep Frozen OOS/live locked.
 
 ## Startup rule
 
