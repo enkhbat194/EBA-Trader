@@ -13,14 +13,20 @@ def main() -> int:
     )
     parser.add_argument("--dataset-root", required=True)
     parser.add_argument("--research-db", required=True)
-    parser.add_argument("--source-code-sha", required=True)
+    parser.add_argument("--repo-root", default=None)
+    parser.add_argument(
+        "--expected-source-code-sha",
+        default=None,
+        help="Optional guard; actual clean checkout SHA is always authoritative.",
+    )
     parser.add_argument("--max-compute-ms-per-stratum", type=int, required=True)
     args = parser.parse_args()
 
     result = run_existing_production_d0_pilot(
         dataset_root=args.dataset_root,
         research_db_path=args.research_db,
-        source_code_sha=args.source_code_sha,
+        repo_root=args.repo_root,
+        expected_source_code_sha=args.expected_source_code_sha,
         max_compute_ms_per_stratum=args.max_compute_ms_per_stratum,
     )
     payload = {
