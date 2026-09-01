@@ -6,26 +6,27 @@ _Last handoff prepared: 2026-09-01 (Asia/Ulaanbaatar)_
 
 Repository: `enkhbat194/EBA-Trader`
 
-Canonical `main` before current PR #109:
+Engine baseline before this documentation reconciliation:
 
-`ff849e25c741ff0170ab90db03e22fda18082fde`
+`0f3ee0745b643abeda3fb9c796f7d6c1a219f6a8`
 
-Latest merged work: PR #108, `Strategy Factory v2: prove existing D0 source on production`.
+PR #109 and PR #110 are merged. PR #109 added the deterministic resume-safe D0 pilot campaign runner; PR #110 hardened source provenance so production derives the source SHA from the actual clean checkout rather than trusting operator text.
 
-Exact-main production checks are green, including Linode runtime checks, public production smoke, D0 existing-source production proof, SF3 production evidence proof and Linode external production proof.
-
-PR #109 is the active Strategy Factory v2 D0 campaign-orchestration branch. Do not run the production 406-candidate campaign until #109 exact-head checks pass and it is merged.
+Exact production build `9b2d31efd00981282acc405b944d0b913960fca1` passed D0 existing-source proof after #109. The next production proof must confirm the latest provenance-hardened build before any campaign execution.
 
 ## What was completed
 
-PR #107 merged the pre-pilot audit hardening:
+1. Reconciled stale canonical docs against actual merged code and exact production evidence.
+2. Confirmed production D0 source is available, valid and inspected reusable discovery evidence only.
+3. Merged PR #109 after exact-head full regression, Ruff, runtime, production-bundle, hygiene and continuity checks passed.
+4. Confirmed `9b2d31ef...` reached production and retained the exact D0 hashes/12-stratum safety contract.
+5. Audited #109 and found a provenance defect: operator-supplied `--source-code-sha` could falsely label the immutable campaign source.
+6. Merged PR #110 after green exact-head checks; campaign production wrapper now derives actual clean Git SHA and rejects dirty/mismatched source checkouts.
+7. Identified the remaining production execution-safety blocker: the Linode five-minute auto-updater can mutate the checkout while a long D0 campaign process is active unless execution and update are coordinated.
 
-1. D0 warmup stops at temporal discontinuities and cannot bridge independently sampled M5 windows.
-2. `run_discovery_batch` reuses terminal evaluated/rejected trials during resume without evaluator re-execution or new compute accounting.
+## Exact D0 proof
 
-PR #108 then proved the existing-only D0 source on the exact production build. The prior production-data blocker is closed.
-
-Exact D0 proof on build `ff849e25c741ff0170ab90db03e22fda18082fde`:
+On production build `9b2d31efd00981282acc405b944d0b913960fca1`:
 
 - source kind: `INSPECTED_M5_DEVELOPMENT_CORPUS`;
 - materialization ID: `m5corpusmat_25007f47e456b5f2d42ef16b`;
@@ -43,31 +44,18 @@ Exact D0 proof on build `ff849e25c741ff0170ab90db03e22fda18082fde`:
 - verification authority: false;
 - D1/Frozen OOS/live: closed/closed/locked.
 
-## PR #109 scope
-
-The minimum missing layer was campaign-level production orchestration. Existing code had candidate generation, evaluator, per-stratum execution and immutable ledger primitives, but no single deterministic runner tying them together.
-
-PR #109 adds:
-
-- `strategy_factory_v2_campaign.py` campaign runner;
-- immutable binding to D0 declaration/dataset hashes, exact pilot seed/count, source-code SHA, warmup and behavioral threshold;
-- all-stratum run/resume through the existing immutable trial ledger;
-- `scripts/run_sfv2_d0_pilot_once.py` explicit existing-only entrypoint;
-- tests for campaign immutability and downstream safety locks.
-
-The runner intentionally does **not** open D1, freeze survivors, transition StrategyLifecycle, open Frozen OOS or enable demo/live execution.
-
 ## Strategy Factory v2 state
 
-- discovery authority remains `DISCOVERY_ONLY`;
-- raw cap 500, exact executable pilot catalog 406, per-family cap 64, survivor cap 30;
+- raw cap 500; exact pilot catalog 406; per-family cap 64; survivor cap 30;
 - 8 existing causal strategy families;
-- common D0 evaluator with existing execution/cost semantics;
-- immutable campaign/candidate/trial accounting;
-- exact inspected production D0 source now proven;
-- 12 D0 strata; all required strata must be terminal before complete-candidate aggregation;
-- behavioral dedup foundation present;
-- D1 hidden confirmation remains sealed.
+- common causal evaluator and fees/slippage semantics;
+- immutable campaign/candidate/trial ledger;
+- resume reuses terminal trials without re-evaluation;
+- temporal-gap warmup protection is active;
+- production D0 data source is proven;
+- all-strata campaign orchestration is merged;
+- actual clean-checkout source provenance binding is merged;
+- D1 remains sealed and no survivor freeze has occurred.
 
 ## Research status and hard locks
 
@@ -88,13 +76,12 @@ Hard locks:
 
 ## Next exact task
 
-1. Finish PR #109 exact-head CI; merge only if regression, Ruff, runtime and production-bundle checks are green.
-2. On merged exact `main`, run/resume the frozen 406 candidates over all 12 proven D0 strata with the immutable campaign ledger.
-3. Never rank incomplete candidates.
-4. After terminal all-strata coverage, aggregate selection-only economics/activity/cost/drawdown/benchmark metrics and behavioral fingerprints.
-5. Deduplicate behavior while preserving raw candidate, unique specification, behavioral cluster and family counts.
-6. Continue only under the predeclared D0 racing/diversity contract; keep D1 closed until survivor freeze and separate authorization.
-7. Leave SF4 untouched before its preregistered end time.
+1. Confirm exact production proof for the latest merged source-provenance hardening.
+2. Design the minimum production-safe campaign execution path: pin one exact clean build and prevent `eba-auto-update` from changing the checkout while campaign execution is active. Do not add a public unauthenticated trigger.
+3. Prove the concurrency/update guard with tests before starting 406×12 D0 execution.
+4. Run/resume the exact pilot only after that proof; never rank incomplete candidates.
+5. Then aggregate selection-only metrics and behavioral fingerprints, deduplicate behavior, and continue only under the existing D0 diversity/racing contract.
+6. Keep D1, Frozen OOS, SF4 pre-unlock evaluation and real-money execution closed.
 
 ## Startup rule
 
