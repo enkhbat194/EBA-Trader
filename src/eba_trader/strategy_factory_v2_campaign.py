@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -173,6 +174,31 @@ def run_d0_pilot_campaign(
     )
 
 
+def _registered_pilot_definition(ledger: DiscoveryTrialLedger) -> Mapping[str, object]:
+    """Read the immutable registered Factory campaign definition from the ledger."""
+
+    with ledger.store._connection() as connection:
+        row = connection.execute(
+            """
+            SELECT authority, definition_json
+            FROM discovery_campaigns_v2
+            WHERE campaign_id = ?
+            """,
+            (PILOT_CAMPAIGN_ID,),
+        ).fetchone()
+    if row is None:
+        raise KeyError(f"unknown discovery campaign: {PILOT_CAMPAIGN_ID}")
+    if str(row["authority"]) != PILOT_AUTHORITY:
+        raise RuntimeError("registered Strategy Factory campaign authority drifted")
+    payload = json.loads(str(row["definition_json"]))
+    if not isinstance(payload, Mapping):
+        raise RuntimeError("registered Strategy Factory campaign definition is invalid")
+    definition = payload.get("definition")
+    if not isinstance(definition, Mapping):
+        raise RuntimeError("registered Strategy Factory campaign definition is missing")
+    return definition
+
+
 def freeze_d0_pilot_survivors(
     *,
     ledger: DiscoveryTrialLedger,
@@ -180,13 +206,12 @@ def freeze_d0_pilot_survivors(
     candidate_ids: Sequence[str],
     selection_definition: Mapping[str, object],
 ) -> str:
-    """Freeze D0 survivor identities without opening D1 or any execution authority.
+    """Freeze D0 survivor identities from immutable ledger evidence only.
 
-    This is the Strategy Factory-specific safety boundary around the generic immutable ledger.
-    Every selected candidate must be complete across the exact frozen D0 strata, non-rejected,
-    behaviorally eligible, and diversity-safe (at most one selected candidate per behavioral
-    cluster). The caller must provide a non-empty frozen selection/racing definition; this helper
-    records it but does not invent ranking rules or grant confirmation authority.
+    The caller-supplied run object is cross-checked against the immutable campaign registration,
+    but eligibility is rebuilt from ledger candidates/trials rather than trusted from that object.
+    The entire declared D0 catalog must be terminal across the exact frozen strata before any
+    survivor selection can be written. This helper never opens D1, Frozen OOS or execution.
     """
 
     if campaign_run.campaign_id != PILOT_CAMPAIGN_ID:
@@ -199,8 +224,6 @@ def freeze_d0_pilot_survivors(
         or campaign_run.live_execution_allowed
     ):
         raise RuntimeError("survivor freeze cannot run with downstream authority already open")
-    if campaign_run.stopped_for_compute_budget:
-        raise RuntimeError("survivor freeze requires a completed D0 campaign pass")
 
     selected = tuple(candidate_ids)
     if not selected:
@@ -212,18 +235,60 @@ def freeze_d0_pilot_survivors(
     if not selection_definition:
         raise ValueError("a frozen selection_definition is required")
 
-    expected_strata = tuple(campaign_run.report.expected_strata)
-    if not expected_strata or len(expected_strata) != campaign_run.stratum_count:
-        raise RuntimeError("D0 report strata do not match the frozen campaign run")
+    registered = _registered_pilot_definition(ledger)
+    if registered.get("authority") != PILOT_AUTHORITY:
+        raise RuntimeError("registered Strategy Factory definition must remain DISCOVERY_ONLY")
+    if registered.get("source_code_sha") != campaign_run.source_code_sha:
+        raise RuntimeError("survivor freeze source code does not match immutable campaign")
+    if registered.get("d0_declaration_sha256") != campaign_run.d0_declaration_sha256:
+        raise RuntimeError("survivor freeze D0 declaration does not match immutable campaign")
+    if registered.get("d0_dataset_sha256") != campaign_run.d0_dataset_sha256:
+        raise RuntimeError("survivor freeze D0 dataset does not match immutable campaign")
+    if registered.get("behavioral_similarity_threshold") != PILOT_BEHAVIORAL_SIMILARITY_THRESHOLD:
+        raise RuntimeError("registered behavioral similarity threshold drifted")
+
+    raw_expected_strata = registered.get("expected_strata")
+    if not isinstance(raw_expected_strata, list):
+        raise RuntimeError("registered D0 expected_strata is invalid")
+    expected_strata = tuple(str(value).strip() for value in raw_expected_strata)
+    if not expected_strata or any(not value for value in expected_strata):
+        raise RuntimeError("registered D0 expected_strata is empty or invalid")
     if len(expected_strata) != len(set(expected_strata)):
-        raise RuntimeError("D0 report expected strata must be unique")
+        raise RuntimeError("registered D0 expected_strata must be unique")
+    if len(expected_strata) != campaign_run.stratum_count:
+        raise RuntimeError("campaign run stratum count does not match immutable campaign")
 
-    report_by_id = {item.candidate_id: item for item in campaign_run.report.candidates}
-    if len(report_by_id) != len(campaign_run.report.candidates):
-        raise RuntimeError("D0 report candidate identities are not unique")
+    declared_candidates = ledger.list_candidates(PILOT_CAMPAIGN_ID)
+    planned_candidate_count = registered.get("planned_candidate_count")
+    if not isinstance(planned_candidate_count, int) or planned_candidate_count <= 0:
+        raise RuntimeError("registered planned candidate count is invalid")
+    if len(declared_candidates) != planned_candidate_count:
+        raise RuntimeError("survivor freeze requires the full declared candidate catalog")
+    if campaign_run.candidate_count != planned_candidate_count:
+        raise RuntimeError("campaign run candidate count does not match immutable campaign")
+    registered_source_sha = str(registered.get("source_code_sha") or "")
+    if any(str(row.get("source_code_sha") or "") != registered_source_sha for row in declared_candidates):
+        raise RuntimeError("declared candidate source provenance drifted")
 
+    report = build_low_fidelity_report(
+        trials=ledger.list_trials(PILOT_CAMPAIGN_ID),
+        expected_strata=expected_strata,
+        behavioral_similarity_threshold=PILOT_BEHAVIORAL_SIMILARITY_THRESHOLD,
+    )
+    declared_ids = {str(row.get("candidate_id") or "") for row in declared_candidates}
+    report_by_id = {item.candidate_id: item for item in report.candidates}
+    if set(report_by_id) != declared_ids:
+        raise RuntimeError("survivor freeze requires D0 evidence for every declared candidate")
+    if any(not item.complete for item in report.candidates):
+        raise RuntimeError("survivor freeze requires terminal D0 strata for the full catalog")
+
+    accounting = build_low_fidelity_campaign_accounting(
+        declared_candidates=declared_candidates,
+        report=report,
+        behavioral_similarity_threshold=PILOT_BEHAVIORAL_SIMILARITY_THRESHOLD,
+    )
     cluster_by_candidate: dict[str, str] = {}
-    for cluster in campaign_run.accounting.clusters:
+    for cluster in accounting.clusters:
         for candidate_id in cluster.member_candidate_ids:
             if candidate_id in cluster_by_candidate:
                 raise RuntimeError("behavioral cluster membership is not unique")
@@ -233,13 +298,11 @@ def freeze_d0_pilot_survivors(
     for candidate_id in selected:
         item = report_by_id.get(candidate_id)
         if item is None:
-            raise KeyError(f"survivor candidate missing from frozen D0 report: {candidate_id}")
+            raise KeyError(f"survivor candidate missing from immutable D0 evidence: {candidate_id}")
         if not item.complete or item.rejected or item.behavior is None:
             raise RuntimeError(
                 "survivor candidate is not complete behaviorally eligible D0 evidence"
             )
-        if item.stratum_count != len(expected_strata):
-            raise RuntimeError("survivor candidate does not cover every expected D0 stratum")
         cluster_id = cluster_by_candidate.get(candidate_id)
         if cluster_id is None:
             raise RuntimeError("survivor candidate is missing from behavioral cluster accounting")
@@ -252,9 +315,9 @@ def freeze_d0_pilot_survivors(
     frozen_definition = {
         "schema": SURVIVOR_SELECTION_SCHEMA,
         "authority": PILOT_AUTHORITY,
-        "source_code_sha": campaign_run.source_code_sha,
-        "d0_declaration_sha256": campaign_run.d0_declaration_sha256,
-        "d0_dataset_sha256": campaign_run.d0_dataset_sha256,
+        "source_code_sha": registered_source_sha,
+        "d0_declaration_sha256": registered["d0_declaration_sha256"],
+        "d0_dataset_sha256": registered["d0_dataset_sha256"],
         "expected_strata": list(expected_strata),
         "behavioral_similarity_threshold": PILOT_BEHAVIORAL_SIMILARITY_THRESHOLD,
         "selection_definition": dict(selection_definition),
