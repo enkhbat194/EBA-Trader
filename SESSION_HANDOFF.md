@@ -16,7 +16,7 @@ Exact-main production checks are green, including Linode runtime checks, public 
 
 PR #109 is the active Strategy Factory v2 D0 campaign-orchestration branch. Do not run the production 406-candidate campaign until #109 exact-head checks pass and it is merged.
 
-## What changed since the previous handoff
+## What was completed
 
 PR #107 merged the pre-pilot audit hardening:
 
