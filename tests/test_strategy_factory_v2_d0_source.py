@@ -47,9 +47,14 @@ def _rows(start_ms: int, count: int = 240) -> tuple[OrderFlowFeatureRow, ...]:
     return tuple(output)
 
 
-def _materialization(tmp_path: Path) -> tuple[M5DevelopmentCorpusMaterialization, dict[Path, object]]:
+def _materialization(
+    tmp_path: Path,
+) -> tuple[
+    M5DevelopmentCorpusMaterialization,
+    dict[Path, tuple[OrderFlowFeatureRow, ...]],
+]:
     receipts: list[M5CorpusWindowReceipt] = []
-    rows_by_path: dict[Path, object] = {}
+    rows_by_path: dict[Path, tuple[OrderFlowFeatureRow, ...]] = {}
     for index, window in enumerate(DEFAULT_M5_DEVELOPMENT_CORPUS.windows, start=1):
         relative = Path(f"window-{index:02d}.csv")
         path = tmp_path / relative
