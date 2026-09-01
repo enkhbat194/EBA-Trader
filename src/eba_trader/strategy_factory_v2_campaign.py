@@ -231,7 +231,9 @@ def _registered_stratum_dataset_sha256(
         mapping[stratum_id] = dataset_sha256
 
     if set(mapping) != set(expected_strata):
-        raise RuntimeError("registered D0 stratum dataset SHA mapping does not match expected strata")
+        raise RuntimeError(
+            "registered D0 stratum dataset SHA mapping does not match expected strata"
+        )
     return mapping
 
 
