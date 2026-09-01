@@ -6,27 +6,32 @@ _Last handoff prepared: 2026-09-01 (Asia/Ulaanbaatar)_
 
 Repository: `enkhbat194/EBA-Trader`
 
-Canonical main before this handoff reconciliation:
+Actual GitHub head must be queried at startup because documentation-only commits can advance `main`. Latest code-bearing research baseline reconciled in this handoff:
 
-`2ffb7ce23a6c2fdb7507ce3d9b264ef1966f99bd`
+`cbe8cfd07587dda126234f853b47624f241f416e` — PR #115.
 
-PR #109, PR #110, PR #112 and PR #113 are merged. PR #109 added deterministic resume-safe all-strata D0 pilot orchestration. PR #110 binds source provenance to the actual clean production checkout. PR #112 coordinates the five-minute auto-updater and D0 production wrapper through one shared nonblocking checkout lock. PR #113 reconciled continuity after that production guard.
+PR #109, #110, #112, #114 and #115 are merged. PR #109 added deterministic resume-safe all-strata D0 pilot orchestration. PR #110 binds source provenance to the actual clean production checkout. PR #112 coordinates the five-minute auto-updater and D0 production wrapper through one shared nonblocking checkout lock. PR #114 reconciled the successful exact production proof for `59f6a21e8736b53473fd99a7cb00236c407f5573`, Actions run `33466706747`. PR #115 adds auditable discovery-only behavioral cluster accounting without changing research gates or execution authority.
 
-Final exact-build production D0 source proof for `2ffb7ce23a6c2fdb7507ce3d9b264ef1966f99bd` passed in GitHub Actions run `33464296457` on 2026-09-01 UTC. No D0 campaign has been executed yet. No public or automatic campaign trigger was added.
+Exact-build D0 proof for `cbe8cfd07587dda126234f853b47624f241f416e` completed successfully in Actions run `33470607755`, verify job `99739433912`. The production 406-candidate × 12-strata campaign has not been executed yet. No public or automatic campaign trigger was added.
 
-## What was completed
+## What was completed in the latest engineering run
 
-1. Re-read current `main`, canonical project documents and production-proof workflow state.
-2. Confirmed final exact production build `2ffb7ce23a6c2fdb7507ce3d9b264ef1966f99bd` is live through `/api/app-info` as observed by Actions run `33464296457`.
-3. Confirmed the production D0 source remains valid and unchanged: 2,880 rows across 12 windows/12 strata, with discovery-only authority.
-4. Confirmed production proof still reports `INSPECTED_REUSABLE_DISCOVERY_DATA`, not fresh confirmation evidence, with no verification authority.
-5. Confirmed D1 unopened, Frozen OOS unopened and live execution disallowed in the exact final-build production proof.
-6. Reconciled stale continuity prose that still described final exact-production proof as pending.
-7. Preserved the operator-only campaign invocation boundary; no unauthenticated/public execution trigger was introduced.
+1. Re-read current GitHub state and all canonical project documents before editing.
+2. Confirmed exact production D0 proof for `59f6a21e8736b53473fd99a7cb00236c407f5573` succeeded in run `33466706747`.
+3. Audited low-fidelity selection and confirmed incomplete/rejected candidates were already excluded from behavioral representatives.
+4. Identified the remaining accounting gap required by the Strategy Factory v2 contract: raw candidate, unique specification, independent-family and behavioral-cluster identities/counts were not exposed as one auditable campaign report.
+5. Implemented discovery-only behavioral cluster accounting and attached it to the D0 campaign result/production CLI.
+6. Added fail-closed validation for undeclared report candidates, family mismatch and representative drift.
+7. Added regression tests proving incomplete/rejected candidates never enter behavioral clusters and behavioral clones collapse deterministically without losing family accounting.
+8. PR #115 exact head `a48cc30c26829387544b92d24b16bb5e993e6b2b` passed test, hygiene, continuity and production-bundle validation, then was squash-merged with an expected-head SHA guard.
+9. New code-bearing main from PR #115: `cbe8cfd07587dda126234f853b47624f241f416e`.
+10. Exact-current-build D0 source proof run `33470607755`, verify job `99739433912`, completed successfully after the production server reported the exact `cbe8cfd...` build and passed the existing-only D0 safety/readiness checks.
+11. Reconciled stale `PROJECT_STATE.md`, `TODO.md` and `SESSION_HANDOFF.md` on PR #116 while distinguishing merged accounting capability from empirical campaign results.
+12. Preserved the operator-only campaign invocation boundary; no unauthenticated/public execution trigger was introduced.
 
-## Exact D0 proof
+## Exact completed D0 proof baseline
 
-Latest completed exact proof is production build `2ffb7ce23a6c2fdb7507ce3d9b264ef1966f99bd`, Actions run `33464296457`:
+Latest completed exact proof for the code-bearing research baseline is build `cbe8cfd07587dda126234f853b47624f241f416e`, Actions run `33470607755`, verify job `99739433912`:
 
 - source kind: `INSPECTED_M5_DEVELOPMENT_CORPUS`;
 - materialization ID: `m5corpusmat_25007f47e456b5f2d42ef16b`;
@@ -52,15 +57,20 @@ Latest completed exact proof is production build `2ffb7ce23a6c2fdb7507ce3d9b264e
 - immutable campaign/candidate/trial ledger;
 - resume reuses terminal trials without re-evaluation;
 - temporal-gap warmup protection active;
-- production D0 source proven on exact final main;
+- existing D0 source is inspected/reusable discovery evidence only;
 - all-strata campaign orchestration merged;
 - actual clean-checkout provenance binding merged;
 - automatic-update checkout race guarded in merged code;
+- behavioral accounting merged: raw candidates, unique specs, families, eligible behaviors and clusters remain separate counts;
+- clustering is deterministic under the existing fixed 0.90 pilot threshold;
+- incomplete/rejected candidates cannot enter behavioral clusters;
+- representative drift between accounting and the existing selector fails closed;
+- actual empirical cluster counts do not exist until production campaign execution;
 - D1 remains sealed and no survivor freeze has occurred.
 
 ## Research status and hard locks
 
-There is still no verified profitable strategy. SF1, SF2 and SF3 closed with zero promoted candidates. D0 discovery ranking is not verification.
+There is still no verified profitable strategy. SF1, SF2 and SF3 closed with zero promoted candidates. D0 discovery ranking or clustering is not verification.
 
 SF4 keeps exact `s3_vsm_s150` and `s3_cex_s075` parameters frozen for prospective replication using only `2026-09-01T00:00:00Z` through `2026-09-13T00:00:00Z`. Evaluation before `2026-09-13T00:00:00Z` is fail-closed. SF3 evidence cannot be pooled into the replication result.
 
@@ -80,9 +90,10 @@ Hard locks:
 1. When an authorized Linode shell path is available, invoke only `scripts/run_sfv2_d0_pilot_production_once.sh`; do not create an unauthenticated public trigger as an access workaround.
 2. Run/resume the exact 406 candidates across all 12 D0 strata while the shared checkout lock is held.
 3. Never rank incomplete candidates; aggregate selection-only economics/activity/cost/drawdown/benchmark metrics only after terminal all-strata coverage.
-4. Behavioral-deduplicate while preserving raw candidate, unique-spec, cluster and family counts, then continue only under the existing D0 diversity/racing contract.
-5. Freeze at most 30 survivors before any separately authorized D1 access; zero survivors is valid.
-6. Keep D1, Frozen OOS, SF4 pre-unlock evaluation and real-money execution closed.
+4. Record actual raw/unique-spec/family/eligible/cluster counts from the immutable production campaign evidence; do not confuse merged accounting capability with empirical results.
+5. Continue only under the existing D0 diversity/racing contract; no new family, threshold or ranking weight is authorized by PR #115.
+6. Freeze at most 30 survivors before any separately authorized D1 access; zero survivors is valid.
+7. Keep D1, Frozen OOS, SF4 pre-unlock evaluation and real-money execution closed.
 
 ## Startup rule
 

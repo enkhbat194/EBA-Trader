@@ -2,7 +2,7 @@
 
 _Last reconciled: 2026-09-01 (Asia/Ulaanbaatar)_
 
-Actual merged code, exact-build production evidence and latest explicit decision documents override stale prose.
+Actual merged code, exact-build production evidence and latest explicit decision documents override stale prose. Documentation commits may advance `main`; query GitHub for the live head before editing. The latest code-bearing research baseline reconciled here is `cbe8cfd07587dda126234f853b47624f241f416e` (PR #115).
 
 ## Current goal
 
@@ -12,13 +12,15 @@ Build a research-first automated trading system that can discover repeatable tra
 
 - Repository: `enkhbat194/EBA-Trader`
 - Production URL: `https://eba-trader-172-236-150-62.sslip.io`
-- Current canonical `main`: `2ffb7ce23a6c2fdb7507ce3d9b264ef1966f99bd`.
+- Latest code-bearing research baseline: `cbe8cfd07587dda126234f853b47624f241f416e` (PR #115).
 - PR #109 merged the resume-safe Strategy Factory v2 D0 pilot campaign runner.
 - PR #110 merged clean-checkout source-provenance binding.
-- PR #112 merged the production checkout concurrency guard: the five-minute automatic updater and the operator-only D0 wrapper use the same nonblocking `flock` lock, so an active campaign cannot have its checkout reset by the updater.
-- PR #113 reconciled continuity after the production checkout guard.
-- Exact-build production D0 proof for final main `2ffb7ce23a6c2fdb7507ce3d9b264ef1966f99bd` passed in GitHub Actions run `33464296457` on 2026-09-01 UTC.
+- PR #112 merged the production checkout concurrency guard: the five-minute automatic updater and the operator-only D0 wrapper use the same nonblocking `flock` lock.
+- PR #114 reconciled continuity with exact production D0 proof for `59f6a21e8736b53473fd99a7cb00236c407f5573`; Actions run `33466706747` completed successfully.
+- PR #115 merged discovery-only behavioral cluster accounting: raw candidates, unique specifications, independent families, behaviorally eligible candidates and behavioral clusters are counted separately; incomplete/rejected candidates cannot enter clusters; representative drift fails closed.
+- Exact-build D0 production proof for `cbe8cfd07587dda126234f853b47624f241f416e` completed successfully in Actions run `33470607755`, verify job `99739433912`.
 - No public or automatic campaign trigger was introduced.
+- The 406-candidate × 12-strata campaign has **not** been executed in production yet.
 - Fast Momentum remains a paper/runtime test-bed, not a verified profitable strategy.
 - Binance USD-M Futures Demo execution plumbing is execution proof only.
 - M5 Frozen OOS (`2026-08-15 -> 2026-08-22` UTC): **SEALED / NOT OPENED**.
@@ -41,7 +43,10 @@ PR #99 froze exact `s3_vsm_s150` and `s3_cex_s075` hypotheses. Replication uses 
 - deterministic candidate/spec identity;
 - common D0 evaluator/adaptor for all 8 families;
 - normalized selection-only metrics and behavioral fingerprints;
-- behavioral similarity/deduplication foundation;
+- deterministic behavioral similarity/deduplication with fixed pilot threshold 0.90;
+- auditable separation of raw-candidate, unique-specification, independent-family, behaviorally-eligible and behavioral-cluster counts;
+- incomplete/rejected candidates excluded from behavioral clusters;
+- cluster representative identity cross-checked against the existing low-fidelity representative selector and fails closed on drift;
 - D0 discovery / D1 hidden confirmation / D2 robustness / D3 Frozen OOS zoning;
 - immutable D0 manifest with candle/order-flow/composite content hashes;
 - explicit `INSPECTED_REUSABLE_DISCOVERY_DATA` provenance;
@@ -54,9 +59,13 @@ PR #99 froze exact `s3_vsm_s150` and `s3_cex_s075` hypotheses. Replication uses 
 - production D0 wrapper holds the shared checkout lock for the full invocation;
 - automatic updater skips safely while that lock is held and retries on its normal timer.
 
+The accounting mechanism is merged, but no empirical 406-candidate production cluster counts exist until the operator-only D0 campaign is actually run.
+
 ## Exact production D0 evidence
 
-The latest completed exact production D0 proof is final main build `2ffb7ce23a6c2fdb7507ce3d9b264ef1966f99bd`, GitHub Actions run `33464296457`:
+Latest completed exact production D0 proof for the code-bearing research baseline is build `cbe8cfd07587dda126234f853b47624f241f416e`, GitHub Actions run `33470607755`, verify job `99739433912`. The exact-build wait and existing-only D0 inspection both completed successfully.
+
+The proof preserves:
 
 - source kind: `INSPECTED_M5_DEVELOPMENT_CORPUS`;
 - materialization ID: `m5corpusmat_25007f47e456b5f2d42ef16b`;
@@ -76,7 +85,7 @@ The latest completed exact production D0 proof is final main build `2ffb7ce23a6c
 - Frozen OOS opened: false;
 - live execution allowed: false.
 
-The data-source, campaign-orchestration, source-provenance, automatic-update concurrency and final exact-build production-proof blockers are closed. Actual campaign invocation remains operator-only; the currently connected project tools do not provide an authorized Linode shell action. Do not add an unauthenticated public trigger as an access workaround.
+The data-source, campaign-orchestration, source-provenance, automatic-update concurrency and current code-bearing exact-production-proof blockers are closed. Actual campaign invocation remains operator-only; the currently connected project tools do not provide an authorized Linode shell action. Do not add an unauthenticated public trigger as an access workaround.
 
 ## Verification quality gate — DO NOT LOWER
 
@@ -98,6 +107,8 @@ Factory v2 D0 metrics are selection-only and do not satisfy these gates. A later
 - Frozen OOS cannot be opened by discovery workflows.
 - Reused/adaptively inspected data cannot be relabelled fresh evidence.
 - Full candidate/search history must be accounted for when evaluating selection bias.
+- Raw candidate, unique specification, behavioral cluster and independent-family counts remain distinct concepts.
+- Incomplete or rejected D0 candidates cannot enter behavioral clustering/survivor ranking.
 - Demo execution proof has no strategy-verification authority.
 - Spot and USD-M futures data are never silently mixed.
 - Executed footprint and resting order-book liquidity remain separate data planes.
@@ -109,7 +120,7 @@ Factory v2 D0 metrics are selection-only and do not satisfy these gates. A later
 1. When an authorized Linode shell path is available, invoke only `scripts/run_sfv2_d0_pilot_production_once.sh`; do not add an unauthenticated public trigger merely to bypass access limitations.
 2. Run/resume the exact 406-candidate catalog across all 12 D0 strata while keeping the checkout fixed.
 3. Never rank incomplete candidates; require terminal required-stratum coverage before aggregate selection metrics.
-4. Build behavioral near-duplicate clusters while keeping raw candidate, unique spec, behavioral cluster and family counts distinct.
+4. Use the merged accounting layer to record raw/unique/family/eligible/cluster counts from actual campaign evidence; do not confuse mechanism availability with empirical results.
 5. Continue higher-fidelity D0 racing only under the predeclared diversity/search contract; D0 remains selection-only.
 6. Freeze at most 30 survivors before any separately authorized D1 access. Zero survivors is valid.
 7. Keep SF4 untouched until `2026-09-13T00:00:00Z`.
