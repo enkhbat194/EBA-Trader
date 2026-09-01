@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from .provenance import collect_source_provenance
 from .research_store import ResearchStore
 from .strategy_discovery_v2 import (
     MAX_CANDIDATES_PER_FAMILY,
@@ -44,6 +45,23 @@ class D0PilotCampaignRun:
     d1_opened: bool = False
     frozen_oos_opened: bool = False
     live_execution_allowed: bool = False
+
+
+def _clean_checkout_sha(
+    *,
+    repo_root: str | Path | None = None,
+    expected_source_code_sha: str | None = None,
+) -> str:
+    provenance = collect_source_provenance(cwd=repo_root, require_clean=True)
+    actual_sha = str(provenance.get("git_commit", "")).strip()
+    if not actual_sha:
+        raise RuntimeError("source provenance is missing git_commit")
+    expected_sha = (expected_source_code_sha or "").strip()
+    if expected_sha and expected_sha != actual_sha:
+        raise RuntimeError(
+            f"source checkout mismatch: expected {expected_sha}, actual {actual_sha}"
+        )
+    return actual_sha
 
 
 def run_d0_pilot_campaign(
@@ -146,12 +164,17 @@ def run_existing_production_d0_pilot(
     *,
     dataset_root: str | Path,
     research_db_path: str | Path,
-    source_code_sha: str,
     max_compute_ms_per_stratum: int,
+    repo_root: str | Path | None = None,
+    expected_source_code_sha: str | None = None,
     warmup_bars: int = DEFAULT_WARMUP_BARS,
 ) -> D0PilotCampaignRun:
-    """Load only the already-inspected M5 D0 source, then run/resume the pilot ledger."""
+    """Load inspected D0 and bind execution to the actual clean source checkout."""
 
+    source_code_sha = _clean_checkout_sha(
+        repo_root=repo_root,
+        expected_source_code_sha=expected_source_code_sha,
+    )
     declaration, rows, _ = load_existing_d0_from_inspected_m5(dataset_root=dataset_root)
     ledger = DiscoveryTrialLedger(ResearchStore(research_db_path))
     return run_d0_pilot_campaign(
