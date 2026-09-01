@@ -101,3 +101,32 @@ def test_d0_pilot_campaign_rejects_non_discovery_authority(tmp_path):
             rows=(SimpleNamespace(candle=object()),),
             max_compute_ms_per_stratum=1000,
         )
+
+
+def test_clean_checkout_sha_uses_actual_git_commit(monkeypatch):
+    actual_sha = "a" * 40
+    monkeypatch.setattr(
+        campaign,
+        "collect_source_provenance",
+        lambda **kwargs: {
+            "git_commit": actual_sha,
+            "tracked_working_tree_clean": True,
+        },
+    )
+
+    assert campaign._clean_checkout_sha(expected_source_code_sha=actual_sha) == actual_sha
+
+
+def test_clean_checkout_sha_rejects_expected_mismatch(monkeypatch):
+    actual_sha = "a" * 40
+    monkeypatch.setattr(
+        campaign,
+        "collect_source_provenance",
+        lambda **kwargs: {
+            "git_commit": actual_sha,
+            "tracked_working_tree_clean": True,
+        },
+    )
+
+    with pytest.raises(RuntimeError, match="source checkout mismatch"):
+        campaign._clean_checkout_sha(expected_source_code_sha="b" * 40)
