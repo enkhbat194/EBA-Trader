@@ -2,7 +2,7 @@
 
 _Last reconciled: 2026-09-01 (Asia/Ulaanbaatar)_
 
-Actual merged code, exact-build production evidence and latest explicit decision documents override stale prose. Documentation commits may advance `main`; query GitHub for the live head before editing. The latest code-bearing research baseline reconciled here is `6024bb069f458ffae4253b493a87cfd15aaaca93` (PR #119).
+Actual merged code, exact-build production evidence and latest explicit decision documents override stale prose. Documentation commits may advance `main`; query GitHub for the live head before editing. The latest code-bearing research baseline reconciled here is `3d30199b3d4d59269e093b5cfebbce267c70afb9` (PR #122).
 
 ## Current goal
 
@@ -12,16 +12,19 @@ Build a research-first automated trading system that can discover repeatable tra
 
 - Repository: `enkhbat194/EBA-Trader`
 - Production URL: `https://eba-trader-172-236-150-62.sslip.io`
-- Latest code-bearing research baseline: `6024bb069f458ffae4253b493a87cfd15aaaca93` (PR #119).
-- PR #109 merged the resume-safe Strategy Factory v2 D0 pilot campaign runner.
+- Latest code-bearing research baseline: `3d30199b3d4d59269e093b5cfebbce267c70afb9` (PR #122).
+- PR #109 merged resume-safe Strategy Factory v2 D0 pilot campaign orchestration.
 - PR #110 merged clean-checkout source-provenance binding.
 - PR #112 merged the shared production-checkout concurrency guard between the five-minute updater and operator-only D0 wrapper.
 - PR #115 merged discovery-only behavioral cluster accounting with separate raw/spec/family/eligible/cluster counts and fail-closed representative drift checks.
 - PR #117 prevented incomplete/rejected candidates from exposing partial aggregate D0 selection economics.
-- PR #119 now also requires the full fixed selection-metric schema on every terminal non-rejected D0 stratum before aggregate metrics or behavioral eligibility are exposed. Missing, non-numeric, non-finite or invalid `trade_count` values fail closed instead of silently reducing the cross-window sample.
-- Exact-current-build D0 production proof for `6024bb069f458ffae4253b493a87cfd15aaaca93` completed successfully in Actions run `33483175058`, verify job `99777142101`; exact-build wait and existing-only D0 source inspection both succeeded.
+- PR #119 requires the full fixed finite selection-metric schema on every terminal non-rejected D0 stratum before aggregate metrics or behavioral eligibility are exposed.
+- PR #121 added a Factory-specific survivor-freeze completeness/diversity boundary while keeping D1/Frozen OOS/live closed.
+- PR #122 strengthened that boundary so survivor eligibility is rebuilt from immutable registered campaign + declared candidate + trial-ledger evidence at freeze time rather than trusting a caller-supplied report object. The full declared catalog must be terminal across the exact registered D0 strata before any survivor selection can be written.
+- Exact-current-build D0 production proof for `3d30199b3d4d59269e093b5cfebbce267c70afb9` completed successfully in Actions run `33484772388`, verify job `99782195060`; exact-build wait and existing-only D0 source inspection both succeeded.
 - No public or automatic campaign trigger was introduced.
 - The 406-candidate × 12-strata campaign has **not** been executed in production yet.
+- No survivor selection has been frozen and no empirical survivor/cluster result exists yet.
 - Fast Momentum remains a paper/runtime test-bed, not a verified profitable strategy.
 - Binance USD-M Futures Demo execution plumbing is execution proof only.
 - M5 Frozen OOS (`2026-08-15 -> 2026-08-22` UTC): **SEALED / NOT OPENED**.
@@ -58,13 +61,18 @@ PR #99 froze exact `s3_vsm_s150` and `s3_cex_s075` hypotheses. Replication uses 
 - incomplete/rejected candidates retain immutable trial accounting but expose no aggregate selection economics;
 - deterministic behavioral similarity/deduplication with fixed pilot threshold 0.90;
 - incomplete/rejected candidates excluded from behavioral clusters;
-- cluster representative identity cross-checked against the existing low-fidelity representative selector and fails closed on drift.
+- cluster representative identity cross-checked against the existing low-fidelity representative selector and fails closed on drift;
+- authorized Factory survivor freeze uses `freeze_d0_pilot_survivors()` and reconstructs the report/accounting from immutable ledger evidence;
+- survivor freeze cross-checks immutable source SHA, D0 declaration SHA, D0 dataset SHA, fixed 0.90 threshold, planned catalog count and exact expected strata;
+- the full declared catalog must have terminal D0 coverage before a survivor selection can be written;
+- selected survivors must be complete, non-rejected, behaviorally eligible and diversity-safe; no two selected candidates may come from the same behavioral cluster;
+- the frozen selection record explicitly keeps D1/Frozen OOS/live authority false.
 
-The accounting and fail-closed selection mechanisms are merged, but no empirical 406-candidate production cluster counts exist until the operator-only D0 campaign is actually run.
+The generic `DiscoveryTrialLedger.freeze_survivor_selection()` remains a generic primitive; it is not the authorized Strategy Factory v2 freeze path. Factory v2 must use the campaign-specific ledger-backed guard above.
 
 ## Exact production D0 evidence
 
-Latest completed exact production D0 proof is build `6024bb069f458ffae4253b493a87cfd15aaaca93`, GitHub Actions run `33483175058`, verify job `99777142101`. The exact-build wait and existing-only D0 safety/readiness inspection both completed successfully.
+Latest completed exact production D0 proof is build `3d30199b3d4d59269e093b5cfebbce267c70afb9`, GitHub Actions run `33484772388`, verify job `99782195060`. The exact-build wait and existing-only D0 safety/readiness inspection both completed successfully.
 
 The canonical existing D0 source remains:
 
@@ -88,10 +96,6 @@ The canonical existing D0 source remains:
 
 Actual campaign invocation remains operator-only; the currently connected project tools do not provide an authorized Linode shell action. Do not add an unauthenticated public trigger as an access workaround.
 
-## Newly confirmed pre-D1 blocker
-
-A structural audit found that the generic `DiscoveryTrialLedger.freeze_survivor_selection()` currently proves that selected candidates exist, have at least one evaluated trial and have no rejected trial, but it does **not** itself bind survivor freeze to the Strategy Factory campaign's complete expected-strata set. No survivor freeze has occurred and D1 remains sealed, so no evidence boundary has been crossed. Before any Factory v2 survivor freeze or D1 authorization, add a fail-closed campaign-specific guard requiring every selected survivor to have exactly the declared terminal D0 strata and to be eligible under the frozen discovery report. Do not open D1 until that guard is merged and proven.
-
 ## Verification quality gate — DO NOT LOWER
 
 Historical SF2/SF3 minimum reference gates remain:
@@ -114,7 +118,8 @@ Factory v2 D0 metrics are selection-only and do not satisfy these gates. A later
 - Full candidate/search history must be accounted for when evaluating selection bias.
 - Raw candidate, unique specification, behavioral cluster and independent-family counts remain distinct concepts.
 - Incomplete/rejected or selection-schema-invalid D0 candidates cannot expose aggregate selection economics or enter behavioral eligibility.
-- Survivor freeze must not authorize D1 until selected survivors are proven complete against the frozen expected-strata contract.
+- Strategy Factory survivor freeze must reconstruct eligibility from immutable campaign/candidate/trial evidence and require terminal full-catalog D0 coverage.
+- Survivor freeze itself does not authorize D1.
 - Demo execution proof has no strategy-verification authority.
 - Spot and USD-M futures data are never silently mixed.
 - Executed footprint and resting order-book liquidity remain separate data planes.
@@ -123,12 +128,12 @@ Factory v2 D0 metrics are selection-only and do not satisfy these gates. A later
 
 ## Next exact tasks
 
-1. Merge a minimum fail-closed Factory v2 survivor-freeze completeness guard before any survivor freeze or D1 authorization.
-2. When an authorized Linode shell path is available, invoke only `scripts/run_sfv2_d0_pilot_production_once.sh`; do not add an unauthenticated public trigger merely to bypass access limitations.
-3. Run/resume the exact 406-candidate catalog across all 12 D0 strata while keeping the checkout fixed.
-4. Record actual raw/unique/family/eligible/cluster counts from campaign evidence; do not confuse mechanism availability with empirical results.
-5. Continue higher-fidelity D0 racing only under the predeclared diversity/search contract; D0 remains selection-only.
-6. Freeze at most 30 survivors only after the completeness guard is active; zero survivors is valid. D1 still requires separate authorization.
+1. When an authorized Linode shell path is available, invoke only `scripts/run_sfv2_d0_pilot_production_once.sh`; do not add an unauthenticated public trigger merely to bypass access limitations.
+2. Run/resume the exact 406-candidate catalog across all 12 D0 strata while keeping the checkout fixed.
+3. Record actual raw/unique/family/eligible/cluster counts from campaign evidence; do not confuse mechanism availability with empirical results.
+4. Continue higher-fidelity D0 racing only under the predeclared diversity/search contract; D0 remains selection-only.
+5. Freeze at most 30 survivors only through the ledger-backed Factory-specific guard after actual D0 evidence exists; zero survivors is valid. D1 still requires separate authorization.
+6. Open D1 only through a separately authorized hidden-confirmation workflow after survivor freeze prerequisites pass.
 7. Keep SF4 untouched until `2026-09-13T00:00:00Z`.
 8. Keep Frozen OOS and real-money execution locked.
 
