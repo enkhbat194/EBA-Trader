@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .provenance import collect_source_provenance
+from .research_evidence import canonical_json, sha256_text
 from .research_store import ResearchStore
 from .strategy_discovery_v2 import (
     MAX_CANDIDATES_PER_FAMILY,
@@ -199,6 +200,53 @@ def _registered_pilot_definition(ledger: DiscoveryTrialLedger) -> Mapping[str, o
     return definition
 
 
+def _freeze_empty_pilot_selection(
+    *,
+    ledger: DiscoveryTrialLedger,
+    definition: Mapping[str, object],
+) -> str:
+    """Persist an immutable zero-survivor D0 outcome without granting downstream authority."""
+
+    definition_payload = {
+        "authority": PILOT_AUTHORITY,
+        "candidate_ids": [],
+        "definition": dict(definition),
+    }
+    definition_json = canonical_json(definition_payload)
+    definition_sha256 = sha256_text(definition_json)
+    selection_id = f"dsel_{definition_sha256[:24]}"
+
+    with ledger.store._connection() as connection:
+        existing = connection.execute(
+            """
+            SELECT * FROM discovery_survivor_selections_v2
+            WHERE campaign_id = ?
+            """,
+            (PILOT_CAMPAIGN_ID,),
+        ).fetchone()
+        if existing is not None:
+            if existing["definition_sha256"] != definition_sha256:
+                raise RuntimeError("discovery survivor selection is immutable")
+            return str(existing["selection_id"])
+
+        connection.execute(
+            """
+            INSERT INTO discovery_survivor_selections_v2(
+                selection_id, campaign_id, definition_sha256,
+                definition_json, candidate_ids_json
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                selection_id,
+                PILOT_CAMPAIGN_ID,
+                definition_sha256,
+                definition_json,
+                canonical_json([]),
+            ),
+        )
+    return selection_id
+
+
 def freeze_d0_pilot_survivors(
     *,
     ledger: DiscoveryTrialLedger,
@@ -211,7 +259,8 @@ def freeze_d0_pilot_survivors(
     The caller-supplied run object is cross-checked against the immutable campaign registration,
     but eligibility is rebuilt from ledger candidates/trials rather than trusted from that object.
     The entire declared D0 catalog must be terminal across the exact frozen strata before any
-    survivor selection can be written. This helper never opens D1, Frozen OOS or execution.
+    survivor selection can be written. A zero-survivor outcome is valid and is persisted as an
+    immutable negative discovery result. This helper never opens D1, Frozen OOS or execution.
     """
 
     if campaign_run.campaign_id != PILOT_CAMPAIGN_ID:
@@ -226,8 +275,6 @@ def freeze_d0_pilot_survivors(
         raise RuntimeError("survivor freeze cannot run with downstream authority already open")
 
     selected = tuple(candidate_ids)
-    if not selected:
-        raise ValueError("survivor selection cannot be empty")
     if len(selected) != len(set(selected)):
         raise ValueError("survivor candidate_ids must be unique")
     if len(selected) > MAX_SURVIVORS:
@@ -328,6 +375,8 @@ def freeze_d0_pilot_survivors(
         "frozen_oos_opened": False,
         "live_execution_allowed": False,
     }
+    if not selected:
+        return _freeze_empty_pilot_selection(ledger=ledger, definition=frozen_definition)
     return ledger.freeze_survivor_selection(
         campaign_id=PILOT_CAMPAIGN_ID,
         candidate_ids=selected,
