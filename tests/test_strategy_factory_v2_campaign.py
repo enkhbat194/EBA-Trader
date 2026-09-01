@@ -304,7 +304,10 @@ def test_survivor_freeze_rejects_fabricated_complete_run_when_ledger_catalog_is_
 def test_survivor_freeze_rejects_terminal_trial_with_wrong_stratum_dataset_sha(tmp_path):
     ledger, run, candidates = _freeze_ledger(tmp_path, wrong_dataset_candidate_index=1)
 
-    with pytest.raises(RuntimeError, match="D0 trial dataset SHA does not match registered stratum"):
+    with pytest.raises(
+        RuntimeError,
+        match="D0 trial dataset SHA does not match registered stratum",
+    ):
         campaign.freeze_d0_pilot_survivors(
             ledger=ledger,
             campaign_run=run,
