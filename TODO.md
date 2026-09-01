@@ -49,7 +49,7 @@ continuing.
 - [x] Exact `main` `78fcb3d8ad4bc7eef559932bb836a4eedf251630` production bundle/runtime checks verified green.
 - [x] Audit repository for accidental `PLACEHOLDER` content after #106 branch recovery: none on main.
 
-## ACTIVE — audit hardening PR #107
+## NOW — audit hardening PR #107
 
 The post-merge audit found two pre-pilot defects. Do not run the production pilot until both are
 fixed and exact-head CI is green.
