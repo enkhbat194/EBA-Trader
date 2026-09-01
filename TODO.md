@@ -28,12 +28,13 @@ Actual merged code, exact production evidence and latest explicit decisions over
 - [x] Keep campaign invocation non-public and non-automatic.
 - [x] Confirm exact-build production proof for `59f6a21e8736b53473fd99a7cb00236c407f5573` in Actions run `33466706747`.
 - [x] Merge PR #115: discovery-only behavioral cluster accounting with separate raw/unique-spec/family/eligible/cluster counts; incomplete/rejected candidates excluded; representative drift fails closed.
+- [x] Confirm exact-build production proof for `cbe8cfd07587dda126234f853b47624f241f416e` in Actions run `33470607755`, verify job `99739433912`.
 
 ## EXACT D0 EVIDENCE
 
-Latest completed and reconciled exact production D0 proof before PR #115 is build `59f6a21e8736b53473fd99a7cb00236c407f5573`:
+Latest completed exact production D0 proof for the code-bearing research baseline is build `cbe8cfd07587dda126234f853b47624f241f416e`:
 
-- [x] Actions proof run `33466706747` completed successfully;
+- [x] Actions proof run `33470607755`, verify job `99739433912`, completed successfully;
 - [x] declaration SHA `88365779d6821c1fb30372148bbcedbfadf11471843f57722723286a43cbc77c`;
 - [x] dataset SHA `aa13bcfc111c00f6da19621353a3ca8044f58eca1ab95e837d9490a205aa72eb`;
 - [x] candle SHA `6368c9f41ff635d2474860a8d4579fc00e57488871020a9df38222f32d9f4744`;
@@ -42,7 +43,6 @@ Latest completed and reconciled exact production D0 proof before PR #115 is buil
 - [x] authority `DISCOVERY_ONLY` and provenance `INSPECTED_REUSABLE_DISCOVERY_DATA`;
 - [x] fresh-confirmation evidence false; verification authority false;
 - [x] D1/Frozen OOS/live remain closed/closed/locked.
-- [ ] Require Actions run `33470607755` to complete green before declaring `cbe8cfd07587dda126234f853b47624f241f416e` exact-production-proven.
 
 ## ACTIVE — SF4 prospective replication
 
@@ -54,7 +54,6 @@ Latest completed and reconciled exact production D0 proof before PR #115 is buil
 
 ## NOW — D0 invocation
 
-- [ ] Confirm exact-current-build production proof for `cbe8cfd07587dda126234f853b47624f241f416e` via run `33470607755`.
 - [ ] When an authorized Linode shell path is available, invoke only `scripts/run_sfv2_d0_pilot_production_once.sh`.
 - [ ] Do not add an unauthenticated public trigger merely to bypass shell-access limitations.
 - [ ] Keep the execution mechanism `DISCOVERY_ONLY`; it must not open D1, lifecycle promotion, Frozen OOS, demo authority or live execution.
