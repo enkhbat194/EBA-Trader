@@ -18,9 +18,8 @@ Build a research-first automated trading system that can discover repeatable tra
 - PR #112 merged the production checkout concurrency guard: the five-minute automatic updater and the operator-only D0 wrapper use the same nonblocking `flock` lock.
 - PR #114 reconciled continuity with exact production D0 proof for `59f6a21e8736b53473fd99a7cb00236c407f5573`; Actions run `33466706747` completed successfully.
 - PR #115 merged discovery-only behavioral cluster accounting: raw candidates, unique specifications, independent families, behaviorally eligible candidates and behavioral clusters are counted separately; incomplete/rejected candidates cannot enter clusters; representative drift fails closed.
-- Exact-build D0 production proof for `cbe8cfd07587dda126234f853b47624f241f416e` completed successfully in Actions run `33470607755`, verify job `99739433912`.
 - PR #117 closed a D0 selection-integrity gap: aggregate economics/activity/cost/drawdown/benchmark metrics are now exposed only after terminal all-strata coverage and only for non-rejected candidates. Incomplete/rejected trials remain immutably accounted but cannot leak partial economics into ranking.
-- Exact-current-build D0 production proof for `4f4fa8b27b8e297d6e49fc5c9639ef3abbf256f7` is Actions run `33474180718`; do not treat it as completed evidence until that workflow reports success.
+- Exact-current-build D0 production proof for `4f4fa8b27b8e297d6e49fc5c9639ef3abbf256f7` completed successfully in Actions run `33474180718`, verify job `99749881404`; the exact-build wait and existing-only D0 source inspection both succeeded.
 - No public or automatic campaign trigger was introduced.
 - The 406-candidate × 12-strata campaign has **not** been executed in production yet.
 - Fast Momentum remains a paper/runtime test-bed, not a verified profitable strategy.
@@ -67,9 +66,9 @@ The accounting and terminal-only selection-metric mechanisms are merged, but no 
 
 ## Exact production D0 evidence
 
-Latest **completed** exact production D0 proof is build `cbe8cfd07587dda126234f853b47624f241f416e`, GitHub Actions run `33470607755`, verify job `99739433912`. The exact-current-build proof for code-bearing baseline `4f4fa8b27b8e297d6e49fc5c9639ef3abbf256f7` is run `33474180718` and must remain pending until GitHub reports a successful conclusion.
+Latest completed exact production D0 proof is build `4f4fa8b27b8e297d6e49fc5c9639ef3abbf256f7`, GitHub Actions run `33474180718`, verify job `99749881404`. The exact-build wait and existing-only D0 safety/readiness inspection both completed successfully.
 
-The latest completed proof preserves:
+The proof preserves:
 
 - source kind: `INSPECTED_M5_DEVELOPMENT_CORPUS`;
 - materialization ID: `m5corpusmat_25007f47e456b5f2d42ef16b`;
@@ -89,7 +88,7 @@ The latest completed proof preserves:
 - Frozen OOS opened: false;
 - live execution allowed: false.
 
-The data-source, campaign-orchestration, source-provenance and automatic-update concurrency blockers are closed. Actual campaign invocation remains operator-only; the currently connected project tools do not provide an authorized Linode shell action. Do not add an unauthenticated public trigger as an access workaround.
+The data-source, campaign-orchestration, source-provenance, automatic-update concurrency and current code-bearing exact-production-proof blockers are closed. Actual campaign invocation remains operator-only; the currently connected project tools do not provide an authorized Linode shell action. Do not add an unauthenticated public trigger as an access workaround.
 
 ## Verification quality gate — DO NOT LOWER
 
@@ -121,14 +120,13 @@ Factory v2 D0 metrics are selection-only and do not satisfy these gates. A later
 
 ## Next exact tasks
 
-1. Confirm exact-current-build D0 production proof run `33474180718` for `4f4fa8b27b8e297d6e49fc5c9639ef3abbf256f7`; record success only if the workflow itself completes green.
-2. When an authorized Linode shell path is available, invoke only `scripts/run_sfv2_d0_pilot_production_once.sh`; do not add an unauthenticated public trigger merely to bypass access limitations.
-3. Run/resume the exact 406-candidate catalog across all 12 D0 strata while keeping the checkout fixed.
-4. Use the merged accounting layer to record raw/unique/family/eligible/cluster counts from actual campaign evidence; do not confuse mechanism availability with empirical results.
-5. Continue higher-fidelity D0 racing only under the predeclared diversity/search contract; D0 remains selection-only.
-6. Freeze at most 30 survivors before any separately authorized D1 access. Zero survivors is valid.
-7. Keep SF4 untouched until `2026-09-13T00:00:00Z`.
-8. Keep Frozen OOS and real-money execution locked.
+1. When an authorized Linode shell path is available, invoke only `scripts/run_sfv2_d0_pilot_production_once.sh`; do not add an unauthenticated public trigger merely to bypass access limitations.
+2. Run/resume the exact 406-candidate catalog across all 12 D0 strata while keeping the checkout fixed.
+3. Use the merged accounting layer to record raw/unique/family/eligible/cluster counts from actual campaign evidence; do not confuse mechanism availability with empirical results.
+4. Continue higher-fidelity D0 racing only under the predeclared diversity/search contract; D0 remains selection-only.
+5. Freeze at most 30 survivors before any separately authorized D1 access. Zero survivors is valid.
+6. Keep SF4 untouched until `2026-09-13T00:00:00Z`.
+7. Keep Frozen OOS and real-money execution locked.
 
 ## Continuity protocol
 
