@@ -12,6 +12,10 @@ from .strategy_discovery_v2 import (
     DiscoveryCampaignPolicy,
     DiscoveryTrialLedger,
 )
+from .strategy_factory_v2_accounting import (
+    LowFidelityCampaignAccounting,
+    build_low_fidelity_campaign_accounting,
+)
 from .strategy_factory_v2_catalog import PILOT_SEED, generate_pilot_candidates
 from .strategy_factory_v2_d0_existing import load_existing_d0_from_inspected_m5
 from .strategy_factory_v2_d0_source import D0SourceDeclaration
@@ -41,6 +45,7 @@ class D0PilotCampaignRun:
     reused_terminal_trial_count: int
     stopped_for_compute_budget: bool
     report: LowFidelityDiscoveryReport
+    accounting: LowFidelityCampaignAccounting
     authority: str = PILOT_AUTHORITY
     d1_opened: bool = False
     frozen_oos_opened: bool = False
@@ -146,6 +151,11 @@ def run_d0_pilot_campaign(
         expected_strata=tuple(item.stratum.stratum_id for item in strata),
         behavioral_similarity_threshold=PILOT_BEHAVIORAL_SIMILARITY_THRESHOLD,
     )
+    accounting = build_low_fidelity_campaign_accounting(
+        declared_candidates=ledger.list_candidates(PILOT_CAMPAIGN_ID),
+        report=report,
+        behavioral_similarity_threshold=PILOT_BEHAVIORAL_SIMILARITY_THRESHOLD,
+    )
     return D0PilotCampaignRun(
         campaign_id=PILOT_CAMPAIGN_ID,
         source_code_sha=source_code_sha,
@@ -157,6 +167,7 @@ def run_d0_pilot_campaign(
         reused_terminal_trial_count=reused_terminal,
         stopped_for_compute_budget=stopped,
         report=report,
+        accounting=accounting,
     )
 
 
