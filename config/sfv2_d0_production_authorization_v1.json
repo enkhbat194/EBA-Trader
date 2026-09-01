@@ -1,0 +1,47 @@
+{
+  "schema": "sfv2_d0_production_authorization_v1",
+  "request_id": "sfv2-d0-prod-20260901-v1",
+  "enabled": true,
+  "single_use": true,
+  "campaign_id": "sfv2-discovery-pilot-v1",
+  "authority": "DISCOVERY_ONLY",
+  "authorization_basis": "explicit_repository_owner_request_2026-09-01",
+  "expected_d0_source_kind": "INSPECTED_M5_DEVELOPMENT_CORPUS",
+  "expected_d0_provenance_class": "INSPECTED_REUSABLE_DISCOVERY_DATA",
+  "expected_d0_declaration_sha256": "88365779d6821c1fb30372148bbcedbfadf11471843f57722723286a43cbc77c",
+  "expected_d0_dataset_sha256": "aa13bcfc111c00f6da19621353a3ca8044f58eca1ab95e837d9490a205aa72eb",
+  "expected_candidate_count": 406,
+  "expected_stratum_count": 12,
+  "behavioral_similarity_threshold": 0.9,
+  "runtime": {
+    "max_compute_ms_per_stratum": 30000,
+    "max_cycles_per_invocation": 4
+  },
+  "selection_policy": {
+    "schema": "sfv2_d0_survivor_policy_v1",
+    "minimum_mean_total_return_exclusive": 0.0,
+    "minimum_mean_expectancy_exclusive": 0.0,
+    "minimum_mean_benchmark_relative_return_exclusive": 0.0,
+    "minimum_total_trades": 12,
+    "one_per_behavioral_cluster": true,
+    "maximum_survivors": 30,
+    "ranking_order": [
+      "mean_benchmark_relative_return_desc",
+      "mean_expectancy_desc",
+      "mean_total_return_desc",
+      "total_trade_count_desc",
+      "mean_max_drawdown_desc",
+      "candidate_id_asc"
+    ]
+  },
+  "safety": {
+    "fresh_confirmation_evidence": false,
+    "verification_authority": false,
+    "d1_opened": false,
+    "frozen_oos_opened": false,
+    "demo_promotion_allowed": false,
+    "live_execution_allowed": false,
+    "real_execution_allowed": false,
+    "public_trigger_allowed": false
+  }
+}
