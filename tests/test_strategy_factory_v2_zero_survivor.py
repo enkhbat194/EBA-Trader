@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from eba_trader import strategy_factory_v2_campaign as campaign
 from eba_trader.research_store import ResearchStore
 from eba_trader.strategy_discovery_v2 import (
     BehavioralFingerprint,
@@ -10,7 +11,6 @@ from eba_trader.strategy_discovery_v2 import (
     DiscoveryTrialLedger,
     DiscoveryTrialStatus,
 )
-from eba_trader import strategy_factory_v2_campaign as campaign
 
 
 def _metrics() -> dict[str, float | int]:
