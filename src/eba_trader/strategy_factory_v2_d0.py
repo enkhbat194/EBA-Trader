@@ -105,7 +105,8 @@ def build_d0_dataset_manifest(
     candle_sha = sha256_text(canonical_json(candle_payload))
     orderflow_sha = None
     if orderflow_rows:
-        orderflow_sha = sha256_text(canonical_json([_orderflow_payload(row) for row in orderflow_rows]))
+        orderflow_payload = [_orderflow_payload(row) for row in orderflow_rows]
+        orderflow_sha = sha256_text(canonical_json(orderflow_payload))
 
     strata = _temporal_strata(candles, temporal_strata)
     identity = {
