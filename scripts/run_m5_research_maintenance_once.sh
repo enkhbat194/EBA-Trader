@@ -14,6 +14,7 @@ robustness_exit=0
 sf2_exit=0
 sf3_exit=0
 demo_exit=0
+sfv2_exit=0
 sf1_state="deferred"
 activity_state="deferred"
 qualification_state="deferred"
@@ -21,6 +22,7 @@ significance_state="deferred"
 robustness_state="deferred"
 sf2_state="deferred"
 sf3_state="deferred"
+sfv2_state="disabled"
 
 /bin/bash /opt/Eba-Trader/scripts/run_m5_real_ablation_once.sh || ablation_exit=$?
 /opt/Eba-Trader/.venv/bin/python -m eba_trader.m5_corpus_runtime || corpus_exit=$?
@@ -149,8 +151,39 @@ else
   demo_exit=1
 fi
 
-if [[ $ablation_exit -ne 0 || $corpus_exit -ne 0 || $sf1_exit -ne 0 || $multiwindow_exit -ne 0 || $activity_exit -ne 0 || $qualification_exit -ne 0 || $significance_exit -ne 0 || $robustness_exit -ne 0 || $sf2_exit -ne 0 || $sf3_exit -ne 0 ]]; then
-  echo "M5/SF1/SF2/SF3 research maintenance incomplete: ablation_exit=$ablation_exit corpus_exit=$corpus_exit sf1_exit=$sf1_exit sf1_state=$sf1_state multiwindow_exit=$multiwindow_exit activity_exit=$activity_exit activity_state=$activity_state qualification_exit=$qualification_exit qualification_state=$qualification_state significance_exit=$significance_exit significance_state=$significance_state robustness_exit=$robustness_exit robustness_state=$robustness_state sf2_exit=$sf2_exit sf2_state=$sf2_state sf3_exit=$sf3_exit sf3_state=$sf3_state demo_exit=$demo_exit" >&2
+# The repository owner explicitly authorized one bounded Strategy Factory v2 D0 production
+# campaign on 2026-09-01. It is invoked only from this local root-side maintenance path; there is
+# no browser/public mutation endpoint. The wrapper holds the shared checkout lock and is a no-op
+# forever after its single-use request reaches COMPLETE. D0 has discovery authority only.
+if [[ -x /opt/Eba-Trader/scripts/run_sfv2_d0_authorized_production.sh && -f /opt/Eba-Trader/config/sfv2_d0_production_authorization_v1.json ]]; then
+  /bin/bash /opt/Eba-Trader/scripts/run_sfv2_d0_authorized_production.sh || sfv2_exit=$?
+  if [[ $sfv2_exit -eq 75 ]]; then
+    sfv2_state="deferred_checkout_lock"
+    sfv2_exit=0
+  elif [[ $sfv2_exit -eq 0 ]]; then
+    sfv2_state="$(/opt/Eba-Trader/.venv/bin/python - <<'PY'
+import json
+from pathlib import Path
+
+path = Path('/var/lib/eba-trader/research/sfv2-d0-pilot-status.json')
+try:
+    payload = json.loads(path.read_text(encoding='utf-8'))
+except (OSError, json.JSONDecodeError):
+    print('authorized_no_status')
+else:
+    if payload.get('schema') != 'sfv2_d0_production_status_v1':
+        print('authorized_invalid_status')
+    else:
+        print(str(payload.get('phase') or 'authorized_unknown').lower())
+PY
+)"
+  else
+    sfv2_state="failed"
+  fi
+fi
+
+if [[ $ablation_exit -ne 0 || $corpus_exit -ne 0 || $sf1_exit -ne 0 || $multiwindow_exit -ne 0 || $activity_exit -ne 0 || $qualification_exit -ne 0 || $significance_exit -ne 0 || $robustness_exit -ne 0 || $sf2_exit -ne 0 || $sf3_exit -ne 0 || $sfv2_exit -ne 0 ]]; then
+  echo "M5/SF1/SF2/SF3/SFv2 research maintenance incomplete: ablation_exit=$ablation_exit corpus_exit=$corpus_exit sf1_exit=$sf1_exit sf1_state=$sf1_state multiwindow_exit=$multiwindow_exit activity_exit=$activity_exit activity_state=$activity_state qualification_exit=$qualification_exit qualification_state=$qualification_state significance_exit=$significance_exit significance_state=$significance_state robustness_exit=$robustness_exit robustness_state=$robustness_state sf2_exit=$sf2_exit sf2_state=$sf2_state sf3_exit=$sf3_exit sf3_state=$sf3_state sfv2_exit=$sfv2_exit sfv2_state=$sfv2_state demo_exit=$demo_exit" >&2
   exit 1
 fi
 
@@ -160,4 +193,4 @@ else
   demo_state="deferred"
 fi
 
-echo "M5/SF1/SF2/SF3 research maintenance complete: ablation=ok corpus=ok sf1=$sf1_state multiwindow=ok activity=$activity_state qualification=$qualification_state significance=$significance_state robustness=ok:$robustness_state sf2=$sf2_state sf3=$sf3_state demo=$demo_state"
+echo "M5/SF1/SF2/SF3/SFv2 research maintenance complete: ablation=ok corpus=ok sf1=$sf1_state multiwindow=ok activity=$activity_state qualification=$qualification_state significance=$significance_state robustness=ok:$robustness_state sf2=$sf2_state sf3=$sf3_state sfv2=$sfv2_state demo=$demo_state"
