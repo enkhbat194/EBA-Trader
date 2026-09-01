@@ -1,6 +1,6 @@
 # EBA Trader — TODO
 
-Actual merged code, exact production evidence and latest explicit decisions override stale prose. Query `main`, open PRs and workflows before continuing. Documentation commits may move `main`; the latest code-bearing research baseline reconciled here is `cbe8cfd07587dda126234f853b47624f241f416e` (PR #115).
+Actual merged code, exact production evidence and latest explicit decisions override stale prose. Query `main`, open PRs and workflows before continuing. Documentation commits may move `main`; the latest code-bearing research baseline reconciled here is `4f4fa8b27b8e297d6e49fc5c9639ef3abbf256f7` (PR #117).
 
 ## DONE — Repository/runtime and research foundation
 
@@ -29,10 +29,11 @@ Actual merged code, exact production evidence and latest explicit decisions over
 - [x] Confirm exact-build production proof for `59f6a21e8736b53473fd99a7cb00236c407f5573` in Actions run `33466706747`.
 - [x] Merge PR #115: discovery-only behavioral cluster accounting with separate raw/unique-spec/family/eligible/cluster counts; incomplete/rejected candidates excluded; representative drift fails closed.
 - [x] Confirm exact-build production proof for `cbe8cfd07587dda126234f853b47624f241f416e` in Actions run `33470607755`, verify job `99739433912`.
+- [x] Merge PR #117: aggregate D0 selection economics are exposed only for complete, non-rejected candidates; incomplete/rejected trial accounting remains immutable but cannot leak partial economics into ranking.
 
 ## EXACT D0 EVIDENCE
 
-Latest completed exact production D0 proof for the code-bearing research baseline is build `cbe8cfd07587dda126234f853b47624f241f416e`:
+Latest completed exact production D0 proof before PR #117 is build `cbe8cfd07587dda126234f853b47624f241f416e`:
 
 - [x] Actions proof run `33470607755`, verify job `99739433912`, completed successfully;
 - [x] declaration SHA `88365779d6821c1fb30372148bbcedbfadf11471843f57722723286a43cbc77c`;
@@ -43,6 +44,7 @@ Latest completed exact production D0 proof for the code-bearing research baselin
 - [x] authority `DISCOVERY_ONLY` and provenance `INSPECTED_REUSABLE_DISCOVERY_DATA`;
 - [x] fresh-confirmation evidence false; verification authority false;
 - [x] D1/Frozen OOS/live remain closed/closed/locked.
+- [ ] Exact-current-build D0 production proof for `4f4fa8b27b8e297d6e49fc5c9639ef3abbf256f7` is run `33474180718`; record it as completed evidence only after the workflow itself reports success.
 
 ## ACTIVE — SF4 prospective replication
 
@@ -64,8 +66,8 @@ Latest completed exact production D0 proof for the code-bearing research baselin
 - [ ] Account for every performance-inspected candidate in the immutable trial ledger.
 - [x] Mechanism: never place incomplete/rejected candidates into behavioral representative/clustering selection.
 - [x] Mechanism: keep raw candidate, unique specification, independent-family and behavioral-cluster counts distinct.
+- [x] Mechanism: expose aggregate selection-only economics/activity/cost/drawdown/benchmark metrics only after terminal all-strata coverage and only for non-rejected candidates.
 - [ ] Evidence: after production campaign execution, record actual raw/unique/family/eligible/cluster counts from the immutable ledger/report.
-- [ ] Build selection-only aggregate metrics only after terminal required-stratum coverage; do not rank incomplete candidates.
 - [ ] Apply diversity-aware higher-fidelity D0 racing under the predeclared contract only.
 - [ ] Nominate at most 30 discovery survivors; zero survivors is valid.
 - [ ] Freeze survivor specifications before any separately authorized D1 access.
