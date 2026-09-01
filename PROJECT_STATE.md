@@ -14,13 +14,13 @@ Real-money execution remains locked.
 
 - Repository: `enkhbat194/EBA-Trader`
 - Production URL: `https://eba-trader-172-236-150-62.sslip.io`
-- Canonical `main` before the current D0 dataset-contract PR: `4c5a6a9fe30f29b772a5c2fe4d1e99b38b4262b1`
-- Main commit: `Strategy Factory v2: add common D0 evaluator adapters (#102)`.
-- Exact-main continuity guard: **PASS**.
-- Exact-main Linode external production proof: **PASS**.
-- No open pull requests existed before the current D0 dataset-contract branch was created.
+- Canonical `main`: `14472dee7224d5caff6819ea142f01ba6729d3a0`
+- Main commit: `Strategy Factory v2: add immutable D0 dataset contract` (PR #103).
+- Exact-main Linode runtime check: **PASS**.
+- Exact-main SF2 production evidence proof: **PASS**.
+- PR #104 is the current Strategy Factory v2 low-fidelity orchestration work.
 - Fast Momentum remains a paper/runtime test-bed, not a verified profitable strategy.
-- Binance USD-M Futures Demo execution plumbing has a verified demo round-trip only.
+- Binance USD-M Futures Demo execution plumbing is execution proof only.
 - M5 Frozen OOS (`2026-08-15 -> 2026-08-22` UTC): **SEALED / NOT OPENED**.
 - Real-money execution: **LOCKED**.
 
@@ -40,28 +40,31 @@ replication result, and parameters cannot be retuned.
 
 ### Strategy Factory v2
 
-Merged foundation and pilot state:
+Merged state:
 
 - `DISCOVERY_ONLY` authority;
 - raw-candidate hard cap 500, per-family cap 64, survivor cap 30;
+- 8 executable causal families with 406 declared raw candidate slots;
 - immutable campaign/candidate/trial ledger;
 - deterministic candidate/spec identity;
-- dataset SHA and source-code SHA accounting;
-- behavioral fingerprints/similarity/deduplication;
+- common D0 evaluator/adaptor for all 8 families;
+- normalized selection-only metrics and behavioral fingerprints;
+- behavioral similarity/deduplication foundation;
 - D0 discovery / D1 hidden confirmation / D2 robustness / D3 Frozen OOS zoning;
-- 8 executable causal families with 406 declared raw candidate slots;
-- common D0 evaluator/adaptor merged in PR #102;
-- normalized selection-only metrics and actual behavioral fingerprints;
-- static/sanity failure closes invalid or zero-opportunity evaluations;
-- `run_discovery_batch` integration records immutable dataset/source/fidelity/compute evidence.
+- PR #103 immutable D0 manifest with candle/order-flow/composite content hashes;
+- explicit `INSPECTED_REUSABLE_DISCOVERY_DATA` provenance;
+- fail-closed order-flow time/causality alignment;
+- declared D0 temporal strata so low-fidelity racing cannot use chronological first-N selection.
 
-Current work adds the missing immutable D0 dataset-input contract: deterministic content hashing,
-explicit inspected/reusable provenance, causal order-flow alignment checks and declared temporal
-strata so low-fidelity racing cannot silently become chronological first-N selection.
+PR #104 now adds the next safe layer: deterministic per-stratum dataset identities, causal warmup
+slices with trading beginning exactly at the declared stratum boundary, one-stratum ledgered
+execution, all-strata completion accounting and behavioral deduplication only after full stratified
+coverage. Rejected or incomplete candidates are not eligible for behavioral representative
+selection.
 
 ## Verification quality gate — DO NOT LOWER
 
-Broad discovery is not verification. Historical SF2/SF3 minimum reference gates remain:
+Historical SF2/SF3 minimum reference gates remain:
 
 1. mean return > 0;
 2. mean expectancy > 0;
@@ -70,8 +73,9 @@ Broad discovery is not verification. Historical SF2/SF3 minimum reference gates 
 5. positive mean return delta versus baseline;
 6. corrected significance threshold satisfied.
 
-Factory v2 may later use a separately preregistered confirmation protocol, but no method may weaken
-promotion integrity or relabel inspected D0 evidence as fresh confirmation evidence.
+Factory v2 D0 metrics are selection-only and do not satisfy these gates. A later confirmation
+protocol must account for broad-search history and use evidence that was not adaptively inspected
+as D0.
 
 ## Safety invariants
 
@@ -88,17 +92,18 @@ promotion integrity or relabel inspected D0 evidence as fresh confirmation evide
 
 ## Next exact tasks
 
-1. Merge the immutable D0 dataset contract only after exact-head regression, Ruff, runtime,
-   production-bundle, continuity and hygiene checks are green.
-2. Materialize/declare the actual production D0 dataset and its immutable hash using inspected,
-   reusable discovery data only; never call it fresh evidence.
-3. Evaluate the deterministic 406-candidate pilot across every declared temporal stratum rather
-   than chronological first-N racing.
-4. Aggregate selection-only D0 metrics while ledgering every inspected candidate/dataset/fidelity
-   trial.
-5. Run behavioral near-duplicate clustering and keep raw/unique/cluster/family counts distinct.
-6. Keep D1 hidden confirmation sealed until survivor specifications are frozen and a separate
-   confirmation protocol is authorized.
+1. Merge PR #104 only after exact-head regression, Ruff, runtime, production-bundle, continuity and
+   hygiene checks are green.
+2. Materialize/declare the actual production D0 dataset and immutable manifest from inspected,
+   reusable discovery data only.
+3. Generate the deterministic 406 candidates and ledger low-fidelity evaluations across every
+   declared D0 temporal stratum.
+4. Resume safely after compute-budget stops; do not rank candidates until required stratum coverage
+   is complete.
+5. Produce selection-only aggregate metrics and behavioral near-duplicate representatives while
+   keeping raw candidate, unique spec, behavioral cluster and family counts distinct.
+6. Keep D1 sealed until survivor specifications are frozen and a separate confirmation protocol is
+   authorized.
 7. Keep SF4 untouched until `2026-09-13T00:00:00Z`.
 8. Keep Frozen OOS and real-money execution locked.
 
