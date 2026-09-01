@@ -89,6 +89,9 @@ def build_low_fidelity_campaign_accounting(
         eligible,
         threshold=behavioral_similarity_threshold,
     )
+    cluster_representatives = tuple(item.representative_candidate_id for item in clusters)
+    if cluster_representatives != report.representative_candidate_ids:
+        raise ValueError("behavioral cluster representatives drift from low-fidelity report")
 
     return LowFidelityCampaignAccounting(
         raw_candidate_count=len(candidate_rows),
