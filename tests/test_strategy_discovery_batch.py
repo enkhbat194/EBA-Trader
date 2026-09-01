@@ -77,6 +77,7 @@ def test_batch_records_all_evaluated_candidates_in_one_dataset_context(tmp_path:
 
     assert len(summary.declared_candidate_ids) == 3
     assert len(summary.evaluated_trial_ids) == 3
+    assert summary.reused_terminal_trial_ids == ()
     assert summary.total_compute_ms == 30
     assert summary.stopped_for_compute_budget is False
     assert len(ledger.list_candidates("pilot")) == 3
@@ -113,6 +114,87 @@ def test_batch_stops_declaring_new_candidates_after_compute_budget(tmp_path: Pat
     assert summary.total_compute_ms == 50
     assert summary.stopped_for_compute_budget is True
     assert len(ledger.list_candidates("pilot")) == 2
+
+
+def test_batch_resume_reuses_terminal_trials_without_re_evaluation(tmp_path: Path) -> None:
+    ledger = _ledger(tmp_path)
+    candidates = tuple(_candidate(index) for index in range(5))
+    first_calls: list[str] = []
+
+    def first_evaluator(candidate: DiscoveryCandidate) -> DiscoveryEvaluation:
+        first_calls.append(candidate.candidate_id)
+        index = int(candidate.parameters["lookback"]) - 10
+        return DiscoveryEvaluation(
+            metrics={"mean_return": index / 1000},
+            behavior=_fingerprint(index),
+            compute_ms=25,
+        )
+
+    first = run_discovery_batch(
+        ledger=ledger,
+        context=DiscoveryBatchContext(
+            campaign_id="pilot",
+            dataset_sha256="dataset",
+            source_code_sha="code",
+            fidelity="low",
+            search_round=0,
+            max_compute_ms=50,
+        ),
+        candidates=candidates,
+        evaluator=first_evaluator,
+    )
+    assert len(first.evaluated_trial_ids) == 2
+    assert len(first_calls) == 2
+
+    resume_calls: list[str] = []
+
+    def resume_evaluator(candidate: DiscoveryCandidate) -> DiscoveryEvaluation:
+        resume_calls.append(candidate.candidate_id)
+        index = int(candidate.parameters["lookback"]) - 10
+        return DiscoveryEvaluation(
+            metrics={"mean_return": index / 1000},
+            behavior=_fingerprint(index),
+            compute_ms=25,
+        )
+
+    resumed = run_discovery_batch(
+        ledger=ledger,
+        context=DiscoveryBatchContext(
+            campaign_id="pilot",
+            dataset_sha256="dataset",
+            source_code_sha="code",
+            fidelity="low",
+            search_round=0,
+            max_compute_ms=100,
+        ),
+        candidates=candidates,
+        evaluator=resume_evaluator,
+    )
+
+    assert len(resumed.reused_terminal_trial_ids) == 2
+    assert len(resumed.evaluated_trial_ids) == 3
+    assert resume_calls == [candidate.candidate_id for candidate in candidates[2:]]
+    assert resumed.total_compute_ms == 75
+    assert resumed.stopped_for_compute_budget is False
+    assert len(ledger.list_trials("pilot")) == 5
+
+    replay = run_discovery_batch(
+        ledger=ledger,
+        context=DiscoveryBatchContext(
+            campaign_id="pilot",
+            dataset_sha256="dataset",
+            source_code_sha="code",
+            fidelity="low",
+            search_round=0,
+            max_compute_ms=1,
+        ),
+        candidates=candidates,
+        evaluator=lambda _: (_ for _ in ()).throw(AssertionError("must not re-evaluate")),
+    )
+    assert len(replay.reused_terminal_trial_ids) == 5
+    assert replay.evaluated_trial_ids == ()
+    assert replay.total_compute_ms == 0
+    assert replay.stopped_for_compute_budget is False
 
 
 def test_batch_rejects_duplicate_candidate_specs_before_evaluation(tmp_path: Path) -> None:
