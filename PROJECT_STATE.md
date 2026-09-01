@@ -12,10 +12,11 @@ Build a research-first automated trading system that can discover repeatable tra
 
 - Repository: `enkhbat194/EBA-Trader`
 - Production URL: `https://eba-trader-172-236-150-62.sslip.io`
-- Engine baseline before this documentation reconciliation: `0f3ee0745b643abeda3fb9c796f7d6c1a219f6a8`.
+- Engine baseline before this documentation reconciliation: `425952afbf1a1f057ad659670004c8defcd7edd5`.
 - PR #109 merged the resume-safe Strategy Factory v2 D0 pilot campaign runner.
-- PR #110 merged source-provenance hardening: the production runner derives the source SHA from the actual clean Git checkout and fails closed on an expected-SHA mismatch or dirty tracked tree.
-- Exact production build `9b2d31efd00981282acc405b944d0b913960fca1` passed D0 existing-source proof after PR #109. The subsequent #110 build must likewise pass exact-build production proof before campaign execution.
+- PR #110 merged clean-checkout source-provenance binding.
+- PR #112 merged the production checkout concurrency guard: the five-minute automatic updater and the operator-only D0 wrapper use the same nonblocking `flock` lock, so an active campaign cannot have its checkout reset by the updater.
+- No public or automatic campaign trigger was introduced.
 - Fast Momentum remains a paper/runtime test-bed, not a verified profitable strategy.
 - Binance USD-M Futures Demo execution plumbing is execution proof only.
 - M5 Frozen OOS (`2026-08-15 -> 2026-08-22` UTC): **SEALED / NOT OPENED**.
@@ -47,11 +48,13 @@ PR #99 froze exact `s3_vsm_s150` and `s3_cex_s075` hypotheses. Replication uses 
 - compute-budget resume reuses immutable terminal trials without re-evaluation;
 - existing-only D0 loader cannot fetch, rebuild or extend missing evidence;
 - campaign definition binds D0 declaration/dataset hashes, catalog seed/count, warmup, behavioral threshold and exact source checkout;
-- production source attribution comes from a clean actual checkout, not operator-supplied provenance text.
+- production source attribution comes from the actual clean checkout;
+- production D0 wrapper holds the shared checkout lock for the full invocation;
+- automatic updater skips safely while that lock is held and retries on its normal timer.
 
 ## Exact production D0 evidence
 
-Exact production build `9b2d31efd00981282acc405b944d0b913960fca1` passed D0 proof with:
+The latest completed exact production D0 proof before the current deployment cycle was build `9b2d31efd00981282acc405b944d0b913960fca1` with:
 
 - source kind: `INSPECTED_M5_DEVELOPMENT_CORPUS`;
 - materialization ID: `m5corpusmat_25007f47e456b5f2d42ef16b`;
@@ -71,7 +74,7 @@ Exact production build `9b2d31efd00981282acc405b944d0b913960fca1` passed D0 proo
 - Frozen OOS opened: false;
 - live execution allowed: false.
 
-The data-source and campaign-orchestration blockers are closed. The remaining production blocker is a safe execution path that pins one exact clean build for the campaign and prevents the five-minute auto-updater from mutating the checkout while a campaign process is active.
+The data-source, campaign-orchestration, source-provenance and automatic-update concurrency blockers are closed in merged code. Before executing the campaign, require exact-production proof for the final deployed main build. Actual invocation remains operator-only; the currently connected project tools do not provide an authorized Linode shell action.
 
 ## Verification quality gate — DO NOT LOWER
 
@@ -101,9 +104,9 @@ Factory v2 D0 metrics are selection-only and do not satisfy these gates. A later
 
 ## Next exact tasks
 
-1. Require exact-build production proof for the latest merged source-provenance hardening.
-2. Add the minimum production-safe D0 campaign execution mechanism with exact-build pinning and an updater/concurrency guard; do not expose a public unauthenticated trigger.
-3. Run/resume the exact 406-candidate catalog across all 12 D0 strata only after that guard is proven.
+1. Confirm exact-build production proof for the final merged main build containing PR #112.
+2. When an authorized Linode shell path is available, invoke only `scripts/run_sfv2_d0_pilot_production_once.sh`; do not add an unauthenticated public trigger merely to bypass access limitations.
+3. Run/resume the exact 406-candidate catalog across all 12 D0 strata while keeping the checkout fixed.
 4. Never rank incomplete candidates; require terminal required-stratum coverage before aggregate selection metrics.
 5. Build behavioral near-duplicate clusters while keeping raw candidate, unique spec, behavioral cluster and family counts distinct.
 6. Continue higher-fidelity D0 racing only under the predeclared diversity/search contract; D0 remains selection-only.

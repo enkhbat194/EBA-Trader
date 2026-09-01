@@ -8,25 +8,26 @@ Repository: `enkhbat194/EBA-Trader`
 
 Engine baseline before this documentation reconciliation:
 
-`0f3ee0745b643abeda3fb9c796f7d6c1a219f6a8`
+`425952afbf1a1f057ad659670004c8defcd7edd5`
 
-PR #109 and PR #110 are merged. PR #109 added the deterministic resume-safe D0 pilot campaign runner; PR #110 hardened source provenance so production derives the source SHA from the actual clean checkout rather than trusting operator text.
+PR #109, PR #110 and PR #112 are merged. PR #109 added deterministic resume-safe all-strata D0 pilot orchestration. PR #110 binds source provenance to the actual clean production checkout. PR #112 coordinates the five-minute auto-updater and D0 production wrapper through one shared nonblocking checkout lock.
 
-Exact production build `9b2d31efd00981282acc405b944d0b913960fca1` passed D0 existing-source proof after #109. The next production proof must confirm the latest provenance-hardened build before any campaign execution.
+No D0 campaign has been executed yet. No public or automatic campaign trigger was added.
 
 ## What was completed
 
-1. Reconciled stale canonical docs against actual merged code and exact production evidence.
-2. Confirmed production D0 source is available, valid and inspected reusable discovery evidence only.
-3. Merged PR #109 after exact-head full regression, Ruff, runtime, production-bundle, hygiene and continuity checks passed.
-4. Confirmed `9b2d31ef...` reached production and retained the exact D0 hashes/12-stratum safety contract.
-5. Audited #109 and found a provenance defect: operator-supplied `--source-code-sha` could falsely label the immutable campaign source.
-6. Merged PR #110 after green exact-head checks; campaign production wrapper now derives actual clean Git SHA and rejects dirty/mismatched source checkouts.
-7. Identified the remaining production execution-safety blocker: the Linode five-minute auto-updater can mutate the checkout while a long D0 campaign process is active unless execution and update are coordinated.
+1. Reconciled canonical state against actual merged code and exact production evidence.
+2. Confirmed the existing inspected production D0 source: 2,880 rows across 12 windows/12 strata, with discovery-only authority.
+3. Merged PR #109 after full exact-head regression, Ruff, runtime, production-bundle, hygiene and continuity checks passed.
+4. Confirmed exact production build `9b2d31efd00981282acc405b944d0b913960fca1` retained the D0 source hashes and all downstream locks.
+5. Found and fixed a source-provenance weakness: operator text can no longer label the immutable campaign with an arbitrary source SHA. PR #110 derives the SHA from the actual clean checkout and rejects dirty/mismatched provenance.
+6. Found and fixed the production checkout race with the five-minute updater. PR #112 makes the updater and D0 wrapper share `/run/lock/eba-trader-runtime-mutation.lock`; the updater skips safely while research holds the lock and retries on its normal timer.
+7. Added `scripts/run_sfv2_d0_pilot_production_once.sh`, an operator-only exact-build production wrapper using canonical research paths and the actual clean checkout SHA.
+8. Re-audited low-fidelity materialization/reporting: supplied D0 content is rehashed against the manifest, temporal-gap warmup stays isolated, duplicate stratum trials fail, and a candidate is complete only after terminal coverage of every declared stratum.
 
 ## Exact D0 proof
 
-On production build `9b2d31efd00981282acc405b944d0b913960fca1`:
+Latest completed exact proof before the current final deployment cycle was production build `9b2d31efd00981282acc405b944d0b913960fca1`:
 
 - source kind: `INSPECTED_M5_DEVELOPMENT_CORPUS`;
 - materialization ID: `m5corpusmat_25007f47e456b5f2d42ef16b`;
@@ -44,24 +45,27 @@ On production build `9b2d31efd00981282acc405b944d0b913960fca1`:
 - verification authority: false;
 - D1/Frozen OOS/live: closed/closed/locked.
 
+Require a successful exact-production proof for the final merged main build before campaign invocation.
+
 ## Strategy Factory v2 state
 
 - raw cap 500; exact pilot catalog 406; per-family cap 64; survivor cap 30;
 - 8 existing causal strategy families;
-- common causal evaluator and fees/slippage semantics;
+- common causal evaluator with fees/slippage;
 - immutable campaign/candidate/trial ledger;
 - resume reuses terminal trials without re-evaluation;
-- temporal-gap warmup protection is active;
-- production D0 data source is proven;
-- all-strata campaign orchestration is merged;
-- actual clean-checkout source provenance binding is merged;
+- temporal-gap warmup protection active;
+- production D0 source proven;
+- all-strata campaign orchestration merged;
+- actual clean-checkout provenance binding merged;
+- automatic-update checkout race guarded in merged code;
 - D1 remains sealed and no survivor freeze has occurred.
 
 ## Research status and hard locks
 
 There is still no verified profitable strategy. SF1, SF2 and SF3 closed with zero promoted candidates. D0 discovery ranking is not verification.
 
-SF4 keeps exact `s3_vsm_s150` and `s3_cex_s075` parameters frozen for prospective replication using only `2026-09-01T00:00:00Z` through `2026-09-13T00:00:00Z`. Evaluation before the declared end time is fail-closed. SF3 evidence cannot be pooled into the replication result.
+SF4 keeps exact `s3_vsm_s150` and `s3_cex_s075` parameters frozen for prospective replication using only `2026-09-01T00:00:00Z` through `2026-09-13T00:00:00Z`. Evaluation before `2026-09-13T00:00:00Z` is fail-closed. SF3 evidence cannot be pooled into the replication result.
 
 Hard locks:
 
@@ -76,11 +80,11 @@ Hard locks:
 
 ## Next exact task
 
-1. Confirm exact production proof for the latest merged source-provenance hardening.
-2. Design the minimum production-safe campaign execution path: pin one exact clean build and prevent `eba-auto-update` from changing the checkout while campaign execution is active. Do not add a public unauthenticated trigger.
-3. Prove the concurrency/update guard with tests before starting 406×12 D0 execution.
-4. Run/resume the exact pilot only after that proof; never rank incomplete candidates.
-5. Then aggregate selection-only metrics and behavioral fingerprints, deduplicate behavior, and continue only under the existing D0 diversity/racing contract.
+1. Confirm exact production proof for the final merged main build containing PR #112 and this continuity reconciliation.
+2. When an authorized Linode shell path is available, invoke only `scripts/run_sfv2_d0_pilot_production_once.sh`; do not create an unauthenticated public trigger as an access workaround.
+3. Run/resume the exact 406 candidates across all 12 D0 strata while the shared checkout lock is held.
+4. Never rank incomplete candidates; aggregate selection-only economics/activity/cost/drawdown/benchmark metrics only after terminal all-strata coverage.
+5. Behavioral-deduplicate while preserving raw candidate, unique-spec, cluster and family counts, then continue only under the existing D0 diversity/racing contract.
 6. Keep D1, Frozen OOS, SF4 pre-unlock evaluation and real-money execution closed.
 
 ## Startup rule

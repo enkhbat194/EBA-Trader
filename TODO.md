@@ -5,7 +5,7 @@ Actual merged code, exact production evidence and latest explicit decisions over
 ## DONE — Repository/runtime and research foundation
 
 - [x] Canonical GitHub `main` + Linode production path.
-- [x] Production HTTPS/PWA/runtime proof and auto-update path.
+- [x] Production HTTPS/PWA/runtime proof and five-minute auto-update path.
 - [x] Keep real-money execution locked.
 - [x] Seal M5 development and Frozen OOS boundaries.
 - [x] Close SF1, SF2 and SF3 with zero verified/promoted candidates.
@@ -24,10 +24,12 @@ Actual merged code, exact production evidence and latest explicit decisions over
 - [x] Prove production D0 source: 2,880 rows, 12 windows/strata, `DISCOVERY_ONLY`, inspected reusable evidence only.
 - [x] Merge PR #109: resume-safe all-strata D0 campaign orchestration.
 - [x] Merge PR #110: derive campaign source SHA from the actual clean checkout and fail closed on dirty/mismatched source provenance.
+- [x] Merge PR #112: shared `flock` checkout guard between the five-minute updater and operator-only D0 production wrapper.
+- [x] Keep campaign invocation non-public and non-automatic.
 
 ## EXACT D0 EVIDENCE
 
-Latest proved campaign-capable production baseline before PR #110 was `9b2d31efd00981282acc405b944d0b913960fca1` with:
+Latest completed exact production D0 proof before the current deployment cycle was `9b2d31efd00981282acc405b944d0b913960fca1` with:
 
 - [x] declaration SHA `88365779d6821c1fb30372148bbcedbfadf11471843f57722723286a43cbc77c`;
 - [x] dataset SHA `aa13bcfc111c00f6da19621353a3ca8044f58eca1ab95e837d9490a205aa72eb`;
@@ -43,18 +45,16 @@ Latest proved campaign-capable production baseline before PR #110 was `9b2d31efd
 - [x] Lock evaluation before `2026-09-13T00:00:00Z`.
 - [ ] After the declared end time, evaluate the two frozen hypotheses on new data only.
 
-## NOW — safe production D0 execution path
+## NOW — final production proof and D0 invocation
 
-- [ ] Confirm exact-build production proof for the latest merged provenance hardening.
-- [ ] Add exact-build pinning/concurrency protection so the five-minute auto-updater cannot mutate the checkout while a D0 campaign process is active.
-- [ ] Do not expose a public unauthenticated campaign trigger.
+- [ ] Confirm exact-build production proof for the final merged main containing PR #112.
+- [ ] When an authorized Linode shell path is available, invoke only `scripts/run_sfv2_d0_pilot_production_once.sh`.
+- [ ] Do not add an unauthenticated public trigger merely to bypass shell-access limitations.
 - [ ] Keep the execution mechanism `DISCOVERY_ONLY`; it must not open D1, lifecycle promotion, Frozen OOS, demo authority or live execution.
 
 ## NEXT — bounded D0 pilot
 
-Only after the production execution guard is proven:
-
-- [ ] Run/resume the exact 406 candidates across all 12 declared D0 strata.
+- [ ] Run/resume the exact 406 candidates across all 12 declared D0 strata while the checkout lock is held.
 - [ ] Account for every performance-inspected candidate in the immutable trial ledger.
 - [ ] Never rank incomplete candidates.
 - [ ] Build selection-only aggregate metrics after terminal required-stratum coverage.
@@ -89,7 +89,7 @@ Only after the production execution guard is proven:
 
 ## BLOCKED / GATED
 
-- [ ] Production 406-candidate D0 execution — blocked until exact-build production proof + updater/concurrency guard.
+- [ ] Production 406-candidate D0 invocation — operator-only production shell action is not exposed through the currently connected project tools; do not weaken access controls to work around this.
 - [ ] Factory v2 D1 hidden confirmation — blocked until D0 survivor freeze + separate authorization.
 - [ ] SF4 evaluation before `2026-09-13T00:00:00Z` — intentionally fail-closed.
 - [ ] M5 Frozen OOS — sealed until strict prerequisites pass.
