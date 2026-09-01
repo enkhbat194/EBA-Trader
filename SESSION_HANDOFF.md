@@ -21,7 +21,7 @@ Exact-current-build D0 production proof for `81e30bda98ce1709277c0ccfee91be8977f
 
 The production 406-candidate × 12-strata campaign has **not** been executed. No survivor selection has been frozen. D1 remains sealed. No public/automatic campaign trigger was added.
 
-## Work completed in the latest engineering run
+## What was completed in the latest engineering run
 
 1. Re-read current GitHub `main`, production evidence and every required canonical document before making changes.
 2. Reconciled stale prose against merged PR #121/#122 and exact production proof rather than trusting the stale handoff.
