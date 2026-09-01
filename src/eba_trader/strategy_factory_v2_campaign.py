@@ -193,7 +193,11 @@ def freeze_d0_pilot_survivors(
         raise ValueError("survivor freeze requires the frozen Strategy Factory v2 pilot campaign")
     if campaign_run.authority != PILOT_AUTHORITY:
         raise ValueError("survivor freeze must remain DISCOVERY_ONLY")
-    if campaign_run.d1_opened or campaign_run.frozen_oos_opened or campaign_run.live_execution_allowed:
+    if (
+        campaign_run.d1_opened
+        or campaign_run.frozen_oos_opened
+        or campaign_run.live_execution_allowed
+    ):
         raise RuntimeError("survivor freeze cannot run with downstream authority already open")
     if campaign_run.stopped_for_compute_budget:
         raise RuntimeError("survivor freeze requires a completed D0 campaign pass")
@@ -231,14 +235,18 @@ def freeze_d0_pilot_survivors(
         if item is None:
             raise KeyError(f"survivor candidate missing from frozen D0 report: {candidate_id}")
         if not item.complete or item.rejected or item.behavior is None:
-            raise RuntimeError("survivor candidate is not complete behaviorally eligible D0 evidence")
+            raise RuntimeError(
+                "survivor candidate is not complete behaviorally eligible D0 evidence"
+            )
         if item.stratum_count != len(expected_strata):
             raise RuntimeError("survivor candidate does not cover every expected D0 stratum")
         cluster_id = cluster_by_candidate.get(candidate_id)
         if cluster_id is None:
             raise RuntimeError("survivor candidate is missing from behavioral cluster accounting")
         if cluster_id in selected_clusters:
-            raise RuntimeError("survivor selection cannot take multiple candidates from one cluster")
+            raise RuntimeError(
+                "survivor selection cannot take multiple candidates from one cluster"
+            )
         selected_clusters.add(cluster_id)
 
     frozen_definition = {
