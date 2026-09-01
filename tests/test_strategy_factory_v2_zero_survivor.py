@@ -151,7 +151,10 @@ def test_factory_can_freeze_zero_survivors_as_immutable_negative_outcome(tmp_pat
 def test_factory_zero_survivor_freeze_rejects_wrong_stratum_dataset_sha(tmp_path):
     ledger, run, _ = _complete_factory_ledger(tmp_path, wrong_dataset=True)
 
-    with pytest.raises(RuntimeError, match="D0 trial dataset SHA does not match registered stratum"):
+    with pytest.raises(
+        RuntimeError,
+        match="D0 trial dataset SHA does not match registered stratum",
+    ):
         campaign.freeze_d0_pilot_survivors(
             ledger=ledger,
             campaign_run=run,
