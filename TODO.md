@@ -1,6 +1,6 @@
 # EBA Trader — TODO
 
-Actual merged code, exact production evidence and latest explicit decisions override stale prose. Query `main`, open PRs and workflows before continuing. Latest code-bearing research baseline reconciled here: `81e30bda98ce1709277c0ccfee91be8977f52720` (PR #124).
+Actual merged code, exact production evidence and latest explicit decisions override stale prose. Query `main`, open PRs and workflows before continuing. Latest code-bearing research baseline reconciled here: `48bdb0fa95cb6b1ae6a32e3ff6c9cf519fba68c3` (PR #127).
 
 ## DONE — repository/runtime and research foundation
 
@@ -29,11 +29,12 @@ Actual merged code, exact production evidence and latest explicit decisions over
 - [x] PR #121: Factory-specific survivor-freeze completeness/diversity boundary.
 - [x] PR #122: rebuild survivor eligibility from immutable campaign/candidate/trial ledger; require terminal full-catalog D0 coverage.
 - [x] PR #124: allow an immutable zero-survivor negative outcome after the same full-catalog prerequisite; forbid later rewrite into a winner.
+- [x] PR #127 / issue #126: freeze exact `stratum_id -> materialized dataset_sha256` in campaign registration and require every candidate/stratum D0 trial to match it before either non-empty or zero-survivor freeze.
 - [x] Keep campaign invocation non-public and non-automatic.
 
 ## EXACT D0 EVIDENCE
 
-Latest exact production D0 source proof: build `81e30bda98ce1709277c0ccfee91be8977f52720`, Actions run `33485440135`, verify job `99784309005`, completed successfully.
+Latest exact production D0 source proof: merged PR #127 build `48bdb0fa95cb6b1ae6a32e3ff6c9cf519fba68c3`, Actions run `33498788797`, verify job `99827022315`, completed successfully.
 
 - [x] exact-build wait succeeded;
 - [x] existing-only D0 inspection succeeded;
@@ -46,7 +47,7 @@ Latest exact production D0 source proof: build `81e30bda98ce1709277c0ccfee91be89
 - [x] fresh-confirmation evidence false; verification authority false;
 - [x] D1/Frozen OOS/live closed/closed/locked.
 
-This is a source/readiness proof only. The 406×12 campaign has not run.
+This is source/readiness evidence only. The 406×12 campaign has not run.
 
 ## ACTIVE — SF4 prospective replication
 
@@ -61,9 +62,11 @@ This is a source/readiness proof only. The 406×12 campaign has not run.
 
 - [x] Factory freeze reconstructs evidence from immutable ledger state.
 - [x] Full declared catalog must be terminal across exact registered D0 strata.
+- [x] Campaign registration freezes the exact materialized dataset SHA for every declared D0 stratum before trial execution.
+- [x] Freeze rejects missing, duplicate, unexpected-stratum or SHA-mismatched low-fidelity candidate/stratum trial provenance.
 - [x] Non-empty survivors must be complete, non-rejected, behaviorally eligible and cluster-diverse.
-- [x] Frozen selection binds source SHA, D0 declaration/dataset, expected strata and fixed 0.90 threshold.
-- [x] Empty survivor set is valid after all completeness checks and is persisted immutably as a negative discovery outcome.
+- [x] Frozen selection binds source SHA, parent D0 declaration/dataset, exact stratum dataset SHAs, expected strata and fixed 0.90 threshold.
+- [x] Empty survivor set is valid only after the same completeness and exact-stratum-provenance checks and is persisted immutably as a negative discovery outcome.
 - [x] Existing empty outcome cannot later be rewritten to a non-empty winner under the same campaign.
 - [x] Survivor freeze keeps D1, Frozen OOS and live authority false.
 

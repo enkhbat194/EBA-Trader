@@ -2,7 +2,7 @@
 
 _Last reconciled: 2026-09-01 (Asia/Ulaanbaatar)_
 
-Actual merged code, exact-build production evidence and latest explicit decision documents override stale prose. Query GitHub for the live head before editing. The latest code-bearing research baseline reconciled here is `81e30bda98ce1709277c0ccfee91be8977f52720` (PR #124).
+Actual merged code, exact-build production evidence and latest explicit decision documents override stale prose. Query GitHub for the live head before editing. The latest code-bearing research baseline reconciled here is `48bdb0fa95cb6b1ae6a32e3ff6c9cf519fba68c3` (PR #127).
 
 ## Current goal
 
@@ -12,7 +12,7 @@ Build a research-first autonomous trading system that discovers genuinely repeat
 
 - Repository: `enkhbat194/EBA-Trader`.
 - Production URL: `https://eba-trader-172-236-150-62.sslip.io`.
-- Latest code-bearing research baseline: `81e30bda98ce1709277c0ccfee91be8977f52720` (PR #124).
+- Latest code-bearing research baseline: `48bdb0fa95cb6b1ae6a32e3ff6c9cf519fba68c3` (PR #127).
 - Strategy Factory v2 remains the existing 8-family / deterministic 406-candidate pilot under a 500 raw-candidate hard cap and 30 survivor cap.
 - PR #109 added resume-safe all-strata D0 campaign orchestration.
 - PR #110 bound campaign source provenance to the actual clean checkout.
@@ -22,7 +22,8 @@ Build a research-first autonomous trading system that discovers genuinely repeat
 - PR #119 fails closed on missing/non-finite D0 selection metrics.
 - PR #121 added the Factory-specific survivor-freeze completeness/diversity boundary.
 - PR #122 rebuilt survivor eligibility from immutable registered campaign/candidate/trial-ledger evidence and requires terminal full-catalog D0 coverage before selection write.
-- PR #124 makes the already-declared `zero survivors is valid` rule executable: after the same full-catalog terminal checks, an empty survivor set can be frozen as an immutable negative D0 outcome and cannot later be rewritten into a winner.
+- PR #124 makes the already-declared `zero survivors is valid` rule executable after the same full-catalog terminal checks.
+- PR #127 closes issue #126 by binding every declared D0 stratum to its exact materialized dataset SHA in the immutable campaign definition, checking candidate/stratum trial SHAs from the ledger at survivor-freeze time, and carrying the same mapping into non-empty and zero-survivor frozen outcomes.
 - No public or automatic production campaign trigger was added.
 - The production 406-candidate × 12-strata campaign has **not** been executed yet.
 - No empirical survivor/cluster result exists yet and no survivor selection has been frozen.
@@ -32,7 +33,7 @@ Build a research-first autonomous trading system that discovers genuinely repeat
 
 ## Exact production D0 evidence
 
-Latest completed exact production D0 proof is build `81e30bda98ce1709277c0ccfee91be8977f52720`, GitHub Actions run `33485440135`, verify job `99784309005`. The exact-build wait and existing-only D0 source inspection both completed successfully.
+Latest completed exact production D0 proof is merged PR #127 build `48bdb0fa95cb6b1ae6a32e3ff6c9cf519fba68c3`, GitHub Actions run `33498788797`, verify job `99827022315`. The exact-build wait and existing-only D0 source inspection both completed successfully.
 
 Canonical existing D0 source:
 
@@ -60,7 +61,7 @@ This proof validates the existing D0 source and exact production build. It is **
 
 The exact `s3_vsm_s150` and `s3_cex_s075` hypotheses remain frozen. Replication uses only new BTCUSDT USD-M data from `2026-09-01T00:00:00Z` through `2026-09-13T00:00:00Z`. Evaluation remains fail-closed before `2026-09-13T00:00:00Z`; parameters may not be retuned and SF3 evidence may not be pooled into SF4 qualification. The conservative 48-test search budget remains carried forward.
 
-No SF4 replication data was inspected or evaluated during the PR #124 work.
+No SF4 replication data was inspected or evaluated during the PR #127 work.
 
 ## Strategy Factory v2 state
 
@@ -76,16 +77,18 @@ No SF4 replication data was inspected or evaluated during the PR #124 work.
 - Incomplete/rejected/schema-invalid candidates cannot expose aggregate selection economics or enter behavioral eligibility.
 - Authorized Factory survivor freeze is `freeze_d0_pilot_survivors()`; the generic ledger freeze is not the sanctioned Factory path.
 - Freeze-time eligibility is reconstructed from immutable ledger evidence; caller-supplied report/accounting is not trusted.
-- The full declared candidate catalog must be terminal over the exact registered D0 strata before any survivor outcome is frozen.
+- Campaign registration now freezes an exact `stratum_id -> materialized dataset_sha256` mapping before trial execution.
+- The full declared candidate catalog must be terminal over the exact registered D0 strata, and every low-fidelity candidate/stratum trial must match the registered stratum dataset SHA before any survivor outcome is frozen.
+- Missing, duplicate, unexpected-stratum or dataset-SHA-mismatched D0 trial provenance fails closed.
 - Non-empty selections must be complete, non-rejected, behaviorally eligible and one-per-behavioral-cluster.
-- An empty selection is a valid immutable negative discovery outcome after the same full-catalog prerequisite. It cannot later be changed into a non-empty selection under the same campaign.
+- An empty selection is a valid immutable negative discovery outcome after the same full-catalog and exact-stratum-provenance prerequisite. It cannot later be changed into a non-empty selection under the same campaign.
 - Survivor freeze itself leaves D1, Frozen OOS and live authority false.
 
 ## Validation status
 
 There is still **no verified profitable strategy**. SF1, SF2 and SF3 closed with zero promoted candidates. SF4 is prospective replication only. Factory v2 D0 ranking, clustering, survivor selection or a zero-survivor outcome has discovery authority only.
 
-Historical SF2/SF3 strict reference gates remain unchanged: positive mean return and expectancy, at least 30 trades, cross-window performance, positive baseline delta and corrected significance. Factory D0 does not satisfy those gates and no gate was lowered in PR #124.
+Historical SF2/SF3 strict reference gates remain unchanged: positive mean return and expectancy, at least 30 trades, cross-window performance, positive baseline delta and corrected significance. Factory D0 does not satisfy those gates and no gate was lowered in PR #127.
 
 ## Safety invariants
 

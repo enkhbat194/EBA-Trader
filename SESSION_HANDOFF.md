@@ -8,40 +8,39 @@ Repository: `enkhbat194/EBA-Trader`.
 
 Actual GitHub head must always be queried at startup because documentation-only commits can advance `main`. Latest code-bearing research baseline reconciled here:
 
-`81e30bda98ce1709277c0ccfee91be8977f52720` — PR #124.
+`48bdb0fa95cb6b1ae6a32e3ff6c9cf519fba68c3` — PR #127.
 
-PR #109, #110, #112, #115, #117, #119, #121, #122 and #124 are merged. The most recent integrity sequence is:
+PR #109, #110, #112, #115, #117, #119, #121, #122, #124 and #127 are merged. The most recent integrity sequence is:
 
 - PR #119: complete non-rejected D0 candidates require the full fixed finite selection metric schema on every stratum;
 - PR #121: Factory-specific survivor-freeze completeness/diversity boundary;
 - PR #122: survivor eligibility rebuilt from immutable campaign/candidate/trial-ledger evidence; full declared catalog must be terminal across the exact registered D0 strata;
-- PR #124: the canonical `zero survivors is valid` rule is now executable and immutable, so the system never needs to manufacture a survivor merely to produce a non-empty result.
+- PR #124: the canonical `zero survivors is valid` rule is executable and immutable;
+- PR #127: closes issue #126 by freezing an exact `stratum_id -> materialized dataset_sha256` mapping in the immutable campaign registration and validating every low-fidelity candidate/stratum trial against that mapping before either non-empty or zero-survivor freeze.
 
-Exact-current-build D0 production proof for `81e30bda98ce1709277c0ccfee91be8977f52720` completed successfully in Actions run `33485440135`, verify job `99784309005`; exact-build wait and existing-only D0 inspection both succeeded.
+Exact-current-build D0 production proof for `48bdb0fa95cb6b1ae6a32e3ff6c9cf519fba68c3` completed successfully in Actions run `33498788797`, verify job `99827022315`; exact-build wait and existing-only D0 inspection both succeeded.
 
 The production 406-candidate × 12-strata campaign has **not** been executed. No survivor selection has been frozen. D1 remains sealed. No public/automatic campaign trigger was added.
 
 ## What was completed in the latest engineering run
 
 1. Re-read current GitHub `main`, production evidence and every required canonical document before making changes.
-2. Reconciled stale prose against merged PR #121/#122 and exact production proof rather than trusting the stale handoff.
-3. Audited PR #122 at code level and confirmed survivor freeze is ledger-backed, full-catalog terminal, provenance-bound, cluster-diverse and downstream-authority false.
-4. Found a real contract mismatch: canonical Factory v2 explicitly said `zero survivors is valid`, but `freeze_d0_pilot_survivors()` rejected an empty candidate set.
-5. Implemented the minimum Factory-specific fix rather than broadening unrelated generic discovery semantics.
-6. Added immutable empty-selection persistence only after the same registered-campaign, exact-strata, source/dataset identity and full-catalog terminality checks.
-7. Added regression coverage proving an empty outcome is persisted with `DISCOVERY_ONLY` authority and D1/Frozen OOS/live false, and cannot later be rewritten as a non-empty survivor selection.
-8. Initial PR #124 functional regression suite passed; CI found only Ruff import-order formatting. No gate was bypassed.
-9. Fixed only the import order and reran exact-head CI.
-10. Final PR #124 head `9812ed9ab60a39b14e1d0b81f0f333bfad3a8fb9` passed the four required PR checks: production bundle/validate, runtime checks, repository hygiene and continuity guard.
-11. PR #124 was squash-merged with expected-head SHA guard to code-bearing main `81e30bda98ce1709277c0ccfee91be8977f52720`.
-12. Exact merged-build D0 production proof run `33485440135`, verify job `99784309005`, completed successfully.
-13. Re-audited the fix after merge: zero-survivor persistence still requires complete immutable D0 evidence and cannot grant D1/Frozen OOS/live authority.
-14. Preserved the operator-only production campaign invocation boundary; no public workaround was introduced.
-15. No SF4 replication data was inspected, evaluated or retuned.
+2. Confirmed current main and production evidence still had D1/Frozen OOS/live closed and the production 406×12 campaign unrun.
+3. Revalidated issue #126 as a real freeze-boundary provenance defect: a correct `d0-low-v1:<stratum>` fidelity label did not prove the trial used the exact materialized dataset for that stratum.
+4. Implemented the minimum fix in `strategy_factory_v2_campaign.py`: materialize strata before immutable campaign registration and bind exact per-stratum dataset SHAs.
+5. Added freeze-time ledger reconstruction requiring the full candidate × registered-stratum trial matrix, with fail-closed rejection for missing, duplicate, unexpected-stratum or dataset-SHA-mismatched low-fidelity evidence.
+6. Bound the same exact stratum-SHA map into both non-empty and zero-survivor frozen definitions.
+7. Added regression coverage for successful exact provenance and for wrong-SHA rejection on both non-empty and zero-survivor paths.
+8. Initial functional regression suite passed; CI exposed only Ruff line-length failures. Those formatting-only failures were fixed without changing research logic.
+9. Final PR #127 head `3ffe788f8930e075a3073d9195cf1ea265ecf323` passed the four required PR workflows: runtime checks, production bundle/full regression + Ruff, repository hygiene and continuity guard.
+10. PR #127 was squash-merged with an exact expected-head SHA guard to code-bearing main `48bdb0fa95cb6b1ae6a32e3ff6c9cf519fba68c3`; issue #126 closed as completed.
+11. Exact merged-build D0 production proof run `33498788797`, verify job `99827022315`, completed successfully.
+12. No SF4 replication data was inspected, evaluated or retuned.
+13. No candidate family, catalog size, 500 cap, 0.90 behavioral threshold, selection economics, D1 policy, Frozen OOS policy or live-execution authority changed.
 
 ## Exact completed D0 proof baseline
 
-Build `81e30bda98ce1709277c0ccfee91be8977f52720`, Actions run `33485440135`, verify job `99784309005`:
+Build `48bdb0fa95cb6b1ae6a32e3ff6c9cf519fba68c3`, Actions run `33498788797`, verify job `99827022315`:
 
 - source kind: `INSPECTED_M5_DEVELOPMENT_CORPUS`;
 - materialization ID: `m5corpusmat_25007f47e456b5f2d42ef16b`;
@@ -73,9 +72,11 @@ This proof validates exact build + existing D0 source readiness only. It is not 
 - incomplete/rejected/schema-invalid candidates cannot expose aggregate selection economics or enter behavioral eligibility;
 - authorized survivor freeze is `freeze_d0_pilot_survivors()`;
 - freeze-time evidence is rebuilt from immutable registered campaign + declared candidate + trial ledger;
-- full declared catalog must be terminal across exact expected D0 strata before any survivor outcome is written;
+- campaign registration freezes exact materialized dataset SHA per declared D0 stratum;
+- full declared catalog must be terminal across exact expected D0 strata and every low-fidelity candidate/stratum trial must match its registered stratum dataset SHA before any survivor outcome is written;
+- missing/duplicate/unexpected/SHA-mismatched low-fidelity trial provenance fails closed;
 - non-empty survivors must be complete, non-rejected, behaviorally eligible and one-per-cluster;
-- empty survivor outcome is valid after the same completeness checks and is immutable;
+- empty survivor outcome is valid only after the same completeness and exact-stratum-provenance checks and is immutable;
 - frozen selection keeps D1/Frozen OOS/live false;
 - no empirical cluster/survivor counts exist until production campaign execution.
 
