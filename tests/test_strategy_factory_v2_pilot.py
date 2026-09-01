@@ -29,6 +29,29 @@ def _candles(count: int = 24) -> tuple[Candle, ...]:
     return tuple(output)
 
 
+def _gapped_candles() -> tuple[Candle, ...]:
+    first = _candles(6)
+    output = list(first)
+    second_start = first[-1].close_time_ms + 1 + 3 * 24 * 60 * 60 * 1000
+    for index in range(6):
+        open_time = second_start + index * 60_000
+        price = 200.0 + index
+        output.append(
+            Candle(
+                open_time_ms=open_time,
+                open=price,
+                high=price + 1.0,
+                low=price - 1.0,
+                close=price + 0.25,
+                volume=20.0 + index,
+                close_time_ms=open_time + 59_999,
+                quote_volume=2000.0 + index,
+                trade_count=30 + index,
+            )
+        )
+    return tuple(output)
+
+
 def _behavior(seed: int) -> dict[str, object]:
     return {
         "signal_keys": [f"{seed:013d}:+1"],
@@ -94,6 +117,28 @@ def test_materialized_strata_cover_declared_d0_and_keep_warmup_context_only() ->
     assert all(item.dataset.trade_start_time_ms == item.stratum.start_ms for item in strata)
     assert len({item.dataset_sha256 for item in strata}) == 4
     assert all(item.parent_dataset_sha256 == manifest.dataset_sha256 for item in strata)
+
+
+def test_materialized_strata_never_bridge_multi_day_source_gap_for_warmup() -> None:
+    candles = _gapped_candles()
+    manifest = build_d0_dataset_manifest(
+        symbol="BTCUSDT",
+        venue="usd_m_futures",
+        interval="1m",
+        candles=candles,
+        temporal_strata=2,
+    )
+
+    strata = materialize_low_fidelity_strata(
+        manifest=manifest,
+        candles=candles,
+        warmup_bars=3,
+    )
+
+    second = strata[1]
+    assert second.stratum.start_index == 6
+    assert second.warmup_start_index == second.stratum.start_index
+    assert second.dataset.candles[0].open_time_ms == second.stratum.start_ms
 
 
 def test_materialization_rejects_manifest_content_mismatch() -> None:
