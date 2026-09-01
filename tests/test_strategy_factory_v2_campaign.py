@@ -130,3 +130,138 @@ def test_clean_checkout_sha_rejects_expected_mismatch(monkeypatch):
 
     with pytest.raises(RuntimeError, match="source checkout mismatch"):
         campaign._clean_checkout_sha(expected_source_code_sha="b" * 40)
+
+
+class _FreezeLedger:
+    def __init__(self):
+        self.calls = []
+
+    def freeze_survivor_selection(self, **kwargs):
+        self.calls.append(kwargs)
+        return "dsel_test"
+
+
+def _freeze_run(*, candidate_rows, clusters, stopped=False):
+    report = SimpleNamespace(
+        expected_strata=("d0s_00", "d0s_01"),
+        candidates=tuple(candidate_rows),
+    )
+    accounting = SimpleNamespace(
+        clusters=tuple(clusters),
+        authority="DISCOVERY_ONLY",
+    )
+    return SimpleNamespace(
+        campaign_id=campaign.PILOT_CAMPAIGN_ID,
+        source_code_sha="1" * 40,
+        d0_declaration_sha256="a" * 64,
+        d0_dataset_sha256="d" * 64,
+        candidate_count=len(candidate_rows),
+        stratum_count=2,
+        stopped_for_compute_budget=stopped,
+        report=report,
+        accounting=accounting,
+        authority="DISCOVERY_ONLY",
+        d1_opened=False,
+        frozen_oos_opened=False,
+        live_execution_allowed=False,
+    )
+
+
+def _eligible_candidate(candidate_id, *, complete=True, rejected=False, stratum_count=2):
+    return SimpleNamespace(
+        candidate_id=candidate_id,
+        complete=complete,
+        rejected=rejected,
+        stratum_count=stratum_count,
+        behavior=object() if complete and not rejected else None,
+    )
+
+
+def test_survivor_freeze_binds_complete_d0_evidence_and_keeps_d1_closed():
+    ledger = _FreezeLedger()
+    run = _freeze_run(
+        candidate_rows=[_eligible_candidate("a"), _eligible_candidate("b")],
+        clusters=[
+            SimpleNamespace(representative_candidate_id="a", member_candidate_ids=("a",)),
+            SimpleNamespace(representative_candidate_id="b", member_candidate_ids=("b",)),
+        ],
+    )
+
+    selection_id = campaign.freeze_d0_pilot_survivors(
+        ledger=ledger,
+        campaign_run=run,
+        candidate_ids=("a", "b"),
+        selection_definition={"ranking_schema": "frozen-test-v1"},
+    )
+
+    assert selection_id == "dsel_test"
+    assert len(ledger.calls) == 1
+    call = ledger.calls[0]
+    assert call["campaign_id"] == campaign.PILOT_CAMPAIGN_ID
+    assert call["candidate_ids"] == ("a", "b")
+    definition = call["definition"]
+    assert definition["schema"] == campaign.SURVIVOR_SELECTION_SCHEMA
+    assert definition["expected_strata"] == ["d0s_00", "d0s_01"]
+    assert definition["d1_opened"] is False
+    assert definition["frozen_oos_opened"] is False
+    assert definition["live_execution_allowed"] is False
+
+
+def test_survivor_freeze_rejects_incomplete_candidate_before_ledger_write():
+    ledger = _FreezeLedger()
+    run = _freeze_run(
+        candidate_rows=[_eligible_candidate("a", complete=False, stratum_count=1)],
+        clusters=[],
+    )
+
+    with pytest.raises(RuntimeError, match="not complete behaviorally eligible"):
+        campaign.freeze_d0_pilot_survivors(
+            ledger=ledger,
+            campaign_run=run,
+            candidate_ids=("a",),
+            selection_definition={"ranking_schema": "frozen-test-v1"},
+        )
+
+    assert ledger.calls == []
+
+
+def test_survivor_freeze_rejects_multiple_candidates_from_same_behavioral_cluster():
+    ledger = _FreezeLedger()
+    run = _freeze_run(
+        candidate_rows=[_eligible_candidate("a"), _eligible_candidate("b")],
+        clusters=[
+            SimpleNamespace(
+                representative_candidate_id="a",
+                member_candidate_ids=("a", "b"),
+            )
+        ],
+    )
+
+    with pytest.raises(RuntimeError, match="multiple candidates from one cluster"):
+        campaign.freeze_d0_pilot_survivors(
+            ledger=ledger,
+            campaign_run=run,
+            candidate_ids=("a", "b"),
+            selection_definition={"ranking_schema": "frozen-test-v1"},
+        )
+
+    assert ledger.calls == []
+
+
+def test_survivor_freeze_rejects_compute_budget_stopped_campaign():
+    ledger = _FreezeLedger()
+    run = _freeze_run(
+        candidate_rows=[_eligible_candidate("a")],
+        clusters=[SimpleNamespace(representative_candidate_id="a", member_candidate_ids=("a",))],
+        stopped=True,
+    )
+
+    with pytest.raises(RuntimeError, match="completed D0 campaign pass"):
+        campaign.freeze_d0_pilot_survivors(
+            ledger=ledger,
+            campaign_run=run,
+            candidate_ids=("a",),
+            selection_definition={"ranking_schema": "frozen-test-v1"},
+        )
+
+    assert ledger.calls == []
