@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 from eba_trader.production_proof import read_production_proof
 
@@ -9,7 +10,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_missing_proof_is_explicitly_unavailable(tmp_path: Path) -> None:
-    result = read_production_proof(tmp_path / "missing.json")
+    d0_root = tmp_path / "missing-d0"
+    result = read_production_proof(
+        tmp_path / "missing.json",
+        d0_dataset_root=d0_root,
+    )
 
     assert result["ok"] is True
     assert result["available"] is False
@@ -17,6 +22,12 @@ def test_missing_proof_is_explicitly_unavailable(tmp_path: Path) -> None:
     assert result["productionSmokePassed"] is False
     assert result["m5Robustness"]["phase"] == "WAITING"
     assert result["demoExecution"]["phase"] == "NOT_RUN"
+    assert result["d0Source"]["available"] is False
+    assert result["d0Source"]["freshConfirmationEvidence"] is False
+    assert result["d0Source"]["verificationAuthority"] is False
+    assert result["d0Source"]["frozenOosOpened"] is False
+    assert result["d0Source"]["liveExecutionAllowed"] is False
+    assert not d0_root.exists()
     assert result["liveExecutionAllowed"] is False
 
 
@@ -41,7 +52,7 @@ def test_reader_strips_secrets_and_session_tokens_but_keeps_masked_key(tmp_path:
         encoding="utf-8",
     )
 
-    result = read_production_proof(path)
+    result = read_production_proof(path, d0_dataset_root=tmp_path / "missing-d0")
 
     assert result["available"] is True
     assert result["productionSmokePassed"] is True
@@ -92,6 +103,7 @@ def test_reader_merges_and_sanitizes_robustness_and_demo_sidecars(tmp_path: Path
         proof_path,
         m5_robustness_path=robustness_path,
         demo_execution_path=demo_path,
+        d0_dataset_root=tmp_path / "missing-d0",
     )
 
     assert result["m5Robustness"]["phase"] == "COMPLETE"
@@ -101,6 +113,64 @@ def test_reader_merges_and_sanitizes_robustness_and_demo_sidecars(tmp_path: Path
     assert result["demoExecution"]["orderAckLatencyMs"] == 120
     assert "sessionToken" not in result["demoExecution"]
     assert result["liveExecutionAllowed"] is False
+
+
+def test_reader_exposes_only_safe_existing_d0_identity(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    proof_path = tmp_path / "proof.json"
+    proof_path.write_text(
+        json.dumps({"schemaVersion": 1, "localContractPassed": True}),
+        encoding="utf-8",
+    )
+    manifest = SimpleNamespace(
+        authority="DISCOVERY_ONLY",
+        provenance_class="INSPECTED_REUSABLE_DISCOVERY_DATA",
+        dataset_sha256="d" * 64,
+        candle_sha256="c" * 64,
+        orderflow_sha256="o" * 64,
+        row_count=2880,
+        temporal_strata=tuple(range(12)),
+    )
+    declaration = SimpleNamespace(
+        authority="DISCOVERY_ONLY",
+        provenance_class="INSPECTED_REUSABLE_DISCOVERY_DATA",
+        source_kind="INSPECTED_M5_DEVELOPMENT_CORPUS",
+        source_materialization_id="m5corpusmat_test",
+        source_policy_id="policy-test",
+        source_corpus_id="corpus-test",
+        declaration_sha256="a" * 64,
+        manifest=manifest,
+    )
+    materialization = SimpleNamespace(
+        materialization_id="m5corpusmat_test",
+        windows=tuple(range(12)),
+    )
+    monkeypatch.setattr(
+        "eba_trader.production_proof.load_existing_d0_from_inspected_m5",
+        lambda **_: (declaration, tuple(range(2880)), materialization),
+    )
+
+    result = read_production_proof(proof_path, d0_dataset_root=tmp_path)
+    source = result["d0Source"]
+
+    assert source["available"] is True
+    assert source["valid"] is True
+    assert source["authority"] == "DISCOVERY_ONLY"
+    assert source["provenanceClass"] == "INSPECTED_REUSABLE_DISCOVERY_DATA"
+    assert source["sourceKind"] == "INSPECTED_M5_DEVELOPMENT_CORPUS"
+    assert source["materializationId"] == "m5corpusmat_test"
+    assert source["declarationSha256"] == "a" * 64
+    assert source["datasetSha256"] == "d" * 64
+    assert source["rowCount"] == 2880
+    assert source["stratumCount"] == 12
+    assert source["windowCount"] == 12
+    assert source["freshConfirmationEvidence"] is False
+    assert source["verificationAuthority"] is False
+    assert source["d1Opened"] is False
+    assert source["frozenOosOpened"] is False
+    assert source["liveExecutionAllowed"] is False
 
 
 def test_linode_deploy_collects_proof_without_making_m5_completion_a_gate() -> None:

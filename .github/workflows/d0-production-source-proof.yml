@@ -1,0 +1,159 @@
+name: D0 existing-source production proof
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: d0-existing-source-production-proof
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      EBA_PRODUCTION_URL: https://eba-trader-172-236-150-62.sslip.io
+    steps:
+      - name: Wait for exact build and inspect existing-only D0 source
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import string
+          import time
+          import urllib.error
+          import urllib.request
+
+          base = os.environ["EBA_PRODUCTION_URL"].rstrip("/")
+          expected = os.environ["EXPECTED_SHA"].strip()
+          deadline = time.time() + 900
+          last_error = "not attempted"
+          hex_chars = set(string.hexdigits)
+
+          def get_json(path):
+              request = urllib.request.Request(
+                  base + path,
+                  headers={"Accept": "application/json", "User-Agent": "eba-d0-proof/1"},
+              )
+              with urllib.request.urlopen(request, timeout=15) as response:
+                  payload = json.loads(response.read().decode("utf-8"))
+              if not isinstance(payload, dict):
+                  raise RuntimeError(f"{path} returned non-object JSON")
+              return payload
+
+          def is_sha256(value):
+              return (
+                  isinstance(value, str)
+                  and len(value) == 64
+                  and set(value) <= hex_chars
+              )
+
+          while time.time() < deadline:
+              try:
+                  app = get_json("/api/app-info")
+                  build = str(app.get("buildSha") or "")
+                  if build != expected:
+                      last_error = (
+                          f"waiting for build {expected[:8]} "
+                          f"(server {build[:8] or 'unknown'})"
+                      )
+                      time.sleep(20)
+                      continue
+
+                  research = get_json("/api/research/status")
+                  proof = research.get("productionProof") or {}
+                  d0 = proof.get("d0Source") or {}
+                  safety_checks = {
+                      "authority": d0.get("authority") == "DISCOVERY_ONLY",
+                      "provenance": (
+                          d0.get("provenanceClass")
+                          == "INSPECTED_REUSABLE_DISCOVERY_DATA"
+                      ),
+                      "not_fresh_confirmation": d0.get("freshConfirmationEvidence") is False,
+                      "no_verification_authority": d0.get("verificationAuthority") is False,
+                      "d1_closed": d0.get("d1Opened") is False,
+                      "frozen_oos_closed": d0.get("frozenOosOpened") is False,
+                      "live_locked": d0.get("liveExecutionAllowed") is False,
+                  }
+                  failed = [name for name, passed in safety_checks.items() if not passed]
+                  if failed:
+                      last_error = "D0 safety contract failed: " + ", ".join(failed)
+                      time.sleep(20)
+                      continue
+
+                  ready = d0.get("available") is True
+                  if ready:
+                      readiness_checks = {
+                          "valid": d0.get("valid") is True,
+                          "source_kind": (
+                              d0.get("sourceKind")
+                              == "INSPECTED_M5_DEVELOPMENT_CORPUS"
+                          ),
+                          "window_count": d0.get("windowCount") == 12,
+                          "stratum_count": d0.get("stratumCount") == 12,
+                          "row_count": (
+                              isinstance(d0.get("rowCount"), int)
+                              and not isinstance(d0.get("rowCount"), bool)
+                              and d0.get("rowCount") > 0
+                          ),
+                          "declaration_sha": is_sha256(d0.get("declarationSha256")),
+                          "dataset_sha": is_sha256(d0.get("datasetSha256")),
+                          "candle_sha": is_sha256(d0.get("candleSha256")),
+                          "orderflow_sha": is_sha256(d0.get("orderflowSha256")),
+                      }
+                      failed_ready = [
+                          name for name, passed in readiness_checks.items() if not passed
+                      ]
+                      if failed_ready:
+                          last_error = (
+                              "D0 existing source is present but invalid: "
+                              + ", ".join(failed_ready)
+                          )
+                          time.sleep(20)
+                          continue
+
+                  print(
+                      json.dumps(
+                          {
+                              "ok": True,
+                              "build": build,
+                              "ready": ready,
+                              "blocked": not ready,
+                              "reason": None if ready else d0.get("reason"),
+                              "errorType": None if ready else d0.get("errorType"),
+                              "sourceKind": d0.get("sourceKind"),
+                              "materializationId": d0.get("materializationId"),
+                              "policyId": d0.get("policyId"),
+                              "corpusId": d0.get("corpusId"),
+                              "declarationSha256": d0.get("declarationSha256"),
+                              "datasetSha256": d0.get("datasetSha256"),
+                              "candleSha256": d0.get("candleSha256"),
+                              "orderflowSha256": d0.get("orderflowSha256"),
+                              "rowCount": d0.get("rowCount"),
+                              "stratumCount": d0.get("stratumCount"),
+                              "windowCount": d0.get("windowCount"),
+                              "authority": "DISCOVERY_ONLY",
+                              "provenanceClass": "INSPECTED_REUSABLE_DISCOVERY_DATA",
+                              "freshConfirmationEvidence": False,
+                              "verificationAuthority": False,
+                              "d1Opened": False,
+                              "frozenOosOpened": False,
+                              "liveExecutionAllowed": False,
+                          },
+                          separators=(",", ":"),
+                      )
+                  )
+                  raise SystemExit(0)
+              except (OSError, ValueError, RuntimeError, urllib.error.URLError) as exc:
+                  last_error = str(exc)[:4000]
+                  time.sleep(20)
+
+          raise SystemExit(f"D0 production source proof timed out: {last_error}")
+          PY
