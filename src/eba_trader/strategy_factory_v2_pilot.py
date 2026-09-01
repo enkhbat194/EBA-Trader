@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -26,6 +27,16 @@ from .strategy_factory_v2_evaluator import DiscoveryDatasetV2, make_d0_candidate
 LOW_FIDELITY_SCHEMA = "strategy_factory_v2_low_fidelity_v1"
 LOW_FIDELITY_AUTHORITY = "DISCOVERY_ONLY"
 DEFAULT_WARMUP_BARS = 96
+REQUIRED_SELECTION_METRICS = (
+    "total_return",
+    "expectancy",
+    "trade_count",
+    "benchmark_relative_return",
+    "max_drawdown",
+    "total_cost",
+    "exposure",
+    "turnover_round_trips_per_1000_bars",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -245,8 +256,10 @@ def build_low_fidelity_report(
 
     Only candidates with one terminal trial for every expected stratum are marked complete.
     Rejected or incomplete candidates never expose aggregate selection economics and never enter
-    behavioral representative selection. The report is discovery selection evidence only; it does
-    not implement profitability or verification gates.
+    behavioral representative selection. Complete non-rejected candidates must expose the full
+    fixed selection-metric schema on every evaluated stratum; schema drift fails closed instead of
+    silently averaging a subset of windows. The report is discovery selection evidence only; it
+    does not implement profitability or verification gates.
     """
 
     strata = tuple(expected_strata)
@@ -282,11 +295,10 @@ def build_low_fidelity_report(
         complete = terminal and set(fidelities) == expected_fidelities
         rejected = any(str(row.get("status")) == "rejected" for row in rows)
 
-        metrics_rows = [row.get("metrics") for row in rows if row.get("status") == "evaluated"]
-        metrics = [item for item in metrics_rows if isinstance(item, Mapping)]
-        selection_metrics = metrics if complete and not rejected else []
+        selection_metrics: Sequence[Mapping[str, Any]] = ()
         behavior = None
         if complete and not rejected:
+            selection_metrics = _validated_selection_metrics(rows)
             behavior = _combine_behaviors(rows)
             complete_behaviors[candidate_id] = behavior
 
@@ -322,6 +334,36 @@ def build_low_fidelity_report(
         candidates=tuple(summaries),
         representative_candidate_ids=representatives,
     )
+
+
+def _validated_selection_metrics(
+    rows: Sequence[Mapping[str, Any]],
+) -> tuple[Mapping[str, Any], ...]:
+    validated: list[Mapping[str, Any]] = []
+    for row in rows:
+        metrics = row.get("metrics")
+        if not isinstance(metrics, Mapping):
+            raise ValueError("complete evaluated candidate is missing selection metrics")
+        missing = [key for key in REQUIRED_SELECTION_METRICS if key not in metrics]
+        if missing:
+            raise ValueError(
+                f"complete evaluated candidate is missing selection metrics: {missing}"
+            )
+        for key in REQUIRED_SELECTION_METRICS:
+            value = metrics[key]
+            if isinstance(value, bool):
+                raise ValueError(f"selection metric {key} must be numeric")
+            try:
+                numeric = float(value)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"selection metric {key} must be numeric") from exc
+            if not math.isfinite(numeric):
+                raise ValueError(f"selection metric {key} must be finite")
+        trade_count = metrics["trade_count"]
+        if int(float(trade_count)) != float(trade_count) or int(float(trade_count)) < 0:
+            raise ValueError("selection metric trade_count must be a non-negative integer")
+        validated.append(metrics)
+    return tuple(validated)
 
 
 def _combine_behaviors(rows: Sequence[Mapping[str, Any]]) -> BehavioralFingerprint:
