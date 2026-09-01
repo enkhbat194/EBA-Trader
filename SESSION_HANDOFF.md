@@ -12,7 +12,7 @@ Actual GitHub head must be queried at startup because documentation-only commits
 
 PR #109, #110, #112, #114, #115 and #117 are merged. PR #109 added deterministic resume-safe all-strata D0 pilot orchestration. PR #110 binds source provenance to the actual clean production checkout. PR #112 coordinates the five-minute auto-updater and D0 production wrapper through one shared nonblocking checkout lock. PR #114 reconciled the successful exact production proof for `59f6a21e8736b53473fd99a7cb00236c407f5573`, Actions run `33466706747`. PR #115 adds auditable discovery-only behavioral cluster accounting without changing research gates or execution authority. PR #117 prevents incomplete/rejected candidates from exposing partial aggregate economics that could accidentally be used for ranking.
 
-Exact-build D0 proof for `cbe8cfd07587dda126234f853b47624f241f416e` completed successfully in Actions run `33470607755`, verify job `99739433912`. Exact-current-build D0 proof for `4f4fa8b27b8e297d6e49fc5c9639ef3abbf256f7` is Actions run `33474180718` and must not be recorded as completed until GitHub reports a successful conclusion. The production 406-candidate × 12-strata campaign has not been executed yet. No public or automatic campaign trigger was added.
+Exact-current-build D0 proof for `4f4fa8b27b8e297d6e49fc5c9639ef3abbf256f7` completed successfully in Actions run `33474180718`, verify job `99749881404`; the exact-build wait and existing-only D0 source inspection both succeeded. The production 406-candidate × 12-strata campaign has not been executed yet. No public or automatic campaign trigger was added.
 
 ## What was completed in the latest engineering run
 
@@ -24,13 +24,13 @@ Exact-build D0 proof for `cbe8cfd07587dda126234f853b47624f241f416e` completed su
 6. Added regression coverage proving incomplete and rejected candidates expose no aggregate selection economics or behavioral fingerprint, while complete candidates retain normal metrics.
 7. PR #117 exact head `94535072b6fd1cc770a76962c408e683c5b99829` passed all four required checks: test, hygiene, validate and continuity.
 8. PR #117 was squash-merged with expected-head SHA guard. New code-bearing main: `4f4fa8b27b8e297d6e49fc5c9639ef3abbf256f7`.
-9. Main-triggered D0 exact-production proof run `33474180718` started for the new code-bearing baseline; treat it as pending until its own final conclusion is green.
+9. Exact-current-build D0 production proof run `33474180718`, verify job `99749881404`, completed successfully for the merged code-bearing baseline.
 10. Reconciled `PROJECT_STATE.md`, `TODO.md` and `SESSION_HANDOFF.md` to distinguish the merged terminal-only selection-metric mechanism from empirical campaign results.
 11. Preserved the operator-only campaign invocation boundary; no unauthenticated/public execution trigger was introduced.
 
 ## Exact completed D0 proof baseline
 
-Latest **completed** exact proof remains build `cbe8cfd07587dda126234f853b47624f241f416e`, Actions run `33470607755`, verify job `99739433912` until run `33474180718` for `4f4fa8b27b8e297d6e49fc5c9639ef3abbf256f7` itself completes successfully:
+Latest completed exact proof is build `4f4fa8b27b8e297d6e49fc5c9639ef3abbf256f7`, Actions run `33474180718`, verify job `99749881404`:
 
 - source kind: `INSPECTED_M5_DEVELOPMENT_CORPUS`;
 - materialization ID: `m5corpusmat_25007f47e456b5f2d42ef16b`;
@@ -87,13 +87,12 @@ Hard locks:
 
 ## Next exact task
 
-1. Confirm Actions run `33474180718` for exact code-bearing baseline `4f4fa8b27b8e297d6e49fc5c9639ef3abbf256f7`; only a final `success` can replace the older completed production-proof baseline.
-2. When an authorized Linode shell path is available, invoke only `scripts/run_sfv2_d0_pilot_production_once.sh`; do not create an unauthenticated public trigger as an access workaround.
-3. Run/resume the exact 406 candidates across all 12 D0 strata while the shared checkout lock is held.
-4. Record actual raw/unique-spec/family/eligible/cluster counts from the immutable production campaign evidence; do not confuse merged accounting capability with empirical results.
-5. Continue only under the existing D0 diversity/racing contract; no new family, threshold or ranking weight is authorized by PR #117.
-6. Freeze at most 30 survivors before any separately authorized D1 access; zero survivors is valid.
-7. Keep D1, Frozen OOS, SF4 pre-unlock evaluation and real-money execution closed.
+1. When an authorized Linode shell path is available, invoke only `scripts/run_sfv2_d0_pilot_production_once.sh`; do not create an unauthenticated public trigger as an access workaround.
+2. Run/resume the exact 406 candidates across all 12 D0 strata while the shared checkout lock is held.
+3. Record actual raw/unique-spec/family/eligible/cluster counts from the immutable production campaign evidence; do not confuse merged accounting capability with empirical results.
+4. Continue only under the existing D0 diversity/racing contract; no new family, threshold or ranking weight is authorized by PR #117.
+5. Freeze at most 30 survivors before any separately authorized D1 access; zero survivors is valid.
+6. Keep D1, Frozen OOS, SF4 pre-unlock evaluation and real-money execution closed.
 
 ## Startup rule
 
