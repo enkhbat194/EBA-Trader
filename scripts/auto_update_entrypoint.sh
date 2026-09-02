@@ -54,6 +54,10 @@ rm -f "$STATE_DIR/failed_at" "$STATE_DIR/last_error"
 # known-good root path. Release the checkout lock BEFORE starting it; the campaign wrapper then
 # reacquires the same lock for its full invocation. No HTTP/GitHub/PWA mutation path is added.
 #
+# The service invokes the runner through /bin/bash, so the tracked shell file only needs to exist;
+# requiring an executable bit here would silently skip the campaign in repositories that track
+# scripts as regular 100644 files.
+#
 # Once the immutable single-use request is COMPLETE, avoid spawning even the no-op service.
 SFV2_COMPLETE=0
 if [[ -f "$SFV2_STATUS" && -x "$REPO_DIR/.venv/bin/python" ]]; then
@@ -79,7 +83,7 @@ PY
 )"
 fi
 
-if [[ "$SFV2_COMPLETE" != "1" && -f "$SFV2_AUTHORIZATION" && -x "$SFV2_RUNNER" && -f "$SFV2_SERVICE_SOURCE" ]]; then
+if [[ "$SFV2_COMPLETE" != "1" && -f "$SFV2_AUTHORIZATION" && -f "$SFV2_RUNNER" && -f "$SFV2_SERVICE_SOURCE" ]]; then
   install -m 0644 "$SFV2_SERVICE_SOURCE" "$SFV2_SERVICE_TARGET"
   systemctl daemon-reload
   systemctl reset-failed "$SFV2_SERVICE" >/dev/null 2>&1 || true
