@@ -46,19 +46,23 @@ Single-use request: `sfv2-d0-prod-20260901-v1`.
 
 The zero-survivor result is a valid negative discovery outcome. It must not be converted into a winner by lowering thresholds or rewriting the immutable selection.
 
-## ACTIVE — Strategy Factory next-search design
+## NOW — Strategy Factory next-search design
 
 The first 406-candidate pilot failed on net economics, not merely on candidate count. The catalog intentionally used 406 of the 500 hard cap; the unused numeric headroom is not a quota.
 
 - [ ] Produce a D0 postmortem that separates family/mechanism failure, activity, cost/turnover and behavioral diversity.
 - [ ] Audit existing data planes and causal backtest engines before proposing new families.
 - [ ] Prefer genuinely new mechanisms, data planes and/or execution horizons; do not pad the search with neighboring parameters from the failed eight families.
-- [ ] Version any next Factory campaign under a new campaign ID and deterministic seed/catalog.
-- [ ] Predeclare its raw-candidate/search budget before performance evaluation.
 - [ ] Carry the 406 already inspected candidates forward in the broad-search/multiple-testing history.
 - [ ] Keep any reused D0 evidence explicitly `DISCOVERY_ONLY` / contaminated for confirmation purposes.
+
+## NEXT — versioned Factory campaign
+
+- [ ] Version any next Factory campaign under a new campaign ID and deterministic seed/catalog.
+- [ ] Predeclare its raw-candidate/search budget before performance evaluation.
 - [ ] Freeze any future non-empty survivor set before D1 data can be opened.
 - [ ] If a future campaign again yields zero survivors, accept the negative result rather than weakening gates.
+- [ ] Design/version D1 hidden confirmation only for a future non-empty frozen survivor set.
 
 ## ACTIVE — SF4 prospective replication
 
@@ -73,7 +77,6 @@ The first 406-candidate pilot failed on net economics, not merely on candidate c
 
 Current Factory D1 is not merely waiting for code: it is **not applicable to the closed D0 pilot because survivor count is zero**.
 
-- [ ] Design/version D1 hidden confirmation only for a future non-empty frozen survivor set.
 - [ ] Open D1 only through a separately authorized hidden-confirmation workflow.
 - [ ] Require a dataset never consumed by discovery for D1 authority.
 - [ ] Account for the full broad-search/multiple-testing history.
