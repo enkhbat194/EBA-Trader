@@ -20,6 +20,17 @@ def test_dedicated_trigger_is_local_root_only_and_releases_checkout_lock_first()
     assert "workflow_dispatch" not in text
 
 
+def test_bash_invoked_runner_only_requires_a_regular_file() -> None:
+    entrypoint = ENTRYPOINT.read_text(encoding="utf-8")
+    service = SERVICE.read_text(encoding="utf-8")
+    assert '-f "$SFV2_RUNNER"' in entrypoint
+    assert '-x "$SFV2_RUNNER"' not in entrypoint
+    assert (
+        "ExecStart=/bin/bash /opt/Eba-Trader/scripts/"
+        "run_sfv2_d0_authorized_production.sh"
+    ) in service
+
+
 def test_dedicated_service_runs_only_the_authorized_wrapper_with_resource_bounds() -> None:
     text = SERVICE.read_text(encoding="utf-8")
     assert "User=root" in text
