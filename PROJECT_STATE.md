@@ -58,6 +58,13 @@ The pilot catalog intentionally contained 406 candidates even though 500 is the 
 
 There is still **no verified profitable strategy**.
 
+## Validation
+
+- Exact-build production proof completed successfully on `bdb84a4a926dac53d13116364e8315e98b35e6e1`.
+- Official D0 campaign proof run `33674168891` completed successfully with 4,872 / 4,872 terminal trials and frozen survivor count 0.
+- The zero-survivor state preserved `DISCOVERY_ONLY` authority and kept D1, Frozen OOS, live and real execution closed.
+- Any later code/document change must pass repository hygiene, continuity and runtime/deployment checks before merge.
+
 ## Next Strategy Factory search rules
 
 Any further Strategy Factory search is a new versioned campaign decision, not an extension/rewrite of `sfv2-discovery-pilot-v1`.
