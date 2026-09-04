@@ -22,11 +22,7 @@ Campaign `sfv2-existing-data-low-turnover-v1`; design `sfv2-next-existing-data-v
 
 - [x] Audit current historical causal planes.
 - [x] Keep funding/OI/basis/resting-book history outside this campaign until separately acquired/provenanced.
-- [x] Freeze four new mechanism families:
-  - `mtf_trend_pullback_v1`;
-  - `breakout_retest_entry_v1`;
-  - `path_efficiency_persistence_v1`;
-  - `low_turnover_flow_persistence_v1`.
+- [x] Freeze four new mechanism families: `mtf_trend_pullback_v1`, `breakout_retest_entry_v1`, `path_efficiency_persistence_v1`, `low_turnover_flow_persistence_v1`.
 - [x] Implement all four causal family engines/adapters.
 - [x] Implement causal closed-1m -> 5m/15m/60m aggregation.
 - [x] Implement breakout-retest causal fill rules and low-turnover minimum-hold/cooldown behavior.
@@ -58,6 +54,7 @@ PR #141/#142:
 - [x] Add read-only exact-production next-D0 progress proof.
 - [x] Add sanitized read-only systemd service state to distinguish running/failed/unloaded from receipt status.
 - [x] Do not expose journal secrets or any start/stop/mutation action through the PWA/API proof surface.
+- [x] Public production smoke run `33889836392` verified exact current main `be778b2b760402aa2d9df9a00841731708f1b77e` deployed and healthy at the public surface.
 
 ## NOW — empirically complete and freeze the 10-window D0 corpus
 
@@ -69,7 +66,7 @@ Frozen data plan:
 - 10 windows from `2026-08-22T00:15:00Z` through exactly `2026-09-01T00:00:00Z`;
 - authority `D0_DATA_MATERIALIZATION_ONLY` / `D0_DISCOVERY_ONLY_NOT_CONFIRMATION`.
 
-- [ ] Verify current-main production deployment and sanitized materializer service state.
+- [ ] Obtain terminal dedicated next-D0 proof for exact current main and inspect sanitized materializer service state.
 - [ ] Materialize and validate next-d0-01.
 - [ ] Materialize and validate next-d0-02.
 - [ ] Materialize and validate next-d0-03.
@@ -83,7 +80,13 @@ Frozen data plan:
 - [ ] Confirm each window's exact row count, feature SHA-256, workflow manifest, candle provenance, order-flow provenance/checksum and causal timestamp validity.
 - [ ] Freeze one immutable complete dataset receipt containing plan SHA, catalog SHA, 10 feature SHA values, 10 workflow IDs, row counts, provenance and frozen source-code SHA.
 
-**Blocker:** performance evaluation remains prohibited until every item above is complete.
+## BLOCKED — do not bypass
+
+- [ ] 128-candidate performance evaluation is blocked until every frozen next-D0 dataset receipt is complete and one immutable corpus receipt is frozen.
+- [ ] Factory D1 is blocked until a future D0 freezes a non-empty survivor set.
+- [ ] M5/D3 Frozen OOS remains sealed until strict prerequisites pass.
+- [ ] SF4 evaluation before `2026-09-13T00:00:00Z` is intentionally fail-closed.
+- [ ] Real-money Binance orders remain intentionally locked.
 
 ## NEXT — explicit D0 evaluation authorization
 
@@ -115,16 +118,6 @@ Do not retrofit these post-hoc into the frozen 128-candidate campaign.
 - [ ] Historical futures basis/premium plane.
 - [ ] Historical resting-order-book plane only if sequence/integrity reconstruction is defensible.
 - [ ] Predeclare any multi-symbol universe before cross-symbol performance ranking.
-
-## GATED — confirmation and verification
-
-- [ ] Factory D1 remains sealed until a future D0 freezes a non-empty survivor set.
-- [ ] D1 must use data never consumed by discovery.
-- [ ] Full search/multiple-testing history remains accounted for.
-- [ ] D2 robustness only after hidden confirmation survives.
-- [ ] Robustness before D3 Frozen OOS.
-- [ ] Forward paper/Binance Demo remain execution stages, not verification authority.
-- [ ] Real execution remains separately locked.
 
 ## FIXED RESEARCH-INTEGRITY RULES — DO NOT LOWER
 
