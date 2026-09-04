@@ -209,7 +209,10 @@ def assert_discovery_window_allowed(
     inspected = [item for item in conflicts if item.classification in INSPECTED_CLASSIFICATIONS]
     if inspected and not allow_inspected_reuse:
         names = ", ".join(item.range_id for item in inspected)
-        raise RuntimeError(f"discovery range overlaps inspected evidence without explicit reuse: {names}")
+        raise RuntimeError(
+            "discovery range overlaps inspected evidence without explicit reuse: "
+            f"{names}"
+        )
     return tuple(inspected)
 
 
