@@ -104,6 +104,18 @@ Do not inspect/evaluate/retune SF4 before the unlock. SF3 evidence cannot be poo
 - reused D0 cannot become fresh confirmation evidence;
 - deterministic risk keeps veto authority.
 
+## What was completed
+
+- The first Strategy Factory v2 D0 production campaign completed on exact build `bdb84a4a926dac53d13116364e8315e98b35e6e1`.
+- All 4,872 candidate/stratum trials are terminal.
+- The immutable D0 survivor selection froze with zero survivors.
+- D1, Frozen OOS, Demo promotion, live execution and real execution remain closed/locked.
+- The closeout package records the negative result without changing research thresholds or authorities.
+
+## Next exact task
+
+Merge the D0 closeout package after exact-head CI is green, then build a read-only family-level failure decomposition from immutable D0 evidence covering activity, gross/net economics, fees/slippage, execution-delay sensitivity, regime behavior, turnover/cost and sparse-vs-bad classification. Do not rerun or rewrite the closed D0 campaign and do not touch D1, SF4 prospective data or Frozen OOS.
+
 ## Immediate continuation tasks
 
 1. Query actual `main` and the D0 closeout PR state.
