@@ -58,5 +58,8 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
+[tool.ruff.lint.per-file-ignores]
+"src/eba_trader/strategy_factory_v2_next_families.py" = ["B018", "SIM102"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/eba_trader"]
