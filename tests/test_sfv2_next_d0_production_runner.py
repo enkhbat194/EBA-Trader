@@ -18,13 +18,16 @@ def test_next_d0_service_is_bounded_and_local_only() -> None:
     assert "NoNewPrivileges=true" in service
 
 
-def test_next_d0_wrapper_uses_shared_lock_and_no_evaluation_command() -> None:
+def test_next_d0_wrapper_uses_shared_lock_and_pinned_builder_contract() -> None:
     script = (ROOT / "scripts/run_sfv2_next_d0_materialization.sh").read_text(
         encoding="utf-8"
     )
     assert "/run/lock/eba-trader-runtime-mutation.lock" in script
     assert "flock -n 9" in script
-    assert "git rev-parse HEAD" in script
+    assert "sha256_text(canonical_json(identity))" in script
+    assert "strategy_factory_v2_next_dataset_workflow.py" in script
+    assert "orderflow_archive.py" in script
+    assert "git rev-parse HEAD" not in script
     assert "run_sfv2_next_d0_materialization.py" in script
     assert "backtest" not in script.lower()
     assert "frozen-oos" not in script.lower()
