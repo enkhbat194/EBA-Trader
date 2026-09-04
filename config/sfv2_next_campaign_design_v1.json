@@ -1,0 +1,81 @@
+{
+  "schema": "sfv2_next_campaign_design_v1",
+  "design_id": "sfv2-next-existing-data-v1",
+  "authority": "DESIGN_ONLY",
+  "enabled_for_evaluation": false,
+  "campaign_id_reserved": "sfv2-existing-data-low-turnover-v1",
+  "search_history": {
+    "prior_inspected_candidate_count": 406,
+    "prior_campaign_id": "sfv2-discovery-pilot-v1",
+    "prior_survivor_count": 0,
+    "prior_candidates_remain_in_multiple_testing_history": true
+  },
+  "budget": {
+    "raw_candidate_cap": 128,
+    "candidate_cap_per_family": 32,
+    "survivor_cap": 12,
+    "unused_capacity_is_not_reallocatable_post_hoc": true
+  },
+  "family_slots": [
+    {
+      "family_id": "mtf_trend_pullback_v1",
+      "mechanism": "higher-timeframe directional regime with lower-timeframe pullback entry",
+      "novelty_vs_failed_pilot": "does not enter the ATR trailing or Donchian breakout signal directly and targets a materially longer decision/holding horizon",
+      "data_planes": ["usd_m_candles", "volume"]
+    },
+    {
+      "family_id": "breakout_retest_entry_v1",
+      "mechanism": "range break followed by causal post-break retest entry rather than next-open breakout chase",
+      "novelty_vs_failed_pilot": "entry mechanism is a retest after the break; it cannot reuse Donchian next-open entries or their parameter neighborhood",
+      "data_planes": ["usd_m_candles", "volume"]
+    },
+    {
+      "family_id": "path_efficiency_persistence_v1",
+      "mechanism": "directional path-efficiency persistence relative to realized path noise",
+      "novelty_vs_failed_pilot": "uses path efficiency/noise structure rather than ATR stop state, channel break, z-score displacement or raw flow threshold",
+      "data_planes": ["usd_m_candles", "volume"]
+    },
+    {
+      "family_id": "low_turnover_flow_persistence_v1",
+      "mechanism": "multi-window executed-flow persistence with explicit cooldown and minimum holding horizon",
+      "novelty_vs_failed_pilot": "targets sustained lower-frequency flow state and bounded re-entry frequency instead of one-minute delta impulse or the prior rolling-flow parameter neighborhood",
+      "data_planes": ["usd_m_candles", "executed_orderflow"]
+    }
+  ],
+  "horizon_policy": {
+    "source_interval": "1m",
+    "causal_derived_intervals": ["5m", "15m", "60m"],
+    "one_minute_impulse_reentry_prohibited": true,
+    "target_lower_turnover_than_first_d0": true
+  },
+  "data_policy": {
+    "allowed_current_planes": ["usd_m_candles", "volume", "executed_orderflow"],
+    "historical_funding_available": false,
+    "historical_open_interest_available": false,
+    "historical_basis_available": false,
+    "historical_resting_order_book_available": false,
+    "new_dataset_window_frozen": false,
+    "candidate_catalog_frozen": false,
+    "performance_evaluation_before_both_freezes": false
+  },
+  "excluded_post_hoc_extensions": [
+    "atr_trailing_v1_parameter_neighbors",
+    "donchian_breakout_v1_parameter_neighbors",
+    "mean_reversion_z_v1_parameter_neighbors",
+    "orderflow_delta_impulse_v1_parameter_neighbors",
+    "rolling_flow_trend_v1_parameter_neighbors",
+    "volume_shock_momentum_v1_parameter_neighbors",
+    "vwap_reversion_flow_v1_parameter_neighbors",
+    "compression_expansion_v1_parameter_neighbors"
+  ],
+  "safety": {
+    "fresh_confirmation_evidence": false,
+    "verification_authority": false,
+    "d1_opened": false,
+    "frozen_oos_opened": false,
+    "sf4_data_access_allowed": false,
+    "demo_promotion_allowed": false,
+    "live_execution_allowed": false,
+    "real_execution_allowed": false
+  }
+}
