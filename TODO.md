@@ -1,103 +1,129 @@
 # EBA Trader — TODO
 
-Actual merged code, exact production evidence and latest explicit decisions override stale prose. Query `main`, open PRs and workflows before continuing.
-
-## DONE — repository/runtime and research foundation
-
-- [x] Canonical GitHub `main` + Linode production path.
-- [x] Keep real-money execution locked and deterministic risk veto authoritative.
-- [x] Seal Frozen OOS from discovery/development authority.
-- [x] Close SF1/SF2/SF3 with zero verified/promoted candidates without weakening gates.
-- [x] Strategy Factory v2 discovery/verification authority separation, immutable ledger and behavioral dedup.
-- [x] D0/D1/D2/D3 evidence zoning with D1/Frozen OOS closed by default.
+Actual merged code, exact production evidence and latest explicit frozen decisions override stale prose. Query `main`, recent/open PRs and production workflows before continuing.
 
 ## DONE — Strategy Factory v2 first D0 campaign
 
-Campaign: `sfv2-discovery-pilot-v1`.
+Campaign `sfv2-discovery-pilot-v1`:
 
-- [x] Freeze deterministic 406-candidate / 8-family catalog under the 500 hard cap.
-- [x] Bind D0 to inspected reusable M5 development evidence with causal warmup and content identity.
-- [x] Evaluate 406 × 12 = 4,872 candidate/stratum trials.
-- [x] Terminal trials: 4,872 / 4,872.
-- [x] Complete candidates: 406.
-- [x] Rejected candidates: 254.
-- [x] Behaviorally eligible candidates: 152.
-- [x] Behavioral clusters: 127.
-- [x] Freeze D0 survivor selection with **0 survivors**.
-- [x] Keep D1, Frozen OOS, Demo promotion, live and real execution closed/locked.
-- [x] Record production result in `docs/SFV2_D0_PRODUCTION_RESULT_2026-09-03.md`.
-
-## DONE — Package 1: immutable D0 failure postmortem
-
-Production analysis build: `b822a9815f8f5cc42c674f849e5626d8b7022602`.
-
-Production proof: `Strategy Factory v2 D0 failure postmortem proof`, run `33823539570`, job `100871190923`, `success`.
-
-- [x] Read the closed 4,872-trial ledger without rerunning or rewriting D0.
-- [x] Separate family activity, economics, turnover/cost and execution-delay diagnostics.
-- [x] Confirm all 152 complete non-rejected candidates have non-positive net return, expectancy and benchmark-relative return.
-- [x] Record 107 cost-sensitive diagnostic proxies without treating them as counterfactual winners.
-- [x] Diagnose 6 families as `COST_SENSITIVE_PROXY` and 2 as `INACTIVE_OR_REJECTED`.
-- [x] Identify ATR (~+5.26 bps) and Donchian (~+7.63 bps) next-open chase headwinds.
-- [x] Identify order-flow delta impulse as a structural turnover/cost failure (20,227 trades across complete candidates).
-- [x] Confirm mean reversion remains negative despite favorable pre-entry movement.
-- [x] Preserve compression-expansion/volume-shock negative/inactive result without loosening thresholds.
-- [x] Record canonical postmortem in `docs/SFV2_D0_FAILURE_POSTMORTEM_2026-09-04.md`.
+- [x] Freeze 406-candidate / 8-family catalog.
+- [x] Evaluate 406 × 12 = 4,872 trials.
+- [x] Reach 4,872 / 4,872 terminal trials.
+- [x] Freeze survivor selection at **0 survivors**.
+- [x] Keep D1/Frozen OOS/Demo promotion/live/real execution closed.
+- [x] Complete immutable failure postmortem without rerunning or rewriting D0.
+- [x] Preserve the zero-survivor result without lowering any gate.
 
 There is still **no verified profitable strategy**.
 
-## NOW — Package 2: next-campaign design and implementation gate
+## DONE — next-campaign design, engines and freezes
 
-Design ID: `sfv2-next-existing-data-v1`.
-Reserved future campaign ID: `sfv2-existing-data-low-turnover-v1`.
-Authority: `DESIGN_ONLY`.
+Campaign `sfv2-existing-data-low-turnover-v1`; design `sfv2-next-existing-data-v1`.
 
-- [x] Audit current historical causal planes: USD-M candles/volume + executed orderflow/footprint.
-- [x] Record historical funding/OI/basis/resting-book planes as unavailable until a separate causal acquisition package exists.
-- [x] Reduce preliminary search budget to max **128 raw / 32 per family / 12 survivors** instead of scaling blindly toward 500.
-- [x] Preserve all prior 406 inspected candidates in broad-search/multiple-testing history.
-- [x] Freeze four mechanism slots: multi-timeframe trend pullback, breakout retest entry, path-efficiency persistence and low-turnover flow persistence.
-- [x] Prohibit post-hoc neighboring variants of the eight failed first-pilot families.
-- [x] Add fail-closed design validator; the design cannot authorize evaluation, D1, Frozen OOS, SF4 access or execution.
-- [ ] Implement the four causal family engines/adapters.
-- [ ] Implement causal 5m/15m/60m aggregation from closed 1m data.
-- [ ] Implement family-specific order-availability/fill rules, including causal retest/limit semantics where used.
-- [ ] Inventory every previously inspected/protected historical range and freeze a permissible slower-horizon D0 dataset contract.
-- [ ] Freeze the exact deterministic <=128 candidate catalog and seed before performance evaluation.
-- [ ] Add no-lookahead, fill-availability, cooldown/turnover and search-accounting regression tests.
-- [ ] Only after all of the above are merged and green, consider a separate explicit D0 evaluation authorization.
+- [x] Audit current historical causal planes.
+- [x] Keep funding/OI/basis/resting-book history outside this campaign until separately acquired/provenanced.
+- [x] Freeze four new mechanism families:
+  - `mtf_trend_pullback_v1`;
+  - `breakout_retest_entry_v1`;
+  - `path_efficiency_persistence_v1`;
+  - `low_turnover_flow_persistence_v1`.
+- [x] Implement all four causal family engines/adapters.
+- [x] Implement causal closed-1m -> 5m/15m/60m aggregation.
+- [x] Implement breakout-retest causal fill rules and low-turnover minimum-hold/cooldown behavior.
+- [x] Inventory inspected/protected historical ranges.
+- [x] Freeze next-D0 dataset plan outside M5 Frozen OOS and SF4.
+- [x] Freeze exact deterministic 128-candidate catalog: 32/family.
+- [x] Preserve 406 prior inspected candidates in search history; cumulative count becomes 534 if evaluated.
+- [x] Freeze catalog SHA-256 `0aa793ca70ba8719486ba6edae314c77803e1b87884665d17ec88019ec71654a` before performance inspection.
+- [x] Add no-lookahead/aggregation/retest/turnover/search-accounting regression coverage.
+- [x] Keep performance evaluation disabled through all design/catalog/data-plan freezes.
 
-Canonical design: `docs/SFV2_NEXT_CAMPAIGN_DESIGN_2026-09-04.md`.
-Config: `config/sfv2_next_campaign_design_v1.json`.
+## DONE — production next-D0 materialization plumbing
 
-## NEXT — genuinely new data-plane research
+PR #140:
 
-Do not mix this into the current design until acquisition/provenance is implemented.
+- [x] Add local-only `eba-sfv2-next-d0-materialization.service`.
+- [x] Materialize at most one frozen window per invocation.
+- [x] Use Binance USD-M verified public `aggTrades` archive.
+- [x] Bind frozen dataset-plan/catalog identities.
+- [x] Write per-window exact row count, feature SHA-256, workflow ID and provenance receipts.
+- [x] Pin frozen builder source identity across the sequence.
+- [x] Use shared `/run/lock/eba-trader-runtime-mutation.lock` so deploy/research cannot interleave checkout use.
+- [x] Keep production research state outside the Git checkout.
+- [x] Keep public/PWA mutation authority absent.
+- [x] Keep performance/D1/Frozen-OOS/SF4/live/real authority closed.
 
-- [ ] Historical Binance funding-rate acquisition with exact availability timestamps and integrity hashes.
-- [ ] Historical open-interest acquisition/alignment if the venue/API history supports the required range and granularity.
-- [ ] Historical futures basis/premium research plane.
-- [ ] Historical resting-order-book plane only if sequence/integrity reconstruction is defensible.
-- [ ] Predeclared multi-symbol universe before any cross-symbol performance ranking.
-- [ ] Version a separate campaign for genuinely new data-plane mechanisms; do not retrofit them post-hoc into the current 128-cap design.
+PR #141/#142:
+
+- [x] Add read-only exact-production next-D0 progress proof.
+- [x] Add sanitized read-only systemd service state to distinguish running/failed/unloaded from receipt status.
+- [x] Do not expose journal secrets or any start/stop/mutation action through the PWA/API proof surface.
+
+## NOW — empirically complete and freeze the 10-window D0 corpus
+
+Frozen data plan:
+
+- plan SHA-256 `c3ae7735f657d905c2931613062fa9091c72dd9458d7cdfae678a01bcea26171`;
+- BTCUSDT Binance USD-M Futures;
+- 1m base interval;
+- 10 windows from `2026-08-22T00:15:00Z` through exactly `2026-09-01T00:00:00Z`;
+- authority `D0_DATA_MATERIALIZATION_ONLY` / `D0_DISCOVERY_ONLY_NOT_CONFIRMATION`.
+
+- [ ] Verify current-main production deployment and sanitized materializer service state.
+- [ ] Materialize and validate next-d0-01.
+- [ ] Materialize and validate next-d0-02.
+- [ ] Materialize and validate next-d0-03.
+- [ ] Materialize and validate next-d0-04.
+- [ ] Materialize and validate next-d0-05.
+- [ ] Materialize and validate next-d0-06.
+- [ ] Materialize and validate next-d0-07.
+- [ ] Materialize and validate next-d0-08.
+- [ ] Materialize and validate next-d0-09.
+- [ ] Materialize and validate next-d0-10.
+- [ ] Confirm each window's exact row count, feature SHA-256, workflow manifest, candle provenance, order-flow provenance/checksum and causal timestamp validity.
+- [ ] Freeze one immutable complete dataset receipt containing plan SHA, catalog SHA, 10 feature SHA values, 10 workflow IDs, row counts, provenance and frozen source-code SHA.
+
+**Blocker:** performance evaluation remains prohibited until every item above is complete.
+
+## NEXT — explicit D0 evaluation authorization
+
+Only after immutable dataset-receipt freeze:
+
+- [ ] Freeze D0 selection rules before any performance inspection if not already frozen.
+- [ ] Create a separate explicit evaluator/runner authorization package for the frozen 128 candidates and frozen 10-window corpus.
+- [ ] Keep fees/slippage and all profitability/expectancy/sample/statistical gates unchanged.
+- [ ] Evaluate all 128 frozen candidates.
+- [ ] Freeze D0 survivor selection deterministically.
+- [ ] Treat D0 survivor status as discovery only, never VERIFIED profitability.
+- [ ] Accept survivor count 0 without adding neighboring candidates or weakening thresholds.
 
 ## ACTIVE — SF4 prospective replication
 
-- [x] Exact `s3_vsm_s150` and `s3_cex_s075` frozen without retuning.
-- [x] New BTCUSDT USD-M interval preregistered: `2026-09-01T00:00:00Z` through `2026-09-13T00:00:00Z`.
-- [x] SF3 pooling prohibited.
-- [x] Conservative 48-test search budget carried forward.
-- [x] Evaluation locked before `2026-09-13T00:00:00Z`.
-- [ ] After unlock, evaluate only the exact frozen hypotheses under the preregistered SF4 contract.
+- [x] Frozen hypotheses preregistered independently from Factory D0.
+- [x] Protected interval `2026-09-01T00:00:00Z -> 2026-09-13T00:00:00Z`.
+- [x] Evaluation fail-closed before `2026-09-13T00:00:00Z`.
+- [x] Retuning prohibited before evaluation.
+- [x] SF3/SF4 evidence pooling prohibited.
+- [ ] After unlock, evaluate only the exact frozen SF4 replication hypotheses under their preregistered contract.
 
-## GATED — hidden confirmation and strict verification
+## FUTURE — genuinely new data-plane research
 
-- [ ] Factory D1 remains sealed until a future campaign freezes a non-empty survivor set.
+Do not retrofit these post-hoc into the frozen 128-candidate campaign.
+
+- [ ] Historical Binance funding-rate acquisition with exact availability timestamps and integrity hashes.
+- [ ] Historical open-interest acquisition/alignment if venue history is defensible.
+- [ ] Historical futures basis/premium plane.
+- [ ] Historical resting-order-book plane only if sequence/integrity reconstruction is defensible.
+- [ ] Predeclare any multi-symbol universe before cross-symbol performance ranking.
+
+## GATED — confirmation and verification
+
+- [ ] Factory D1 remains sealed until a future D0 freezes a non-empty survivor set.
 - [ ] D1 must use data never consumed by discovery.
-- [ ] Full search/multiple-testing history must remain accounted for.
+- [ ] Full search/multiple-testing history remains accounted for.
 - [ ] D2 robustness only after hidden confirmation survives.
 - [ ] Robustness before D3 Frozen OOS.
-- [ ] Forward paper and Binance Demo remain execution stages, not verification authority.
+- [ ] Forward paper/Binance Demo remain execution stages, not verification authority.
 - [ ] Real execution remains separately locked.
 
 ## FIXED RESEARCH-INTEGRITY RULES — DO NOT LOWER
@@ -108,21 +134,13 @@ Do not mix this into the current design until acquisition/provenance is implemen
 - [x] development/discovery/confirmation/OOS separation;
 - [x] robustness before Frozen OOS;
 - [x] profitability/expectancy/sample/cross-window/statistical gates preserved;
-- [x] post-hoc-tuning and multiple-testing protection;
+- [x] post-hoc tuning and multiple-testing protection;
 - [x] reused data cannot be relabelled fresh;
 - [x] discovery ranking/survivor status has no promotion authority;
-- [x] zero survivors remains acceptable;
+- [x] zero survivors is acceptable;
 - [x] deterministic risk veto remains independent of AI;
 - [x] real-money execution stays locked.
 
-## BLOCKED / TIME-GATED
-
-- [ ] SF4 evaluation before `2026-09-13T00:00:00Z` — intentionally fail-closed.
-- [ ] Next Factory D0 evaluation — blocked until dataset window + exact catalog are frozen and separately authorized.
-- [ ] Factory D1 — no current survivor exists.
-- [ ] M5/D3 Frozen OOS — sealed until strict prerequisites pass.
-- [ ] Real-money Binance orders — intentionally locked.
-
 ## Handoff rule
 
-At meaningful session end, record exact commits, CI/production proof, risks and next action. Never convert execution plumbing, a discovery leaderboard, a cost-recovery proxy, reused D0 evidence or a survivor into a profitability/live-readiness claim.
+At meaningful session end, record exact commits, CI/production proof, risks and next action. Never convert code readiness, execution plumbing, a discovery leaderboard, reused evidence or a D0 survivor into a verified-profitability claim.
