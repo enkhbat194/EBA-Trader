@@ -1,0 +1,122 @@
+name: Strategy Factory v2 D0 failure postmortem proof
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/eba_trader/strategy_factory_v2_postmortem.py'
+      - 'src/eba_trader/sfv2_dashboard.py'
+      - 'scripts/run_sfv2_d0_postmortem.py'
+      - 'scripts/auto_update_entrypoint.sh'
+      - '.github/workflows/sfv2-d0-postmortem-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sfv2-d0-postmortem-proof
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      EBA_PRODUCTION_URL: https://eba-trader-172-236-150-62.sslip.io
+    steps:
+      - name: Wait for exact build and read-only D0 postmortem
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.request
+
+          base = os.environ['EBA_PRODUCTION_URL'].rstrip('/')
+          expected_sha = os.environ['EXPECTED_SHA'].strip()
+          deadline = time.time() + 25 * 60
+          last = 'not attempted'
+
+          def get_json(path):
+              request = urllib.request.Request(
+                  base + path,
+                  headers={'Accept': 'application/json', 'User-Agent': 'eba-sfv2-postmortem/1'},
+              )
+              with urllib.request.urlopen(request, timeout=15) as response:
+                  payload = json.loads(response.read().decode('utf-8'))
+              if not isinstance(payload, dict):
+                  raise RuntimeError(f'{path} returned non-object JSON')
+              return payload
+
+          while time.time() < deadline:
+              try:
+                  app = get_json('/api/app-info')
+                  build = str(app.get('buildSha') or '')
+                  if build != expected_sha:
+                      last = f'waiting for build {expected_sha[:8]} (server {build[:8] or "unknown"})'
+                      time.sleep(20)
+                      continue
+
+                  research = get_json('/api/research/status')
+                  sfv2 = research.get('strategyFactoryV2') or {}
+                  if sfv2.get('phase') != 'COMPLETE' or sfv2.get('survivorCount') != 0:
+                      raise RuntimeError('closed D0 status drifted before postmortem proof')
+                  post = sfv2.get('postmortem') or {}
+                  if post.get('available') is not True:
+                      last = f"postmortem unavailable: {post.get('reason')}"
+                      time.sleep(20)
+                      continue
+
+                  checks = {
+                      'authority': post.get('authority') == 'DISCOVERY_DIAGNOSTIC_ONLY',
+                      'analysis_sha': post.get('analysisCodeSha') == expected_sha,
+                      'candidate_count': post.get('candidateCount') == 406,
+                      'family_count': post.get('familyCount') == 8,
+                      'stratum_count': post.get('stratumCount') == 12,
+                      'terminal_trials': post.get('terminalTrialCount') == 4872,
+                      'survivor_count': post.get('survivorCount') == 0,
+                      'family_payloads': isinstance(post.get('families'), list)
+                          and len(post.get('families')) == 8,
+                      'not_fresh': post.get('freshConfirmationEvidence') is False,
+                      'no_verification': post.get('verificationAuthority') is False,
+                      'd1_closed': post.get('d1Opened') is False,
+                      'oos_closed': post.get('frozenOosOpened') is False,
+                      'live_locked': post.get('liveExecutionAllowed') is False,
+                      'real_locked': post.get('realExecutionAllowed') is False,
+                  }
+                  failed = [name for name, passed in checks.items() if not passed]
+                  if failed:
+                      raise RuntimeError('SFv2 postmortem safety check failed: ' + ', '.join(failed))
+
+                  print(json.dumps({
+                      'ok': True,
+                      'build': build,
+                      'campaignId': post.get('campaignId'),
+                      'candidateCount': post.get('candidateCount'),
+                      'familyCount': post.get('familyCount'),
+                      'terminalTrialCount': post.get('terminalTrialCount'),
+                      'survivorCount': post.get('survivorCount'),
+                      'roundTripFrictionBps': post.get('roundTripFrictionBps'),
+                      'failureFlagCounts': post.get('failureFlagCounts'),
+                      'familyDiagnosisCounts': post.get('familyDiagnosisCounts'),
+                      'oneBarDelayDiagnostic': post.get('oneBarDelayDiagnostic'),
+                      'families': post.get('families'),
+                      'authority': 'DISCOVERY_DIAGNOSTIC_ONLY',
+                      'd1Opened': False,
+                      'frozenOosOpened': False,
+                      'liveExecutionAllowed': False,
+                      'realExecutionAllowed': False,
+                  }, separators=(',', ':')))
+                  raise SystemExit(0)
+              except (OSError, ValueError, RuntimeError, urllib.error.URLError) as exc:
+                  last = str(exc)[:4000]
+                  if 'drifted' in last or 'safety check failed' in last:
+                      raise
+                  time.sleep(20)
+
+          raise SystemExit(f'SFv2 D0 postmortem proof timed out: {last}')
+          PY
