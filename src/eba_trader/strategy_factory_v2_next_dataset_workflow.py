@@ -5,10 +5,12 @@ from pathlib import Path
 
 from .candle_acquisition import (
     CandleVenue,
-    RequestJson as CandleRequestJson,
     fetch_binance_candles,
     load_candle_acquisition,
     write_candle_acquisition,
+)
+from .candle_acquisition import (
+    RequestJson as CandleRequestJson,
 )
 from .holdout_guard import assert_not_first_cycle_oos_overlap
 from .orderflow_acquisition import OrderFlowVenue, write_acquisition_manifest
