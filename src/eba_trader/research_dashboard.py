@@ -13,6 +13,7 @@ from .sf1_dashboard import read_sf1_summary
 from .sf2_dashboard import read_sf2_summary
 from .sf3_dashboard import read_sf3_summary
 from .sfv2_dashboard import read_sfv2_d0_summary
+from .sfv2_next_d0_dashboard import read_sfv2_next_d0_materialization_summary
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_RESEARCH_DB = PROJECT_ROOT / "artifacts" / "research" / "eba_research.db"
@@ -304,6 +305,7 @@ def build_research_status(
         "sf2": read_sf2_summary(evidence_root=evidence_root),
         "sf3": read_sf3_summary(evidence_root=evidence_root),
         "strategyFactoryV2": read_sfv2_d0_summary(),
+        "strategyFactoryV2NextD0": read_sfv2_next_d0_materialization_summary(),
         "locks": {
             "frozenOos": True,
             "realExecution": True,
