@@ -1,0 +1,26 @@
+{
+  "schema": "sfv2_next_d0_materialization_authorization_v1",
+  "request_id": "sfv2-next-d0-materialize-20260904-v1",
+  "enabled": true,
+  "single_use": true,
+  "authority": "D0_DATA_MATERIALIZATION_ONLY",
+  "campaign_id": "sfv2-existing-data-low-turnover-v1",
+  "expected_dataset_plan_sha256": "c3ae7735f657d905c2931613062fa9091c72dd9458d7cdfae678a01bcea26171",
+  "expected_catalog_sha256": "0aa793ca70ba8719486ba6edae314c77803e1b87884665d17ec88019ec71654a",
+  "expected_window_count": 10,
+  "runtime": {
+    "max_windows_per_invocation": 1
+  },
+  "safety": {
+    "performance_evaluation_allowed": false,
+    "fresh_confirmation_evidence": false,
+    "verification_authority": false,
+    "d1_opened": false,
+    "frozen_oos_opened": false,
+    "sf4_data_access_allowed": false,
+    "demo_promotion_allowed": false,
+    "live_execution_allowed": false,
+    "real_execution_allowed": false,
+    "public_mutation_allowed": false
+  }
+}
