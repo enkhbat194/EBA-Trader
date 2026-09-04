@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import io
 import zipfile
-from datetime import UTC, date, datetime
+from datetime import date
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -107,7 +107,7 @@ def test_next_d0_workflow_materializes_exact_first_window_without_oos_leak(
     assert manifest.start_ms == START
     assert manifest.end_ms == END
     assert manifest.required_orderflow_start_ms == ORDERFLOW_START
-    assert ORDERFLOW_START >= parse_utc("2026-08-22T00:00:00Z")
+    assert parse_utc("2026-08-22T00:00:00Z") <= ORDERFLOW_START
     assert manifest.orderflow_source == "archive"
     assert manifest.row_count == (END - START) // STEP
     assert manifest_path.is_file()
