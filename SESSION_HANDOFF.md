@@ -103,28 +103,46 @@ PR #141 proves progress read-only through production HTTP. PR #142 additionally 
 
 ## Last empirical production evidence
 
-Immediately before #142 deployment, exact production build `1403b4ff0562f0b33a6892a6de848e2c9515d9f5` was verified and next-D0 still exposed `status_unavailable`, 0/10 receipts. Because the status file is only created after a full window finishes, this was insufficient to distinguish first-window execution from service failure.
+Public production smoke run `33889836392` verified exact build `be778b2b760402aa2d9df9a00841731708f1b77e` deployed on production and reported healthy chart/demo-vault/positions/research public surfaces.
 
-The exact-main #142 production proof is the next authority. Do not infer success from merged code alone.
+The dedicated next-D0 proof run `33889836345` remains the authority for the materializer service and receipt sequence. At this handoff checkpoint it has not yet produced a terminal result, so no next-D0 window is marked complete from deployment alone.
 
-Current classification at this checkpoint:
+Before #142, exact production build `1403b4ff0562f0b33a6892a6de848e2c9515d9f5` exposed `status_unavailable`, 0/10 receipts. Because status is created only after a whole window finishes, that old evidence did not distinguish a running first build from service failure.
+
+Current classification:
 
 - next-D0 materializer: **CODE READY**;
-- previous deployed main: **PRODUCTION VERIFIED**;
+- exact current main deployment: **PRODUCTION VERIFIED**;
 - all 10 D0 datasets: **NOT YET VERIFIED COMPLETE**;
 - 128-candidate performance evaluation: **NOT AUTHORIZED**;
 - verified profitable strategy: **NONE**.
 
+## What was completed
+
+- Audited actual GitHub current state instead of trusting the stale prompt SHA.
+- Confirmed PRs #140 and #141 had already advanced beyond the supplied handoff.
+- Verified the production materializer/shared checkout lock/read-only proof contracts.
+- Added PR #142 sanitized service telemetry without modifying frozen builder/catalog/data-plan identities.
+- Passed #142 exact-head CI and merged it to main `be778b2b760402aa2d9df9a00841731708f1b77e`.
+- Public smoke run `33889836392` verified that exact main deployed successfully.
+- Reconciled `PROJECT_STATE.md`, `SESSION_HANDOFF.md`, `TODO.md` and added `docs/SFV2_NEXT_D0_PRODUCTION_MATERIALIZATION_2026-09-04.md` on PR #143.
+- No performance result was inspected; no threshold or scientific gate was changed.
+
+## Next exact task
+
+1. Read terminal dedicated production proof run `33889836345` and inspect `serviceState`, receipt availability, completed-window count, next window, bundle/source identities and all safety flags.
+2. If service failed, repair only the operational cause while preserving frozen builder/catalog/data-plan identities and all downstream locks.
+3. If the service is running or receipts have advanced, continue the existing one-window materialization path until 10/10 validated receipts exist.
+4. Freeze one immutable complete dataset receipt containing dataset-plan SHA, catalog SHA, all ten feature SHA values, workflow IDs, row counts, provenance and frozen source-code identity.
+5. Only after that freeze may a separate 128-candidate D0 evaluator authorization package be created.
+
 ## Exact continuation sequence
 
-1. Read exact production proof for current main `be778b2b...` and inspect `serviceState` + next-D0 materialization status.
-2. If service is failed, repair the operational cause without changing scientific gates or opening evaluation.
-3. Continue one-window materialization until all 10 receipts are complete and validated.
-4. Freeze one immutable dataset receipt containing plan SHA, catalog SHA, all 10 feature SHA values, workflow IDs, row counts, provenance and source-code SHA.
-5. Only after receipt freeze create a separate explicit D0 evaluator authorization package.
-6. Ensure D0 selection rules are frozen before any performance inspection.
-7. Evaluate the frozen 128 candidates on the frozen 10-window corpus.
-8. Treat any D0 survivor as discovery only. Zero survivors is an acceptable outcome.
+- Do not infer a completed window from a deployed build.
+- Do not inspect strategy performance before dataset receipt freeze and explicit evaluator authorization.
+- Freeze D0 selection rules before any performance results if not already frozen.
+- Evaluate exactly the frozen 128 candidates only after authorization.
+- Treat D0 survivors as discovery only; zero survivors remains acceptable.
 
 ## SF4 track remains independent
 
@@ -144,4 +162,4 @@ Do not inspect or evaluate protected SF4 performance before `2026-09-13T00:00:00
 
 ## Files to read on continuation
 
-`AGENTS.md`, `PROJECT_STATE.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TODO.md`, `CHANGELOG.md`, this file, `BACKTEST_PROTOCOL.md`, `STRATEGY_SPEC.md`, the current SFv2 design/result documents, then actual GitHub/production state.
+`AGENTS.md`, `PROJECT_STATE.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TODO.md`, `CHANGELOG.md`, this file, `BACKTEST_PROTOCOL.md`, `STRATEGY_SPEC.md`, `docs/SFV2_NEXT_D0_PRODUCTION_MATERIALIZATION_2026-09-04.md`, the current SFv2 design/result documents, then actual GitHub/production state.
