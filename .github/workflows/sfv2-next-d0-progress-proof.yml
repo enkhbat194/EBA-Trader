@@ -1,0 +1,134 @@
+name: SFv2 next D0 production progress proof
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sfv2-next-d0-production-progress-proof
+  cancel-in-progress: true
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      EBA_PRODUCTION_URL: https://eba-trader-172-236-150-62.sslip.io
+      EXPECTED_PRODUCTION_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+    steps:
+      - name: Read exact production build and next-D0 progress
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.request
+
+          base = os.environ["EBA_PRODUCTION_URL"].rstrip("/")
+          expected = os.environ["EXPECTED_PRODUCTION_SHA"].strip()
+          deadline = time.time() + 600
+          last_error = "not attempted"
+
+          def get_json(path):
+              request = urllib.request.Request(
+                  base + path,
+                  headers={
+                      "Accept": "application/json",
+                      "User-Agent": "eba-sfv2-next-d0-progress-proof/1",
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=15) as response:
+                  payload = json.loads(response.read().decode("utf-8"))
+              if not isinstance(payload, dict):
+                  raise RuntimeError(f"{path} returned non-object JSON")
+              return payload
+
+          while time.time() < deadline:
+              try:
+                  app = get_json("/api/app-info")
+                  build = str(app.get("buildSha") or "")
+                  if build != expected:
+                      last_error = (
+                          f"waiting for production build {expected[:8]} "
+                          f"(server {build[:8] or 'unknown'})"
+                      )
+                      time.sleep(15)
+                      continue
+
+                  research = get_json("/api/research/status")
+                  next_d0 = research.get("strategyFactoryV2NextD0")
+                  if not isinstance(next_d0, dict):
+                      raise RuntimeError("strategyFactoryV2NextD0 status is missing")
+
+                  safety = {
+                      "authority": next_d0.get("authority") == "D0_DATA_MATERIALIZATION_ONLY",
+                      "expected_windows": next_d0.get("expectedWindowCount") == 10,
+                      "evaluation_closed": next_d0.get("performanceEvaluationAllowed") is False,
+                      "not_confirmation": next_d0.get("freshConfirmationEvidence") is False,
+                      "no_verification": next_d0.get("verificationAuthority") is False,
+                      "d1_closed": next_d0.get("d1Opened") is False,
+                      "frozen_oos_closed": next_d0.get("frozenOosOpened") is False,
+                      "sf4_closed": next_d0.get("sf4DataAccessAllowed") is False,
+                      "live_locked": next_d0.get("liveExecutionAllowed") is False,
+                      "real_locked": next_d0.get("realExecutionAllowed") is False,
+                  }
+                  failed = [name for name, passed in safety.items() if not passed]
+                  if failed:
+                      raise RuntimeError("next-D0 safety contract failed: " + ", ".join(failed))
+
+                  available = next_d0.get("available") is True
+                  phase = next_d0.get("phase") if available else None
+                  completed = next_d0.get("completedWindowCount") if available else 0
+                  if available:
+                      if phase not in {"IN_PROGRESS", "COMPLETE"}:
+                          raise RuntimeError("next-D0 materialization phase is invalid")
+                      if isinstance(completed, bool) or not isinstance(completed, int):
+                          raise RuntimeError("next-D0 completed window count is invalid")
+                      if not 0 <= completed <= 10:
+                          raise RuntimeError("next-D0 completed window count is outside frozen range")
+                      bundle = next_d0.get("datasetBundleSha256")
+                      if phase == "COMPLETE":
+                          if completed != 10 or not isinstance(bundle, str) or len(bundle) != 64:
+                              raise RuntimeError("complete next-D0 receipt is incomplete")
+                      elif bundle is not None:
+                          raise RuntimeError("in-progress next-D0 cannot expose a bundle SHA")
+
+                  print(
+                      json.dumps(
+                          {
+                              "ok": True,
+                              "build": build,
+                              "available": available,
+                              "reason": None if available else next_d0.get("reason"),
+                              "phase": phase,
+                              "completedWindowCount": completed,
+                              "expectedWindowCount": 10,
+                              "nextWindowName": next_d0.get("nextWindowName"),
+                              "datasetBundleSha256": next_d0.get("datasetBundleSha256"),
+                              "sourceCodeSha": next_d0.get("sourceCodeSha"),
+                              "authority": "D0_DATA_MATERIALIZATION_ONLY",
+                              "performanceEvaluationAllowed": False,
+                              "freshConfirmationEvidence": False,
+                              "verificationAuthority": False,
+                              "d1Opened": False,
+                              "frozenOosOpened": False,
+                              "sf4DataAccessAllowed": False,
+                              "liveExecutionAllowed": False,
+                              "realExecutionAllowed": False,
+                          },
+                          separators=(",", ":"),
+                      )
+                  )
+                  raise SystemExit(0)
+              except (OSError, ValueError, RuntimeError, urllib.error.URLError) as exc:
+                  last_error = str(exc)[:4000]
+                  time.sleep(15)
+
+          raise SystemExit(f"next-D0 production progress proof timed out: {last_error}")
+          PY
