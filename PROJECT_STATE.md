@@ -52,7 +52,7 @@ Four implemented causal families:
 3. `path_efficiency_persistence_v1`;
 4. `low_turnover_flow_persistence_v1`.
 
-Causal multi-timeframe support is implemented from closed 1m data to 5m/15m/60m. Breakout-retetst cannot fill on the breakout bar; flow persistence structurally limits turnover with minimum-hold/cooldown rules.
+Causal multi-timeframe support is implemented from closed 1m data to 5m/15m/60m. Breakout-retest cannot fill on the breakout bar; flow persistence structurally limits turnover with minimum-hold/cooldown rules.
 
 Frozen catalog:
 
@@ -110,21 +110,30 @@ PR #141 provides a read-only GitHub production proof. PR #142 adds sanitized rea
 
 ## Current empirical production state
 
-Before PR #142, exact production build `1403b4ff0562f0b33a6892a6de848e2c9515d9f5` was production-verified, but the next-D0 endpoint still reported `status_unavailable` and exposed 0/10 completed receipts. Because status is written only after a full window completes, that evidence did **not** establish whether the first window was running or whether the service had failed.
+Public production smoke run `33889836392` verified exact deployed build `be778b2b760402aa2d9df9a00841731708f1b77e` on 2026-09-04 and reported research/API health true.
 
-PR #142 is merged. Its exact-main production proof must be treated as the next authority for the operational state; do not infer materialization completion from merged code alone.
+The dedicated next-D0 exact-main proof run `33889836345` is the authority for materializer service/receipt state. At this checkpoint it has not yet produced a terminal result, so no window completion is inferred from deployment alone.
+
+Before PR #142, exact production build `1403b4ff0562f0b33a6892a6de848e2c9515d9f5` was production-verified, but the next-D0 endpoint still reported `status_unavailable` and exposed 0/10 completed receipts. Because status is written only after a full window completes, that evidence did not establish whether the first window was running or whether the service had failed.
 
 Classification at this checkpoint:
 
 - materializer code: **CODE READY**;
-- previous exact production build: **PRODUCTION VERIFIED**;
+- current exact main deployment: **PRODUCTION VERIFIED**;
 - 10-window next-D0 corpus: **NOT YET VERIFIED COMPLETE**;
 - strategy evaluation: **NOT OPENED**;
 - verified profitable strategy: **NONE**.
 
+## Validation
+
+- PR #142 exact-head checks were green before merge.
+- Public production smoke run `33889836392` verified build `be778b2b760402aa2d9df9a00841731708f1b77e` and healthy public research/API surfaces.
+- Dedicated next-D0 proof run `33889836345` remains the required operational receipt/service-state authority; do not mark a D0 window complete until its receipt is visible and validated.
+- Scientific downstream locks remain false/closed throughout materialization.
+
 ## Required next sequence
 
-1. Obtain exact production proof for current main and read sanitized service/materialization state.
+1. Obtain terminal exact production proof for current main and read sanitized service/materialization state.
 2. If service failed, diagnose/fix only the operational cause; do not open evaluation or weaken the frozen research contract.
 3. Continue one-window-at-a-time materialization until all 10 receipts are present and validated.
 4. Freeze one immutable dataset receipt containing dataset-plan SHA, frozen catalog SHA, all 10 feature SHA-256 values, workflow IDs, row counts, provenance and source-code SHA.
@@ -152,4 +161,4 @@ Frozen replication hypotheses remain independent of Factory D0. The protected in
 
 ## Continuity protocol
 
-New sessions read `AGENTS.md`, this file, `ARCHITECTURE.md`, `DECISIONS.md`, `TODO.md`, `CHANGELOG.md`, `SESSION_HANDOFF.md`, `BACKTEST_PROTOCOL.md`, `STRATEGY_SPEC.md` and the current SFv2 design/result documents, then query actual GitHub/production state before editing.
+New sessions read `AGENTS.md`, this file, `ARCHITECTURE.md`, `DECISIONS.md`, `TODO.md`, `CHANGELOG.md`, `SESSION_HANDOFF.md`, `BACKTEST_PROTOCOL.md`, `STRATEGY_SPEC.md`, `docs/SFV2_NEXT_D0_PRODUCTION_MATERIALIZATION_2026-09-04.md` and the current SFv2 design/result documents, then query actual GitHub/production state before editing.
