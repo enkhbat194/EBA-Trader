@@ -1,0 +1,25 @@
+[Unit]
+Description=EBA Trader Strategy Factory v2 next-D0 data materialization slice
+After=network-online.target eba-runtime-api.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/Eba-Trader
+ExecStart=/bin/bash /opt/Eba-Trader/scripts/run_sfv2_next_d0_materialization.sh
+User=root
+Group=root
+Nice=12
+CPUQuota=45%
+MemoryMax=2G
+TasksMax=128
+IOSchedulingClass=idle
+TimeoutStartSec=50min
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/eba-trader/research
+
+# One invocation materializes at most one frozen D0 window. The wrapper holds the
+# shared checkout lock for its full run, preventing deploy/research code interleaving.
+# This service has no performance-evaluation, D1, Frozen OOS, SF4 or live authority.
