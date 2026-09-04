@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from .sfv2_next_d0_service_state import read_sfv2_next_d0_service_state
 from .strategy_factory_v2_next_materialization import (
     AUTHORITY,
     CAMPAIGN_ID,
@@ -27,6 +28,7 @@ def _unavailable(reason: str) -> dict[str, Any]:
         "authority": AUTHORITY,
         "campaignId": CAMPAIGN_ID,
         "expectedWindowCount": EXPECTED_WINDOW_COUNT,
+        "serviceState": read_sfv2_next_d0_service_state(),
         "performanceEvaluationAllowed": False,
         "freshConfirmationEvidence": False,
         "verificationAuthority": False,
@@ -98,6 +100,7 @@ def read_sfv2_next_d0_materialization_summary(
         "completedWindowCount": completed,
         "nextWindowName": payload.get("nextWindowName"),
         "datasetBundleSha256": bundle_sha if complete else None,
+        "serviceState": read_sfv2_next_d0_service_state(),
         "performanceEvaluationAllowed": False,
         "freshConfirmationEvidence": False,
         "verificationAuthority": False,

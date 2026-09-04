@@ -41,3 +41,16 @@ def test_auto_updater_starts_next_d0_only_after_first_d0_is_complete() -> None:
     assert "performanceEvaluationAllowed\") is False" in script
     assert "sf4DataAccessAllowed\") is False" in script
     assert "systemctl start --no-block \"$SFV2_NEXT_SERVICE\"" in script
+
+
+def test_progress_proof_surfaces_service_state_without_mutation_authority() -> None:
+    workflow = (
+        ROOT / ".github/workflows/sfv2-next-d0-progress-proof.yml"
+    ).read_text(encoding="utf-8")
+    assert 'service_state = next_d0.get("serviceState")' in workflow
+    assert 'active_state == "failed"' in workflow
+    assert 'exec_status != 0' in workflow
+    assert '"serviceState": service_state' in workflow
+    assert "systemctl start" not in workflow
+    assert "performanceEvaluationAllowed" in workflow
+    assert "realExecutionAllowed" in workflow
