@@ -109,7 +109,9 @@ def _read_ledger(
         trials: list[dict[str, Any]] = []
         for row in trial_rows:
             item = dict(row)
-            item["metrics"] = _read_json(str(item.pop("metrics_json")), name="trial metrics")
+            item["metrics"] = _read_json(
+                str(item.pop("metrics_json")), name="trial metrics"
+            )
             behavior_json = item.pop("behavior_json")
             item["behavior"] = (
                 _read_json(str(behavior_json), name="trial behavior")
@@ -131,7 +133,8 @@ def _read_ledger(
         selection = {
             "selection_id": str(selection_row["selection_id"]),
             "definition": _read_json(
-                str(selection_row["definition_json"]), name="survivor selection definition"
+                str(selection_row["definition_json"]),
+                name="survivor selection definition",
             ),
             "candidate_ids": json.loads(str(selection_row["candidate_ids_json"])),
         }
@@ -298,7 +301,10 @@ def _delay_observations(
 def _realized_volatility_bps(prices: Sequence[float]) -> float:
     if len(prices) < 3:
         return 0.0
-    returns = [math.log(right / left) for left, right in zip(prices, prices[1:], strict=False)]
+    returns = [
+        math.log(right / left)
+        for left, right in zip(prices, prices[1:], strict=False)
+    ]
     return pstdev(returns) * 10_000.0 if len(returns) >= 2 else 0.0
 
 
@@ -321,12 +327,16 @@ def _build_stratum_descriptors(strata: Sequence[Any]) -> dict[str, dict[str, Any
             "benchmarkReturn": benchmark,
             "realizedOneBarVolatilityBps": volatility,
             "direction": "UP" if benchmark > 0.0 else "DOWN" if benchmark < 0.0 else "FLAT",
-            "openByTime": {candle.open_time_ms: candle.open for candle in item.dataset.candles},
+            "openByTime": {
+                candle.open_time_ms: candle.open for candle in item.dataset.candles
+            },
         }
     median_volatility = median(volatilities)
     for value in raw.values():
         value["volatilityBucket"] = (
-            "HIGH" if value["realizedOneBarVolatilityBps"] >= median_volatility else "LOW"
+            "HIGH"
+            if value["realizedOneBarVolatilityBps"] >= median_volatility
+            else "LOW"
         )
     return raw
 
@@ -396,7 +406,9 @@ def _primary_diagnosis(
     if not adequate:
         return "SPARSE_ACTIVITY"
     net_positive = [
-        item for item in adequate if item.mean_total_return is not None and item.mean_total_return > 0
+        item
+        for item in adequate
+        if item.mean_total_return is not None and item.mean_total_return > 0
     ]
     if not net_positive:
         cost_sensitive = [
@@ -414,6 +426,18 @@ def _primary_diagnosis(
         and item.mean_benchmark_relative_return > 0.0
     ]
     return "MIXED_ECONOMIC_GATES" if not fully_positive else "DIVERSITY_OR_OTHER_GATE"
+
+
+def _mean_candidate_attr(
+    items: Sequence[LowFidelityCandidateSummary],
+    attribute: str,
+) -> float | None:
+    values = [
+        float(value)
+        for item in items
+        if (value := getattr(item, attribute)) is not None
+    ]
+    return fmean(values) if values else None
 
 
 def build_sfv2_d0_failure_postmortem(
@@ -521,31 +545,17 @@ def build_sfv2_d0_failure_postmortem(
                 "medianCandidateTradeCount": (
                     median([item.total_trade_count for item in complete]) if complete else None
                 ),
-                "meanCandidateNetReturn": (
-                    fmean([item.mean_total_return for item in complete if item.mean_total_return is not None])
-                    if any(item.mean_total_return is not None for item in complete)
-                    else None
+                "meanCandidateNetReturn": _mean_candidate_attr(
+                    complete, "mean_total_return"
                 ),
-                "meanCandidateExpectancy": (
-                    fmean([item.mean_expectancy for item in complete if item.mean_expectancy is not None])
-                    if any(item.mean_expectancy is not None for item in complete)
-                    else None
+                "meanCandidateExpectancy": _mean_candidate_attr(
+                    complete, "mean_expectancy"
                 ),
-                "meanCandidateBenchmarkDelta": (
-                    fmean(
-                        [
-                            item.mean_benchmark_relative_return
-                            for item in complete
-                            if item.mean_benchmark_relative_return is not None
-                        ]
-                    )
-                    if any(item.mean_benchmark_relative_return is not None for item in complete)
-                    else None
+                "meanCandidateBenchmarkDelta": _mean_candidate_attr(
+                    complete, "mean_benchmark_relative_return"
                 ),
-                "meanCandidateTotalCostUsd": (
-                    fmean([item.mean_total_cost for item in complete if item.mean_total_cost is not None])
-                    if any(item.mean_total_cost is not None for item in complete)
-                    else None
+                "meanCandidateTotalCostUsd": _mean_candidate_attr(
+                    complete, "mean_total_cost"
                 ),
                 "bestCandidate": (
                     {
@@ -561,21 +571,29 @@ def build_sfv2_d0_failure_postmortem(
                     else None
                 ),
                 "recordedCostSensitivityProxy": {
-                    "note": "Adds recorded cost attribution back to net return; not a counterfactual fill simulation.",
+                    "note": (
+                        "Adds recorded cost attribution back to net return; "
+                        "not a counterfactual fill simulation."
+                    ),
                     "feeShare": FEE_BPS / (FEE_BPS + SLIPPAGE_BPS),
                     "slippageShare": SLIPPAGE_BPS / (FEE_BPS + SLIPPAGE_BPS),
                 },
                 "oneBarDelayDiagnostic": {
                     "matchedTradeCount": len(delay_bps),
-                    "meanPreEntryDirectionalMoveBps": fmean(delay_bps) if delay_bps else None,
-                    "medianPreEntryDirectionalMoveBps": median(delay_bps) if delay_bps else None,
+                    "meanPreEntryDirectionalMoveBps": (
+                        fmean(delay_bps) if delay_bps else None
+                    ),
+                    "medianPreEntryDirectionalMoveBps": (
+                        median(delay_bps) if delay_bps else None
+                    ),
                     "positiveDirectionalMoveShare": (
                         sum(value > 0.0 for value in delay_bps) / len(delay_bps)
                         if delay_bps
                         else None
                     ),
                     "interpretation": (
-                        "positive means price moved in the eventual trade direction before next-bar entry"
+                        "positive means price moved in the eventual trade direction "
+                        "before next-bar entry"
                     ),
                 },
                 "regimeDiagnostics": _regime_summary(
@@ -616,7 +634,9 @@ def build_sfv2_d0_failure_postmortem(
             "meanPreEntryDirectionalMoveBps": (
                 fmean(all_delay_bps) if all_delay_bps else None
             ),
-            "medianPreEntryDirectionalMoveBps": median(all_delay_bps) if all_delay_bps else None,
+            "medianPreEntryDirectionalMoveBps": (
+                median(all_delay_bps) if all_delay_bps else None
+            ),
             "positiveDirectionalMoveShare": (
                 sum(value > 0.0 for value in all_delay_bps) / len(all_delay_bps)
                 if all_delay_bps
@@ -626,10 +646,22 @@ def build_sfv2_d0_failure_postmortem(
         "strata": public_descriptors,
         "families": family_payloads,
         "limitations": [
-            "This is inspected D0 discovery evidence and has no confirmation or promotion authority.",
-            "Recorded cost sensitivity is an attribution proxy, not a zero-fee/slippage rerun.",
-            "The delay diagnostic measures observed pre-entry movement, not counterfactual PnL.",
-            "Volatility buckets are descriptive postmortem labels based on the median of 12 D0 strata.",
+            (
+                "This is inspected D0 discovery evidence and has no confirmation "
+                "or promotion authority."
+            ),
+            (
+                "Recorded cost sensitivity is an attribution proxy, not a "
+                "zero-fee/slippage rerun."
+            ),
+            (
+                "The delay diagnostic measures observed pre-entry movement, "
+                "not counterfactual PnL."
+            ),
+            (
+                "Volatility buckets are descriptive postmortem labels based on "
+                "the median of 12 D0 strata."
+            ),
         ],
         "freshConfirmationEvidence": False,
         "verificationAuthority": False,
