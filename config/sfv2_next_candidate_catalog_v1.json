@@ -1,0 +1,27 @@
+{
+  "schema": "sfv2_next_candidate_catalog_v1",
+  "design_id": "sfv2-next-existing-data-v1",
+  "campaign_id": "sfv2-existing-data-low-turnover-v1",
+  "authority": "CATALOG_FREEZE_ONLY",
+  "seed": "sfv2-existing-data-low-turnover-v1-catalog-v1",
+  "family_allocations": {
+    "mtf_trend_pullback_v1": 32,
+    "breakout_retest_entry_v1": 32,
+    "path_efficiency_persistence_v1": 32,
+    "low_turnover_flow_persistence_v1": 32
+  },
+  "prior_inspected_candidate_count": 406,
+  "planned_raw_candidate_count": 128,
+  "cumulative_search_history_count_after_run": 534,
+  "expected_catalog_sha256": "0aa793ca70ba8719486ba6edae314c77803e1b87884665d17ec88019ec71654a",
+  "dataset_window_frozen": false,
+  "performance_evaluation_allowed": false,
+  "safety": {
+    "d1_opened": false,
+    "frozen_oos_opened": false,
+    "sf4_data_access_allowed": false,
+    "demo_promotion_allowed": false,
+    "live_execution_allowed": false,
+    "real_execution_allowed": false
+  }
+}
