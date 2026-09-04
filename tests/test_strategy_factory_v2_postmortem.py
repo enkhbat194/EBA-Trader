@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from eba_trader.sfv2_dashboard import read_sfv2_d0_postmortem
 from eba_trader.strategy_factory_v2_pilot import LowFidelityCandidateSummary
 from eba_trader.strategy_factory_v2_postmortem import (
@@ -67,7 +69,7 @@ def test_one_bar_delay_diagnostic_matches_preceding_signal() -> None:
         open_by_time={60_000: 100.0, 120_000: 101.0},
         step_ms=60_000,
     )
-    assert observations == [100.0]
+    assert observations == pytest.approx([100.0])
 
 
 def _postmortem_payload() -> dict[str, object]:
