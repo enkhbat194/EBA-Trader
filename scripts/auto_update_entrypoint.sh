@@ -15,6 +15,12 @@ SFV2_POSTMORTEM_RUNNER="$REPO_DIR/scripts/run_sfv2_d0_postmortem.py"
 SFV2_POSTMORTEM_REPORT="/var/lib/eba-trader/research/sfv2-d0-failure-postmortem.json"
 SFV2_DATASET_ROOT="/var/lib/eba-trader/research/datasets"
 SFV2_RESEARCH_DB="/var/lib/eba-trader/research/eba_research.db"
+SFV2_NEXT_SERVICE="eba-sfv2-next-d0-materialization.service"
+SFV2_NEXT_SERVICE_SOURCE="$REPO_DIR/deploy/systemd/$SFV2_NEXT_SERVICE"
+SFV2_NEXT_SERVICE_TARGET="/etc/systemd/system/$SFV2_NEXT_SERVICE"
+SFV2_NEXT_AUTHORIZATION="$REPO_DIR/config/sfv2_next_d0_materialization_authorization_v1.json"
+SFV2_NEXT_RUNNER="$REPO_DIR/scripts/run_sfv2_next_d0_materialization.sh"
+SFV2_NEXT_STATUS="/var/lib/eba-trader/research/sfv2-next-d0-materialization-status.json"
 
 mkdir -p "$STATE_DIR"
 chmod 750 "$STATE_DIR"
@@ -143,6 +149,51 @@ if [[ "$SFV2_COMPLETE" != "1" && -f "$SFV2_AUTHORIZATION" \
   flock -u 9
   systemctl start --no-block "$SFV2_SERVICE" || \
     echo "SFv2 dedicated D0 service start deferred; the next auto-update cycle will retry." >&2
+fi
+
+# The next campaign may materialize only after the first D0 campaign is immutably closed. It is
+# data acquisition only: one frozen window per invocation, no performance evaluation. The status
+# file is the single-use progress ledger; a COMPLETE receipt makes subsequent updater cycles no-op.
+SFV2_NEXT_COMPLETE=0
+if [[ -f "$SFV2_NEXT_STATUS" && -x "$REPO_DIR/.venv/bin/python" ]]; then
+  SFV2_NEXT_COMPLETE="$($REPO_DIR/.venv/bin/python - "$SFV2_NEXT_STATUS" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+try:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+except (OSError, json.JSONDecodeError):
+    print(0)
+else:
+    complete = (
+        payload.get("schema") == "sfv2_next_d0_materialization_status_v1"
+        and payload.get("requestId") == "sfv2-next-d0-materialize-20260904-v1"
+        and payload.get("phase") == "COMPLETE"
+        and payload.get("completedWindowCount") == 10
+        and isinstance(payload.get("datasetBundleSha256"), str)
+        and len(payload.get("datasetBundleSha256")) == 64
+        and payload.get("performanceEvaluationAllowed") is False
+        and payload.get("d1Opened") is False
+        and payload.get("frozenOosOpened") is False
+        and payload.get("sf4DataAccessAllowed") is False
+        and payload.get("realExecutionAllowed") is False
+    )
+    print(1 if complete else 0)
+PY
+)"
+fi
+
+if [[ "$SFV2_COMPLETE" == "1" && "$SFV2_NEXT_COMPLETE" != "1" \
+      && -f "$SFV2_NEXT_AUTHORIZATION" && -f "$SFV2_NEXT_RUNNER" \
+      && -f "$SFV2_NEXT_SERVICE_SOURCE" ]]; then
+  install -m 0644 "$SFV2_NEXT_SERVICE_SOURCE" "$SFV2_NEXT_SERVICE_TARGET"
+  systemctl daemon-reload
+  systemctl reset-failed "$SFV2_NEXT_SERVICE" >/dev/null 2>&1 || true
+  flock -u 9
+  systemctl start --no-block "$SFV2_NEXT_SERVICE" || \
+    echo "Next D0 materialization start deferred; the next auto-update cycle will retry." >&2
 fi
 
 exit 0
