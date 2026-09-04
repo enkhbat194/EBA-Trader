@@ -59,8 +59,36 @@ if ! flock -n 9; then
   exit 75
 fi
 
-SOURCE_SHA="$(git rev-parse HEAD)"
-echo "Materializing one frozen next-D0 window on $SOURCE_SHA"
+# Pin the feature-builder contract rather than the whole git commit. This lets unrelated UI/docs
+# changes deploy between windows while still failing closed if any data-plan, boundary, acquisition,
+# footprint or materialization logic changes before the ten-window receipt is frozen.
+SOURCE_SHA="$(.venv/bin/python - <<'PY'
+from pathlib import Path
+
+from eba_trader.research_evidence import canonical_json, sha256_file, sha256_text
+
+paths = (
+    "config/sfv2_next_d0_dataset_plan_v1.json",
+    "config/sfv2_historical_window_inventory_v1.json",
+    "src/eba_trader/strategy_factory_v2_next_dataset_plan.py",
+    "src/eba_trader/strategy_factory_v2_next_dataset_workflow.py",
+    "src/eba_trader/strategy_factory_v2_next_materialization.py",
+    "src/eba_trader/strategy_factory_v2_window_inventory.py",
+    "src/eba_trader/candle_acquisition.py",
+    "src/eba_trader/orderflow_archive.py",
+    "src/eba_trader/orderflow_acquisition.py",
+    "src/eba_trader/orderflow_dataset.py",
+    "src/eba_trader/orderflow_feature_dataset.py",
+    "src/eba_trader/footprint.py",
+    "src/eba_trader/history.py",
+    "src/eba_trader/holdout_guard.py",
+    "src/eba_trader/research_evidence.py",
+)
+identity = [[path, sha256_file(Path(path))] for path in paths]
+print(sha256_text(canonical_json(identity)))
+PY
+)"
+echo "Materializing one frozen next-D0 window on builder contract $SOURCE_SHA"
 exec .venv/bin/python scripts/run_sfv2_next_d0_materialization.py \
   --authorization "$AUTHORIZATION_PATH" \
   --plan "$PLAN_PATH" \
