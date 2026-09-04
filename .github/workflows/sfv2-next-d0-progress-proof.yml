@@ -82,6 +82,24 @@ jobs:
                   if failed:
                       raise RuntimeError("next-D0 safety contract failed: " + ", ".join(failed))
 
+                  service_state = next_d0.get("serviceState")
+                  if service_state is not None and not isinstance(service_state, dict):
+                      raise RuntimeError("next-D0 service state is malformed")
+                  if isinstance(service_state, dict) and service_state.get("available") is True:
+                      active_state = service_state.get("activeState")
+                      result = service_state.get("result")
+                      exec_status = service_state.get("execMainStatus")
+                      if active_state == "failed":
+                          raise RuntimeError("next-D0 materialization service is failed")
+                      if result not in {None, "", "success"}:
+                          raise RuntimeError(
+                              f"next-D0 materialization service result is {result!r}"
+                          )
+                      if isinstance(exec_status, int) and exec_status != 0:
+                          raise RuntimeError(
+                              f"next-D0 materialization service exit status is {exec_status}"
+                          )
+
                   available = next_d0.get("available") is True
                   phase = next_d0.get("phase") if available else None
                   completed = next_d0.get("completedWindowCount") if available else 0
@@ -112,6 +130,7 @@ jobs:
                               "nextWindowName": next_d0.get("nextWindowName"),
                               "datasetBundleSha256": next_d0.get("datasetBundleSha256"),
                               "sourceCodeSha": next_d0.get("sourceCodeSha"),
+                              "serviceState": service_state,
                               "authority": "D0_DATA_MATERIALIZATION_ONLY",
                               "performanceEvaluationAllowed": False,
                               "freshConfirmationEvidence": False,
