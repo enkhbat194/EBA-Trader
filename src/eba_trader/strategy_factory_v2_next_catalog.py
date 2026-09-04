@@ -7,8 +7,8 @@ from pathlib import Path
 from .research_evidence import canonical_json, sha256_text
 from .strategy_discovery_v2 import DiscoveryCandidate
 from .strategy_factory_v2_next_design import (
-    EXPECTED_CANDIDATE_CAP_PER_FAMILY,
     EXPECTED_CAMPAIGN_ID,
+    EXPECTED_CANDIDATE_CAP_PER_FAMILY,
     EXPECTED_FAMILY_IDS,
     EXPECTED_PRIOR_INSPECTED_CANDIDATES,
     EXPECTED_RAW_CANDIDATE_CAP,
