@@ -1,0 +1,44 @@
+{
+  "schema": "sfv2_next_d0_dataset_plan_v1",
+  "design_id": "sfv2-next-existing-data-v1",
+  "campaign_id": "sfv2-existing-data-low-turnover-v1",
+  "authority": "DATASET_PLAN_FREEZE_ONLY",
+  "provenance_class": "D0_DISCOVERY_ONLY_NOT_CONFIRMATION",
+  "symbol": "BTCUSDT",
+  "venue": "usd_m_futures",
+  "interval": "1m",
+  "price_bucket": 5.0,
+  "orderflow_source": "archive",
+  "namespace": "sfv2_next_d0_low_turnover_v1",
+  "catalog_sha256": "0aa793ca70ba8719486ba6edae314c77803e1b87884665d17ec88019ec71654a",
+  "required_prior_minutes": 1,
+  "windows": [
+    {"name": "next-d0-01", "start": "2026-08-22T00:15:00Z", "end": "2026-08-23T00:00:00Z"},
+    {"name": "next-d0-02", "start": "2026-08-23T00:00:00Z", "end": "2026-08-24T00:00:00Z"},
+    {"name": "next-d0-03", "start": "2026-08-24T00:00:00Z", "end": "2026-08-25T00:00:00Z"},
+    {"name": "next-d0-04", "start": "2026-08-25T00:00:00Z", "end": "2026-08-26T00:00:00Z"},
+    {"name": "next-d0-05", "start": "2026-08-26T00:00:00Z", "end": "2026-08-27T00:00:00Z"},
+    {"name": "next-d0-06", "start": "2026-08-27T00:00:00Z", "end": "2026-08-28T00:00:00Z"},
+    {"name": "next-d0-07", "start": "2026-08-28T00:00:00Z", "end": "2026-08-29T00:00:00Z"},
+    {"name": "next-d0-08", "start": "2026-08-29T00:00:00Z", "end": "2026-08-30T00:00:00Z"},
+    {"name": "next-d0-09", "start": "2026-08-30T00:00:00Z", "end": "2026-08-31T00:00:00Z"},
+    {"name": "next-d0-10", "start": "2026-08-31T00:00:00Z", "end": "2026-09-01T00:00:00Z"}
+  ],
+  "materialization": {
+    "required": true,
+    "exact_feature_sha_per_window_required": true,
+    "exact_workflow_manifest_per_window_required": true,
+    "dataset_receipt_frozen": false,
+    "performance_evaluation_allowed": false
+  },
+  "safety": {
+    "fresh_confirmation_evidence": false,
+    "verification_authority": false,
+    "d1_opened": false,
+    "frozen_oos_opened": false,
+    "sf4_data_access_allowed": false,
+    "demo_promotion_allowed": false,
+    "live_execution_allowed": false,
+    "real_execution_allowed": false
+  }
+}
