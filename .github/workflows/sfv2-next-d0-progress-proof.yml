@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: sfv2-next-d0-production-progress-proof
+  group: sfv2-next-d0-production-progress-proof-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -35,7 +35,8 @@ jobs:
           expected = os.environ["EXPECTED_PRODUCTION_SHA"].strip()
           proof_mode = os.environ.get("PROOF_MODE", "strict").strip()
           strict = proof_mode == "strict"
-          deadline = time.time() + 600
+          deadline_seconds = 600 if strict else 90
+          deadline = time.time() + deadline_seconds
           last_error = "not attempted"
 
           def get_json(path):
@@ -183,6 +184,25 @@ jobs:
               except (OSError, ValueError, RuntimeError, urllib.error.URLError) as exc:
                   last_error = str(exc)[:4000]
                   time.sleep(15)
+
+          if not strict:
+              print(
+                  compact(
+                      {
+                          "ok": True,
+                          "proofMode": proof_mode,
+                          "observationComplete": False,
+                          "productionReachable": False,
+                          "expectedBuild": expected,
+                          "lastError": last_error,
+                          "note": (
+                              "PR base-observation transport failure is diagnostic only; "
+                              "main strict production proof remains authoritative"
+                          ),
+                      }
+                  )
+              )
+              raise SystemExit(0)
 
           raise SystemExit(f"next-D0 production progress proof timed out: {last_error}")
           PY
