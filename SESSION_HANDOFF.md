@@ -1,187 +1,194 @@
 # EBA Trader — Session Handoff
 
-_Last handoff prepared: 2026-09-04 (Asia/Ulaanbaatar)_
+_Last handoff prepared: 2026-09-05 (Asia/Ulaanbaatar)_
 
-## Exact continuation point
+## Startup rule
 
 Repository: `enkhbat194/EBA-Trader`.
 
-Always query actual GitHub `main`, open PRs and production workflows before editing because the hourly automation may advance state between sessions.
+Before editing, query current `main`, open/recent PRs, exact production workflows and continuity docs. Merged code + exact production evidence + latest explicit frozen decisions override stale prose.
 
-The exact production build that verified the completed first Strategy Factory v2 D0 failure postmortem is:
+## Current main checkpoint
 
-`b822a9815f8f5cc42c674f849e5626d8b7022602`
+Current main:
 
-Production postmortem proof:
+`c8befb7799abbffc740399a941632fcdc0adb273`
 
-- workflow: `Strategy Factory v2 D0 failure postmortem proof`;
-- Actions run: `33823539570`;
-- proof job: `100871190923`;
-- conclusion: `success`;
-- completed approximately `2026-09-04T01:02:54Z`.
+Relevant sequence:
 
-## Immutable first D0 result
+- #140 — local-only next-D0 materializer + shared checkout lock;
+- #141 — read-only exact-production progress proof;
+- #142 — sanitized read-only systemd telemetry;
+- #144 — confirmed preflight failure repair + complete builder-source identity regression guard;
+- #146 — PR transport failures are diagnostic-only while main proof stays strict; concurrency isolated per PR/ref;
+- #147 — read-only Research / AI Lab next-D0 progress UI with explicit scientific locks.
 
-Campaign: `sfv2-discovery-pilot-v1`.
+## Immutable first Strategy Factory v2 D0 result
 
-- authority: `DISCOVERY_ONLY`;
-- candidates: 406;
-- families: 8;
-- strata: 12;
-- terminal trials: 4,872 / 4,872;
-- complete candidates: 406;
-- rejected candidates: 254;
-- behaviorally eligible candidates: 152;
-- behavioral clusters: 127;
-- frozen survivor count: **0**;
-- D1 opened: false;
-- Frozen OOS opened: false;
-- live execution allowed: false;
-- real execution allowed: false.
+Campaign `sfv2-discovery-pilot-v1`:
 
-This zero-survivor result is immutable. Do not fill the old unused 94 slots, weaken thresholds or reinterpret a diagnostic proxy as a winner.
+- 406 candidates / 8 families;
+- 12 strata;
+- 4,872 / 4,872 terminal trials;
+- frozen survivors: **0**.
 
-## Package 1 postmortem result
+D1 did not open. Frozen OOS did not open. No winner was manufactured by threshold changes. There is still **no verified profitable strategy**.
 
-Canonical document: `docs/SFV2_D0_FAILURE_POSTMORTEM_2026-09-04.md`.
+The postmortem concluded the first factory was too parameter-centric and heavily exposed to one-minute friction/turnover. The next campaign therefore expands mechanism/horizon diversity rather than neighboring parameter count.
 
-The production postmortem is read-only and used the exact closed ledger. It did not rerun the campaign.
+## Frozen next campaign
 
-Global failure flags:
+Campaign: `sfv2-existing-data-low-turnover-v1`.
+Design: `sfv2-next-existing-data-v1`.
 
-- non-positive net return: 152 / 152 complete non-rejected candidates;
-- non-positive expectancy: 152 / 152;
-- non-positive benchmark-relative return: 152 / 152;
-- cost-sensitive diagnostic proxy: 107;
-- rejected/incomplete candidates: 254.
-
-Family diagnoses:
-
-- 6 × `COST_SENSITIVE_PROXY`;
-- 2 × `INACTIVE_OR_REJECTED`.
-
-Important family findings:
-
-- ATR trailing: ~+5.26 bps mean pre-entry chase; active but negative.
-- Donchian breakout: ~+7.63 bps mean pre-entry chase; active but negative.
-- Mean reversion: ~-5.79 bps favorable pre-entry move but still negative, so timing is not the main failure.
-- Order-flow delta impulse: 20,227 trades across complete candidates; turnover/cost is structural.
-- Rolling flow trend: partial inactivity + negative economics; delay small.
-- Compression-expansion and volume-shock: primarily inactive/rejected under frozen rules.
-- VWAP reversion flow: only 2 complete candidates, both negative.
-
-Across all matched trades the mean one-bar pre-entry move was only +0.09237 bps, so delay is not a global campaign explanation.
-
-`cost_sensitive_proxy` is only an attribution diagnostic. It is not a zero-fee/slippage rerun and does not establish gross or net profitable edge.
-
-There is still **no verified profitable strategy**.
-
-## Package 2 design — frozen as DESIGN_ONLY
-
-Canonical design document: `docs/SFV2_NEXT_CAMPAIGN_DESIGN_2026-09-04.md`.
-Config: `config/sfv2_next_campaign_design_v1.json`.
-Validator: `src/eba_trader/strategy_factory_v2_next_design.py`.
-
-Design ID: `sfv2-next-existing-data-v1`.
-Reserved campaign ID: `sfv2-existing-data-low-turnover-v1`.
-
-Preliminary caps:
-
-- raw candidates: 128;
-- per family: 32;
-- survivors: 12;
-- prior inspected candidates retained in search history: 406.
-
-Four mechanism slots:
+Implemented causal families:
 
 1. `mtf_trend_pullback_v1`;
 2. `breakout_retest_entry_v1`;
 3. `path_efficiency_persistence_v1`;
 4. `low_turnover_flow_persistence_v1`.
 
-The design explicitly excludes neighboring parameter extensions of all eight failed first-pilot families.
+Causal closed-1m -> 5m/15m/60m aggregation is implemented. Breakout requires a later fully closed retest rather than breakout-bar fill. Flow persistence uses minimum hold/cooldown.
 
-## Data/engine audit
+Frozen catalog:
 
-Historical causal planes already supported:
+- 32 candidates/family;
+- 128 total;
+- prior inspected count 406;
+- cumulative search history on evaluation 534;
+- SHA-256 `0aa793ca70ba8719486ba6edae314c77803e1b87884665d17ec88019ec71654a`;
+- authority `CATALOG_FREEZE_ONLY`.
 
-- Binance USD-M candle/price/volume;
-- executed aggregate-trade order flow;
-- footprint-derived executed-flow features.
+No performance was inspected during catalog freeze.
 
-Not currently approved as historical Strategy Factory planes:
+## Frozen next-D0 data plan
 
-- funding history;
-- open-interest history;
-- basis/premium history;
-- resting order-book history.
+Authority: `D0_DATA_MATERIALIZATION_ONLY` / `D0_DISCOVERY_ONLY_NOT_CONFIRMATION`.
 
-`m18_fee_aware.py` has point-in-time spot/futures book + commission/carry estimates but is not a historical research corpus.
+- BTCUSDT Binance USD-M Futures;
+- 1m base interval;
+- verified Binance public USD-M `aggTrades` archive;
+- price bucket 5.0;
+- plan SHA-256 `c3ae7735f657d905c2931613062fa9091c72dd9458d7cdfae678a01bcea26171`;
+- ten windows from `2026-08-22T00:15:00Z` through exactly `2026-09-01T00:00:00Z`.
 
-`momentum_engine.py` is a 1m/5m paper-only engineering prototype and is not verified profitability evidence or an approved next-campaign family by itself.
+Protected ranges remain sealed:
 
-## Current Package 2 implementation gates
+- 2025 first-cycle Frozen OOS;
+- M5 Frozen OOS `2026-08-15T00:00:00Z -> 2026-08-22T00:00:00Z`;
+- SF4 prospective `2026-09-01T00:00:00Z -> 2026-09-13T00:00:00Z`.
 
-No performance evaluation is authorized yet. Before the reserved campaign can run:
+## Production materializer contract
 
-1. implement the four causal family engines/adapters;
-2. implement closed 1m -> causal 5m/15m/60m aggregation;
-3. implement explicit family-specific order availability and causal retest/limit fill semantics where used;
-4. inventory every inspected/protected historical time range;
-5. freeze an exact slower-horizon D0 dataset/window contract with no SF4/Frozen-OOS leakage;
-6. freeze exact deterministic <=128 catalog + seed;
-7. add no-lookahead, fill, cooldown/turnover and search-accounting tests;
-8. merge exact-head CI green;
-9. only then consider a separate explicit D0 evaluation authorization.
+`eba-sfv2-next-d0-materialization.service`:
 
-## SF4 remains independent and time-gated
+- local/root-side only; no public mutation endpoint;
+- at most one frozen window per invocation;
+- shared `/run/lock/eba-trader-runtime-mutation.lock` with deployment;
+- research state under `/var/lib/eba-trader/research/...` outside Git checkout;
+- bounded CPU/memory/time;
+- status written only after a complete window succeeds;
+- final dataset bundle SHA only after ten completed receipts.
 
-Exact frozen hypotheses:
+Each successful receipt must bind exact feature SHA-256, row count, workflow ID, candle provenance, order-flow provenance/archive integrity, causal timestamp validity and frozen source identity.
 
-- `s3_vsm_s150`;
-- `s3_cex_s075`.
+## Confirmed failure and repair
 
-Prospective interval:
+Pre-#144 telemetry proved a same-second failure:
 
-`2026-09-01T00:00:00Z` through `2026-09-13T00:00:00Z`.
+- `activeState=failed`;
+- `result=exit-code`;
+- `execMainStatus=1`;
+- start/exit `2026-09-05 09:22:57 UTC`.
 
-Do not inspect/evaluate/retune SF4 before `2026-09-13T00:00:00Z`. SF3 evidence cannot be pooled into SF4 qualification. The conservative 48-test search burden remains carried forward.
+Root cause: the builder source-contract hash referenced nonexistent `src/eba_trader/footprint.py` before any network/materialization work. PR #144 corrected the path to `footprint_dataset.py`, added omitted direct order-flow feature dependencies to the frozen builder identity and added regression protection requiring every pinned source path to exist.
 
-## Hard locks
+No first receipt existed before #144, so correcting the source identity did not invalidate immutable evidence.
 
-- verified profitable strategy: none;
-- next-campaign design authority: DESIGN_ONLY;
-- next D0 evaluation: not authorized;
-- Factory D1: sealed;
-- M5/D3 Frozen OOS: sealed;
-- SF4 pre-unlock evaluation: prohibited;
-- Demo promotion authority: false;
-- real Binance execution: locked;
-- deterministic risk keeps veto authority.
+## Current empirical production evidence
+
+Current exact main/deployed build: `c8befb7799abbffc740399a941632fcdc0adb273`.
+
+Current-main Linode production bundle run `33966683041`: `success`.
+
+Strict next-D0 production proof run `33966683013`, job `101307967313`: `success`. At `2026-09-05T12:41:42Z`:
+
+- exact `c8befb77...` build was live;
+- `productionHealthy=true`;
+- status receipt remained unavailable;
+- completed windows: **0 / 10**;
+- source-code SHA: null;
+- final dataset bundle SHA: null;
+- service loaded and `activeState=activating`;
+- `result=success`, `execMainStatus=0`;
+- service start `2026-09-05 12:41:29 UTC`;
+- performance/D1/Frozen-OOS/SF4/live/real authority flags all remained false/closed.
+
+The service has entered real local materialization execution, but next-d0-01 is **not proven complete**.
+
+PR #145's earlier SSL handshake timeout was transport evidence from a GitHub runner, not strategy evidence. PR #146 makes PR base-observation transport failure diagnostic-only and keeps the main strict proof authoritative/fail-closed. It also prevents unrelated PRs from cancelling one another's progress-proof runs.
+
+PR #147 adds a read-only PWA progress card showing receipt count, service state and explicit `LOCKED` / `NO · DISCOVERY ONLY` labels. It has no start/stop/materialize mutation authority and cannot label a complete dataset as verified profitability.
+
+Classification:
+
+- materializer: **CODE READY**;
+- exact current deployment: **PRODUCTION VERIFIED**;
+- service execution: **EMPIRICALLY STARTED**;
+- completed receipts: **0 / 10**;
+- ten-window corpus: **NOT YET EMPIRICALLY VERIFIED COMPLETE**;
+- 128-candidate evaluation: **NOT AUTHORIZED**;
+- **VERIFIED PROFITABLE: NONE**.
+
+## Future professional research direction
+
+Do not retrofit these ideas into the frozen 128-candidate campaign. A later versioned DESIGN_ONLY research track may add:
+
+- Professional Strategy Hypothesis Library with trader/systematic archetypes converted into deterministic causal rules;
+- historical funding-rate data;
+- historical open-interest data;
+- historical futures basis/premium data;
+- predeclared multi-symbol relative-strength/relative-value universe;
+- versioned regime engine;
+- historical L2/order-book only if sequence/integrity reconstruction is defensible.
+
+Any such future campaign must freeze data/provenance, universe, mechanisms and search budget before performance inspection.
 
 ## What was completed
 
-- PR #133 closed the first D0 zero-survivor campaign and continuity state.
-- PR #134 added the read-only family/cost/delay/regime failure decomposition and production proof.
-- Production postmortem proof run `33823539570` succeeded on exact build `b822a9815f8f5cc42c674f849e5626d8b7022602`.
-- Package 1 is empirically closed with no winner.
-- Package 2 data/engine audit and DESIGN_ONLY next-campaign boundary were created with smaller 128/32/12 caps and four lower-turnover mechanism slots.
-- A fail-closed config validator and tests prevent the design package from silently opening evaluation, unavailable data planes, SF4, D1, Frozen OOS or execution authority.
+- Reconciled actual GitHub/production state instead of trusting stale handoff prose.
+- Proved and repaired the materializer's preflight source-contract bug in #144.
+- Kept scientific gates unchanged and evaluation closed.
+- Fixed PR production-proof transport semantics and cross-PR concurrency in #146; exact-head checks were green before merge.
+- Built a read-only next-D0 Research / AI Lab progress UI in #147 with regression protection against promotion/profitability mislabeling; exact-head checks were green before merge.
+- Merged #147 as current main `c8befb7799abbffc740399a941632fcdc0adb273`.
+- Verified current main with successful production bundle and strict next-D0 proof run `33966683013`.
+- Current authoritative receipt count remains 0/10.
+- No strategy performance was inspected during these operational/UI changes.
 
 ## Next exact task
 
-After the Package 1 closeout + Package 2 design PR is exact-head CI green and merged, implement the four next-campaign causal family engines and multi-timeframe aggregation **without running performance evaluation**. In parallel, inventory historical data usage so the slower-horizon D0 window can be frozen without touching SF4 or Frozen OOS.
+1. Read the next terminal production service/receipt evidence after the active first materialization cycle.
+2. If next-d0-01 completes, validate exact row count, feature SHA, workflow ID, candle/order-flow provenance/checksum, causal timestamps and newly pinned `sourceCodeSha`.
+3. If an operational failure is proven, fix only that proven cause; do not alter the scientific contract based on speculation.
+4. After the first successful receipt pins `sourceCodeSha`, do not modify frozen builder/source-contract files between windows.
+5. Continue one-window-at-a-time until ten validated receipts exist.
+6. Freeze one immutable corpus receipt binding plan SHA, catalog SHA, ten feature SHAs, ten workflow IDs, row counts, provenance and source identity.
+7. Only then create a separate explicit 128-candidate D0 evaluator authorization package and freeze selection rules before performance inspection.
+8. Keep SF4 sealed until `2026-09-13T00:00:00Z` and real money locked.
 
-## Immediate continuation tasks
+## Hard locks
 
-1. Query actual main/open PR state before doing anything else.
-2. Merge the current closeout/design package only after exact-head CI is green.
-3. Implement `mtf_trend_pullback_v1`, `breakout_retest_entry_v1`, `path_efficiency_persistence_v1`, and `low_turnover_flow_persistence_v1` as causal adapters.
-4. Add causal 5m/15m/60m aggregation and family-specific order/fill availability rules.
-5. Inventory all inspected/protected research windows before freezing the next D0 dataset.
-6. Keep evaluation disabled until exact dataset + exact catalog freezes are separately merged and authorized.
-7. Keep SF4/D1/Frozen OOS/live/real locks unchanged.
+- profitability/expectancy/sample/statistical gates unchanged;
+- fees/slippage mandatory;
+- causal/no-lookahead execution mandatory;
+- inspected data cannot become fresh confirmation;
+- D1 sealed until a frozen non-empty survivor set exists;
+- Frozen OOS sealed;
+- Demo execution plumbing only;
+- real Binance execution locked;
+- deterministic risk retains veto authority.
 
-## Startup rule
+## Files to read on continuation
 
-Read `AGENTS.md`, `PROJECT_STATE.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TODO.md`, `CHANGELOG.md`, this file, `BACKTEST_PROTOCOL.md`, `docs/CONTINUITY_PROTOCOL.md`, `docs/STRATEGY_FACTORY_V2_DESIGN.md`, `docs/SFV2_D0_PRODUCTION_RESULT_2026-09-03.md`, `docs/SFV2_D0_FAILURE_POSTMORTEM_2026-09-04.md` and `docs/SFV2_NEXT_CAMPAIGN_DESIGN_2026-09-04.md`; then query actual GitHub/production state before editing.
+`AGENTS.md`, `PROJECT_STATE.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `TODO.md`, `CHANGELOG.md`, this file, `BACKTEST_PROTOCOL.md`, `STRATEGY_SPEC.md`, `docs/SFV2_NEXT_D0_PRODUCTION_MATERIALIZATION_2026-09-04.md` and current SFv2 design/result documents, then actual GitHub/production state.
