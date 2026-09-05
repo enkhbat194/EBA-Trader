@@ -123,9 +123,14 @@ jobs:
                           "realExecutionAllowed": False,
                       }
                       if strict:
-                          raise SystemExit(
-                              "next-D0 production service terminal failure: " + compact(diagnostic)
+                          # A just-deployed repair may briefly expose the previous oneshot failure
+                          # until the five-minute root updater resets/restarts it. Preserve the full
+                          # terminal diagnostic, but allow bounded convergence before failing main.
+                          last_error = "next-D0 production service terminal failure: " + compact(
+                              diagnostic
                           )
+                          time.sleep(15)
+                          continue
                       print(compact(diagnostic))
                       raise SystemExit(0)
 
