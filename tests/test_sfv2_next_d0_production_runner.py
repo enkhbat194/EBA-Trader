@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,6 +32,31 @@ def test_next_d0_wrapper_uses_shared_lock_and_pinned_builder_contract() -> None:
     assert "run_sfv2_next_d0_materialization.py" in script
     assert "backtest" not in script.lower()
     assert "frozen-oos" not in script.lower()
+
+
+def test_next_d0_builder_contract_paths_exist_and_cover_feature_dependencies() -> None:
+    script = (ROOT / "scripts/run_sfv2_next_d0_materialization.sh").read_text(
+        encoding="utf-8"
+    )
+    match = re.search(r"paths = \(\n(?P<body>.*?)\n\)", script, flags=re.DOTALL)
+    assert match is not None
+    paths = tuple(re.findall(r'^\s+"([^"]+)",\s*$', match.group("body"), re.MULTILINE))
+    assert paths
+    assert len(paths) == len(set(paths))
+    assert "src/eba_trader/footprint.py" not in paths
+
+    required = {
+        "src/eba_trader/orderflow.py",
+        "src/eba_trader/footprint_dataset.py",
+        "src/eba_trader/orderflow_alignment.py",
+        "src/eba_trader/orderflow_divergence.py",
+        "src/eba_trader/orderflow_response.py",
+        "src/eba_trader/orderflow_feature_dataset.py",
+    }
+    assert required.issubset(paths)
+
+    missing = [path for path in paths if not (ROOT / path).is_file()]
+    assert missing == []
 
 
 def test_auto_updater_starts_next_d0_only_after_first_d0_is_complete() -> None:
