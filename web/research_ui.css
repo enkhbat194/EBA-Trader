@@ -12,7 +12,7 @@
 .research-flow-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:11px 0;border-top:1px solid rgba(255,255,255,.05)}
 .research-flow-row:first-child{border-top:0}
 .research-flow-row span{color:#b9c4cf;font-size:12px}
-.research-flow-row strong{font-size:11px;text-align:right}
+.research-flow-row strong{font-size:11px;text-align:right;overflow-wrap:anywhere}
 .research-status-list{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
 .research-status-chip{padding:7px 9px;border:1px solid var(--line);border-radius:999px;background:#0a1016;color:#bec8d2;font-size:10px;font-weight:800}
 .research-locks{display:grid;gap:8px;margin-top:10px}
@@ -21,4 +21,13 @@
 .research-lock strong{font-size:10px;color:#ff8585}
 .research-refresh{min-height:40px;padding:0 14px}
 .research-muted{color:var(--muted);font-size:11px;line-height:1.5}
+.research-d0-card{border-color:rgba(80,155,255,.28)}
+.research-d0-progress{margin-top:14px;padding:12px;border:1px solid rgba(80,155,255,.16);border-radius:13px;background:rgba(29,92,154,.08)}
+.research-d0-progress-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:9px}
+.research-d0-progress-head strong{font-size:18px}
+.research-d0-progress-head span{color:var(--muted);font-size:11px;font-weight:800}
+.research-d0-track{height:7px;overflow:hidden;border-radius:999px;background:#080d12;border:1px solid rgba(255,255,255,.06)}
+.research-d0-track span{display:block;width:0;height:100%;border-radius:999px;background:linear-gradient(90deg,#408cff,#67c2ff);transition:width .25s ease}
+.research-d0-note{margin:12px 0 0;color:#aeb9c4;font-size:10px;line-height:1.5}
+.research-lock-value{color:#ff8585}
 @media(max-width:390px){.bottom-nav.seven button small{font-size:8px}.bottom-nav.seven button span{font-size:17px}.research-grid{grid-template-columns:1fr 1fr}}
