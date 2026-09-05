@@ -1,3 +1,4 @@
+// Refresh marker: next-D0 read-only progress UI.
 const CACHE_NAME = 'eba-trader-ui-v15';
 const ASSETS = [
   './',
