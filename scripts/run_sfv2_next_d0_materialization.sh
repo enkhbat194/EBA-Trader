@@ -59,9 +59,10 @@ if ! flock -n 9; then
   exit 75
 fi
 
-# Pin the feature-builder contract rather than the whole git commit. This lets unrelated UI/docs
-# changes deploy between windows while still failing closed if any data-plan, boundary, acquisition,
-# footprint or materialization logic changes before the ten-window receipt is frozen.
+# Pin the complete feature-builder contract rather than the whole git commit. This lets unrelated
+# UI/docs changes deploy between windows while still failing closed if any data-plan, boundary,
+# acquisition, executed-flow feature, alignment or materialization logic changes before the
+# ten-window receipt is frozen. Every path below is regression-tested to exist.
 SOURCE_SHA="$(.venv/bin/python - <<'PY'
 from pathlib import Path
 
@@ -75,11 +76,15 @@ paths = (
     "src/eba_trader/strategy_factory_v2_next_materialization.py",
     "src/eba_trader/strategy_factory_v2_window_inventory.py",
     "src/eba_trader/candle_acquisition.py",
+    "src/eba_trader/orderflow.py",
     "src/eba_trader/orderflow_archive.py",
     "src/eba_trader/orderflow_acquisition.py",
     "src/eba_trader/orderflow_dataset.py",
+    "src/eba_trader/footprint_dataset.py",
+    "src/eba_trader/orderflow_alignment.py",
+    "src/eba_trader/orderflow_divergence.py",
+    "src/eba_trader/orderflow_response.py",
     "src/eba_trader/orderflow_feature_dataset.py",
-    "src/eba_trader/footprint.py",
     "src/eba_trader/history.py",
     "src/eba_trader/holdout_guard.py",
     "src/eba_trader/research_evidence.py",
