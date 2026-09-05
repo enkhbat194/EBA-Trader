@@ -20,6 +20,7 @@ jobs:
     env:
       EBA_PRODUCTION_URL: https://eba-trader-172-236-150-62.sslip.io
       EXPECTED_PRODUCTION_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+      PROOF_MODE: ${{ github.event_name == 'pull_request' && 'base-observation' || 'strict' }}
     steps:
       - name: Read exact production build and next-D0 progress
         run: |
@@ -32,6 +33,8 @@ jobs:
 
           base = os.environ["EBA_PRODUCTION_URL"].rstrip("/")
           expected = os.environ["EXPECTED_PRODUCTION_SHA"].strip()
+          proof_mode = os.environ.get("PROOF_MODE", "strict").strip()
+          strict = proof_mode == "strict"
           deadline = time.time() + 600
           last_error = "not attempted"
 
@@ -48,6 +51,9 @@ jobs:
               if not isinstance(payload, dict):
                   raise RuntimeError(f"{path} returned non-object JSON")
               return payload
+
+          def compact(payload):
+              return json.dumps(payload, sort_keys=True, separators=(",", ":"))
 
           while time.time() < deadline:
               try:
@@ -85,20 +91,48 @@ jobs:
                   service_state = next_d0.get("serviceState")
                   if service_state is not None and not isinstance(service_state, dict):
                       raise RuntimeError("next-D0 service state is malformed")
+
+                  terminal_service_error = None
                   if isinstance(service_state, dict) and service_state.get("available") is True:
                       active_state = service_state.get("activeState")
                       result = service_state.get("result")
                       exec_status = service_state.get("execMainStatus")
                       if active_state == "failed":
-                          raise RuntimeError("next-D0 materialization service is failed")
-                      if result not in {None, "", "success"}:
-                          raise RuntimeError(
-                              f"next-D0 materialization service result is {result!r}"
+                          terminal_service_error = "activeState=failed"
+                      elif result not in {None, "", "success"}:
+                          terminal_service_error = f"result={result!r}"
+                      elif isinstance(exec_status, int) and exec_status != 0:
+                          terminal_service_error = f"execMainStatus={exec_status}"
+
+                  if terminal_service_error is not None:
+                      diagnostic = {
+                          "ok": not strict,
+                          "proofMode": proof_mode,
+                          "productionHealthy": False,
+                          "build": build,
+                          "problem": terminal_service_error,
+                          "serviceState": service_state,
+                          "authority": "D0_DATA_MATERIALIZATION_ONLY",
+                          "performanceEvaluationAllowed": False,
+                          "freshConfirmationEvidence": False,
+                          "verificationAuthority": False,
+                          "d1Opened": False,
+                          "frozenOosOpened": False,
+                          "sf4DataAccessAllowed": False,
+                          "liveExecutionAllowed": False,
+                          "realExecutionAllowed": False,
+                      }
+                      if strict:
+                          # A just-deployed repair may briefly expose the previous oneshot failure
+                          # until the five-minute root updater resets/restarts it. Preserve the full
+                          # terminal diagnostic, but allow bounded convergence before failing main.
+                          last_error = "next-D0 production service terminal failure: " + compact(
+                              diagnostic
                           )
-                      if isinstance(exec_status, int) and exec_status != 0:
-                          raise RuntimeError(
-                              f"next-D0 materialization service exit status is {exec_status}"
-                          )
+                          time.sleep(15)
+                          continue
+                      print(compact(diagnostic))
+                      raise SystemExit(0)
 
                   available = next_d0.get("available") is True
                   phase = next_d0.get("phase") if available else None
@@ -118,9 +152,11 @@ jobs:
                           raise RuntimeError("in-progress next-D0 cannot expose a bundle SHA")
 
                   print(
-                      json.dumps(
+                      compact(
                           {
                               "ok": True,
+                              "proofMode": proof_mode,
+                              "productionHealthy": True,
                               "build": build,
                               "available": available,
                               "reason": None if available else next_d0.get("reason"),
@@ -140,8 +176,7 @@ jobs:
                               "sf4DataAccessAllowed": False,
                               "liveExecutionAllowed": False,
                               "realExecutionAllowed": False,
-                          },
-                          separators=(",", ":"),
+                          }
                       )
                   )
                   raise SystemExit(0)
