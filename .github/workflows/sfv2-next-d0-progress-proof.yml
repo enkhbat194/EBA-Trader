@@ -106,12 +106,25 @@ jobs:
                           terminal_service_error = f"execMainStatus={exec_status}"
 
                   if terminal_service_error is not None:
+                      status_available = next_d0.get("available") is True
                       diagnostic = {
                           "ok": not strict,
                           "proofMode": proof_mode,
                           "productionHealthy": False,
                           "build": build,
                           "problem": terminal_service_error,
+                          "materializationStatusAvailable": status_available,
+                          "materializationReason": (
+                              None if status_available else next_d0.get("reason")
+                          ),
+                          "phase": next_d0.get("phase") if status_available else None,
+                          "completedWindowCount": (
+                              next_d0.get("completedWindowCount") if status_available else 0
+                          ),
+                          "expectedWindowCount": 10,
+                          "nextWindowName": next_d0.get("nextWindowName"),
+                          "datasetBundleSha256": next_d0.get("datasetBundleSha256"),
+                          "sourceCodeSha": next_d0.get("sourceCodeSha"),
                           "serviceState": service_state,
                           "authority": "D0_DATA_MATERIALIZATION_ONLY",
                           "performanceEvaluationAllowed": False,
