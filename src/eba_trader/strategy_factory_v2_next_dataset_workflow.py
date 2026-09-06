@@ -13,8 +13,16 @@ from .candle_acquisition import (
     RequestJson as CandleRequestJson,
 )
 from .holdout_guard import assert_not_first_cycle_oos_overlap
-from .orderflow_acquisition import OrderFlowVenue, write_acquisition_manifest
-from .orderflow_archive import ArchiveFetchBytes, fetch_binance_usdm_agg_trades_archive
+from .orderflow_acquisition import (
+    AggregateTradeDownload,
+    OrderFlowVenue,
+    write_acquisition_manifest,
+)
+from .orderflow_archive import (
+    USDM_DAILY_AGG_TRADES_ROOT,
+    ArchiveFetchBytes,
+    materialize_binance_usdm_agg_trades_archive_dataset,
+)
 from .orderflow_dataset import OrderFlowDatasetWriter, require_research_ready
 from .orderflow_feature_dataset import (
     load_orderflow_feature_csv,
@@ -184,22 +192,32 @@ def build_next_d0_window_feature_dataset(
     if verified_candles.venue != CandleVenue.USD_M_FUTURES.value:
         raise RuntimeError("next D0 workflow requires USD-M futures candles")
 
-    orderflow_download = fetch_binance_usdm_agg_trades_archive(
-        plan.symbol,
-        window.required_orderflow_start_ms,
-        window.end_ms,
-        fetch_bytes=orderflow_archive_fetch_bytes,
-    )
-    orderflow_dataset = OrderFlowDatasetWriter(orderflow_root).write(
-        symbol=plan.symbol,
-        payloads=orderflow_download.payloads,
-        source="binance_usd_m_futures_aggTrades_public_archive",
+    orderflow_dataset, orderflow_requests = (
+        materialize_binance_usdm_agg_trades_archive_dataset(
+            plan.symbol,
+            window.required_orderflow_start_ms,
+            window.end_ms,
+            writer=OrderFlowDatasetWriter(orderflow_root),
+            source="binance_usd_m_futures_aggTrades_public_archive",
+            fetch_bytes=orderflow_archive_fetch_bytes,
+        )
     )
     require_research_ready(orderflow_dataset)
     orderflow_manifest_path = orderflow_root / f"{orderflow_dataset.dataset_id}.manifest.json"
+    # Acquisition identity depends on the verified request provenance plus immutable dataset,
+    # not on retaining the raw payloads in RAM. An empty payload tuple here is intentional.
+    orderflow_download_identity = AggregateTradeDownload(
+        symbol=plan.symbol.upper(),
+        venue=OrderFlowVenue.USD_M_FUTURES,
+        start_ms=window.required_orderflow_start_ms,
+        end_ms=window.end_ms,
+        payloads=(),
+        requests=orderflow_requests,
+        source_endpoint=USDM_DAILY_AGG_TRADES_ROOT,
+    )
     orderflow_acquisition, orderflow_acquisition_path = write_acquisition_manifest(
         orderflow_root,
-        download=orderflow_download,
+        download=orderflow_download_identity,
         dataset=orderflow_dataset,
     )
     if orderflow_acquisition.venue != OrderFlowVenue.USD_M_FUTURES.value:
