@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 from .orderflow import (
@@ -32,7 +33,12 @@ class FootprintWindowRow:
 
 
 class FootprintDatasetBuilder:
-    """Build closed, fixed-width footprint windows without future-event leakage."""
+    """Build closed, fixed-width footprint windows without future-event leakage.
+
+    Records are consumed once in aggregate-trade/timestamp order. Only the records in the
+    current closed window are retained, so a day-scale dataset does not get rescanned for
+    every minute and does not require a second full in-memory TradeEvent copy.
+    """
 
     def __init__(
         self,
@@ -55,7 +61,7 @@ class FootprintDatasetBuilder:
 
     def build(
         self,
-        records: tuple[AggregateTradeRecord, ...],
+        records: Iterable[AggregateTradeRecord],
         *,
         start_ms: int,
         end_ms: int,
@@ -65,13 +71,43 @@ class FootprintDatasetBuilder:
         if (end_ms - start_ms) % self.window_ms != 0:
             raise ValueError("dataset range must align exactly to window_ms")
 
-        events = tuple(record.to_trade_event() for record in records)
+        iterator = iter(records)
+        previous_seen: AggregateTradeRecord | None = None
+
+        def advance() -> AggregateTradeRecord | None:
+            nonlocal previous_seen
+            try:
+                record = next(iterator)
+            except StopIteration:
+                return None
+            if previous_seen is not None:
+                if record.aggregate_trade_id <= previous_seen.aggregate_trade_id:
+                    raise ValueError(
+                        "footprint input aggregate-trade IDs must be strictly increasing"
+                    )
+                if record.timestamp_ms < previous_seen.timestamp_ms:
+                    raise ValueError("footprint input timestamps must be non-decreasing")
+            previous_seen = record
+            return record
+
+        pending = advance()
+        while pending is not None and pending.timestamp_ms < start_ms:
+            pending = advance()
+
         rows: list[FootprintWindowRow] = []
         running_delta = 0.0
         for window_start in range(start_ms, end_ms, self.window_ms):
             window_end = window_start + self.window_ms
+            window_records: list[AggregateTradeRecord] = []
+            while pending is not None and pending.timestamp_ms < window_end:
+                if pending.timestamp_ms >= window_start:
+                    window_records.append(pending)
+                pending = advance()
+
+            local_records = tuple(window_records)
+            local_events = tuple(record.to_trade_event() for record in local_records)
             features: FootprintFeatures = self.aggregator.aggregate(
-                events,
+                local_events,
                 start_ms=window_start,
                 end_ms=window_end,
             )
@@ -82,7 +118,7 @@ class FootprintDatasetBuilder:
                 min_volume=self.imbalance_min_volume,
             )
             response = executed_flow_response(
-                records,
+                local_records,
                 features.levels,
                 start_ms=window_start,
                 end_ms=window_end,
