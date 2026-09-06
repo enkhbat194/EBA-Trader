@@ -6,7 +6,7 @@ import io
 import tempfile
 import time
 import zipfile
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -17,7 +17,13 @@ from .orderflow_acquisition import (
     OrderFlowVenue,
     RequestProvenance,
 )
-from .orderflow_dataset import normalize_aggregate_trades, parse_binance_agg_trade
+from .orderflow_dataset import (
+    AggregateTradeRecord,
+    OrderFlowDatasetManifest,
+    OrderFlowDatasetWriter,
+    normalize_aggregate_trades,
+    parse_binance_agg_trade,
+)
 
 BINANCE_PUBLIC_DATA_BASE = "https://data.binance.vision"
 USDM_DAILY_AGG_TRADES_ROOT = (
@@ -189,13 +195,13 @@ def _is_header(row: list[str]) -> bool:
     }
 
 
-def _read_archive_window(
+def _iter_archive_window_records(
     path: Path,
     *,
     expected_csv_name: str,
     start_ms: int,
     end_ms: int,
-) -> tuple[dict[str, object], ...]:
+) -> Iterator[AggregateTradeRecord]:
     try:
         archive = zipfile.ZipFile(path)
     except (OSError, zipfile.BadZipFile) as exc:
@@ -204,7 +210,6 @@ def _read_archive_window(
         members = [item for item in archive.infolist() if not item.is_dir()]
         if len(members) != 1 or members[0].filename != expected_csv_name:
             raise RuntimeError("Binance aggregate-trade archive contains unexpected files")
-        payloads: list[dict[str, object]] = []
         with (
             archive.open(members[0], "r") as raw_handle,
             io.TextIOWrapper(raw_handle, encoding="utf-8-sig", newline="") as text_handle,
@@ -238,16 +243,135 @@ def _read_archive_window(
                     break
                 if timestamp_ms < start_ms:
                     continue
-                payload: dict[str, object] = {
-                    "a": aggregate_trade_id,
-                    "p": price,
-                    "q": quantity,
-                    "T": timestamp_ms,
-                    "m": buyer_is_maker,
-                }
-                parse_binance_agg_trade(payload)
-                payloads.append(payload)
-    return tuple(payloads)
+                yield parse_binance_agg_trade(
+                    {
+                        "a": aggregate_trade_id,
+                        "p": price,
+                        "q": quantity,
+                        "T": timestamp_ms,
+                        "m": buyer_is_maker,
+                    }
+                )
+
+
+def _read_archive_window(
+    path: Path,
+    *,
+    expected_csv_name: str,
+    start_ms: int,
+    end_ms: int,
+) -> tuple[dict[str, object], ...]:
+    return tuple(
+        {
+            "a": record.aggregate_trade_id,
+            "p": repr(record.price),
+            "q": repr(record.quantity),
+            "T": record.timestamp_ms,
+            "m": record.aggressor.value == "sell",
+        }
+        for record in _iter_archive_window_records(
+            path,
+            expected_csv_name=expected_csv_name,
+            start_ms=start_ms,
+            end_ms=end_ms,
+        )
+    )
+
+
+def materialize_binance_usdm_agg_trades_archive_dataset(
+    symbol: str,
+    start_ms: int,
+    end_ms: int,
+    *,
+    writer: OrderFlowDatasetWriter,
+    source: str = "binance_usd_m_futures_aggTrades_public_archive",
+    request_timeout: float = 30.0,
+    max_retries: int = 5,
+    backoff_seconds: float = 0.5,
+    fetch_bytes: ArchiveFetchBytes | None = None,
+) -> tuple[OrderFlowDatasetManifest, tuple[RequestProvenance, ...]]:
+    """Stream verified Binance daily archives into an immutable order-flow dataset.
+
+    ZIP bytes are checksum-verified on disk and CSV rows are parsed directly into the
+    canonical JSONL writer. The production path therefore never retains a full day of
+    aggregate-trade payload dictionaries or parsed records in memory.
+    """
+
+    normalized = symbol.strip().upper()
+    if not normalized or not normalized.isalnum():
+        raise ValueError("symbol must be non-empty alphanumeric text")
+    if start_ms < 0 or end_ms <= start_ms:
+        raise ValueError("invalid aggregate-trade archive time range")
+    if max_retries < 0:
+        raise ValueError("max_retries cannot be negative")
+    if backoff_seconds < 0:
+        raise ValueError("backoff_seconds cannot be negative")
+
+    provenance: list[RequestProvenance] = []
+
+    def records() -> Iterator[AggregateTradeRecord]:
+        for day in _days_covering(start_ms, end_ms):
+            url = usdm_daily_agg_trades_url(normalized, day)
+            filename = url.rsplit("/", 1)[-1]
+            checksum_url = f"{url}.CHECKSUM"
+            if fetch_bytes is None:
+                checksum_bytes = _request_bytes(
+                    checksum_url,
+                    request_timeout=request_timeout,
+                    max_retries=max_retries,
+                    backoff_seconds=backoff_seconds,
+                )
+            else:
+                checksum_bytes = fetch_bytes(checksum_url)
+            expected_sha256 = _parse_checksum(checksum_bytes, filename)
+
+            temp_path: Path | None = None
+            count = 0
+            first: AggregateTradeRecord | None = None
+            last: AggregateTradeRecord | None = None
+            try:
+                if fetch_bytes is None:
+                    temp_path = _download_archive_to_temp(
+                        url,
+                        expected_sha256=expected_sha256,
+                        request_timeout=request_timeout,
+                        max_retries=max_retries,
+                        backoff_seconds=backoff_seconds,
+                    )
+                else:
+                    temp_path = _bytes_archive_to_temp(fetch_bytes(url), expected_sha256)
+                for record in _iter_archive_window_records(
+                    temp_path,
+                    expected_csv_name=filename.removesuffix(".zip") + ".csv",
+                    start_ms=start_ms,
+                    end_ms=end_ms,
+                ):
+                    if first is None:
+                        first = record
+                    last = record
+                    count += 1
+                    yield record
+            finally:
+                if temp_path is not None:
+                    temp_path.unlink(missing_ok=True)
+
+            provenance.append(
+                RequestProvenance(
+                    endpoint=url,
+                    mode="archive_daily_verified",
+                    params=(("date", day.isoformat()), ("sha256", expected_sha256)),
+                    response_count=count,
+                    first_trade_id=first.aggregate_trade_id if first is not None else None,
+                    last_trade_id=last.aggregate_trade_id if last is not None else None,
+                    first_timestamp_ms=first.timestamp_ms if first is not None else None,
+                    last_timestamp_ms=last.timestamp_ms if last is not None else None,
+                )
+            )
+
+    dataset = writer.write_records(symbol=normalized, records=records(), source=source)
+    if dataset.record_count < 1:
+        raise RuntimeError("Binance historical archive returned no trades for requested window")
+    return dataset, tuple(provenance)
 
 
 def fetch_binance_usdm_agg_trades_archive(
