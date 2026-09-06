@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import os
+import tempfile
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -138,6 +142,22 @@ def aggregate_trade_record_from_mapping(payload: dict[str, Any]) -> AggregateTra
     )
 
 
+def _validate_after_previous(
+    previous: AggregateTradeRecord | None,
+    record: AggregateTradeRecord,
+) -> None:
+    if previous is None:
+        return
+    if record.aggregate_trade_id == previous.aggregate_trade_id:
+        if record != previous:
+            raise ValueError("conflicting duplicate aggregate trade id")
+        raise ValueError("duplicate aggregate trade id")
+    if record.aggregate_trade_id < previous.aggregate_trade_id:
+        raise ValueError("aggregate trade IDs must be strictly increasing")
+    if record.timestamp_ms < previous.timestamp_ms:
+        raise ValueError("aggregate trade timestamps move backward after id ordering")
+
+
 def normalize_aggregate_trades(
     payloads: list[dict[str, Any]] | tuple[dict[str, Any], ...],
 ) -> tuple[AggregateTradeRecord, ...]:
@@ -154,22 +174,10 @@ def validate_aggregate_trade_records(
     records: tuple[AggregateTradeRecord, ...] | list[AggregateTradeRecord],
 ) -> tuple[AggregateTradeRecord, ...]:
     ordered = tuple(records)
-    seen: dict[int, AggregateTradeRecord] = {}
-    previous_id: int | None = None
-    previous_timestamp: int | None = None
+    previous: AggregateTradeRecord | None = None
     for record in ordered:
-        existing = seen.get(record.aggregate_trade_id)
-        if existing is not None:
-            if existing != record:
-                raise ValueError("conflicting duplicate aggregate trade id")
-            raise ValueError("duplicate aggregate trade id")
-        if previous_id is not None and record.aggregate_trade_id <= previous_id:
-            raise ValueError("aggregate trade IDs must be strictly increasing")
-        seen[record.aggregate_trade_id] = record
-        if previous_timestamp is not None and record.timestamp_ms < previous_timestamp:
-            raise ValueError("aggregate trade timestamps move backward after id ordering")
-        previous_id = record.aggregate_trade_id
-        previous_timestamp = record.timestamp_ms
+        _validate_after_previous(previous, record)
+        previous = record
     return ordered
 
 
@@ -230,8 +238,8 @@ def load_orderflow_manifest(path: str | Path) -> OrderFlowDatasetManifest:
     return orderflow_manifest_from_mapping(payload)
 
 
-def load_orderflow_records(path: str | Path) -> tuple[AggregateTradeRecord, ...]:
-    records: list[AggregateTradeRecord] = []
+def iter_orderflow_records(path: str | Path) -> Iterator[AggregateTradeRecord]:
+    previous: AggregateTradeRecord | None = None
     with Path(path).open("r", encoding="utf-8") as handle:
         for line_number, line in enumerate(handle, start=1):
             if not line.strip():
@@ -239,8 +247,14 @@ def load_orderflow_records(path: str | Path) -> tuple[AggregateTradeRecord, ...]
             payload = json.loads(line)
             if not isinstance(payload, dict):
                 raise ValueError(f"order-flow record line {line_number} must be an object")
-            records.append(aggregate_trade_record_from_mapping(payload))
-    return validate_aggregate_trade_records(records)
+            record = aggregate_trade_record_from_mapping(payload)
+            _validate_after_previous(previous, record)
+            previous = record
+            yield record
+
+
+def load_orderflow_records(path: str | Path) -> tuple[AggregateTradeRecord, ...]:
+    return tuple(iter_orderflow_records(path))
 
 
 def require_research_ready(manifest: OrderFlowDatasetManifest) -> None:
@@ -256,14 +270,28 @@ def require_research_ready(manifest: OrderFlowDatasetManifest) -> None:
         raise ValueError("order-flow dataset records file is missing")
     if sha256_file(records_path) != manifest.records_sha256:
         raise ValueError("order-flow dataset records SHA-256 mismatch")
-    records = load_orderflow_records(records_path)
-    if len(records) != manifest.record_count:
+
+    count = 0
+    first: AggregateTradeRecord | None = None
+    previous: AggregateTradeRecord | None = None
+    gaps = 0
+    for record in iter_orderflow_records(records_path):
+        if first is None:
+            first = record
+        if previous is not None:
+            gaps += max(record.aggregate_trade_id - previous.aggregate_trade_id - 1, 0)
+        previous = record
+        count += 1
+
+    if count != manifest.record_count:
         raise ValueError("order-flow dataset record count does not match manifest")
-    if sequence_gap_count(records) != 0:
+    if gaps != 0:
         raise ValueError("order-flow records contain aggregate-trade sequence gaps")
-    if records[0].aggregate_trade_id != manifest.first_trade_id:
+    if first is None or previous is None:
+        raise ValueError("order-flow dataset is empty")
+    if first.aggregate_trade_id != manifest.first_trade_id:
         raise ValueError("order-flow first trade ID does not match manifest")
-    if records[-1].aggregate_trade_id != manifest.last_trade_id:
+    if previous.aggregate_trade_id != manifest.last_trade_id:
         raise ValueError("order-flow last trade ID does not match manifest")
 
 
@@ -272,13 +300,21 @@ class OrderFlowDatasetWriter:
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
 
-    def write(
+    def write_records(
         self,
         *,
         symbol: str,
-        payloads: list[dict[str, Any]] | tuple[dict[str, Any], ...],
+        records: Iterable[AggregateTradeRecord],
         source: str = "binance_aggTrades",
     ) -> OrderFlowDatasetManifest:
+        """Persist an already ID-ordered record stream with bounded memory.
+
+        The canonical JSONL bytes, content-addressed dataset ID and manifest semantics are
+        identical to ``write``. The stream must be strictly increasing by aggregate-trade
+        ID with non-decreasing timestamps; violations fail closed instead of being sorted
+        in memory.
+        """
+
         symbol = symbol.strip().upper()
         source = source.strip()
         if not symbol:
@@ -286,46 +322,90 @@ class OrderFlowDatasetWriter:
         if not source:
             raise ValueError("source is required")
 
+        digest = hashlib.sha256()
+        count = 0
+        first: AggregateTradeRecord | None = None
+        previous: AggregateTradeRecord | None = None
+        gaps = 0
+        temp_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                prefix=".eba-orderflow-",
+                suffix=".jsonl",
+                dir=self.root,
+                encoding="utf-8",
+                newline="",
+                delete=False,
+            ) as handle:
+                temp_path = Path(handle.name)
+                for record in records:
+                    _validate_after_previous(previous, record)
+                    if first is None:
+                        first = record
+                    if previous is not None:
+                        gaps += max(
+                            record.aggregate_trade_id - previous.aggregate_trade_id - 1,
+                            0,
+                        )
+                    line = canonical_json(record.as_dict()) + "\n"
+                    handle.write(line)
+                    digest.update(line.encode("utf-8"))
+                    previous = record
+                    count += 1
+                handle.flush()
+                os.fsync(handle.fileno())
+
+            records_sha256 = digest.hexdigest()
+            identity = canonical_json(
+                {
+                    "symbol": symbol,
+                    "source": source,
+                    "records_sha256": records_sha256,
+                }
+            )
+            dataset_id = f"ofd_{sha256_text(identity)[:24]}"
+            records_path = self.root / f"{dataset_id}.jsonl"
+            manifest_path = self.root / f"{dataset_id}.manifest.json"
+
+            if records_path.exists():
+                if sha256_file(records_path) != records_sha256:
+                    raise RuntimeError("immutable order-flow dataset collision")
+            else:
+                os.replace(temp_path, records_path)
+                temp_path = None
+
+            manifest = OrderFlowDatasetManifest(
+                dataset_id=dataset_id,
+                symbol=symbol,
+                source=source,
+                record_count=count,
+                first_trade_id=first.aggregate_trade_id if first is not None else None,
+                last_trade_id=previous.aggregate_trade_id if previous is not None else None,
+                start_ms=first.timestamp_ms if first is not None else None,
+                end_ms=previous.timestamp_ms if previous is not None else None,
+                sequence_gap_count=gaps,
+                records_sha256=records_sha256,
+                records_path=str(records_path),
+            )
+            manifest_text = canonical_json(manifest.as_dict())
+            if (
+                manifest_path.exists()
+                and manifest_path.read_text(encoding="utf-8") != manifest_text
+            ):
+                raise RuntimeError("immutable order-flow manifest collision")
+            manifest_path.write_text(manifest_text, encoding="utf-8")
+            return manifest
+        finally:
+            if temp_path is not None:
+                temp_path.unlink(missing_ok=True)
+
+    def write(
+        self,
+        *,
+        symbol: str,
+        payloads: list[dict[str, Any]] | tuple[dict[str, Any], ...],
+        source: str = "binance_aggTrades",
+    ) -> OrderFlowDatasetManifest:
         records = normalize_aggregate_trades(payloads)
-        records_text = "".join(
-            canonical_json(record.as_dict()) + "\n" for record in records
-        )
-        records_sha256 = sha256_text(records_text)
-        identity = canonical_json(
-            {
-                "symbol": symbol,
-                "source": source,
-                "records_sha256": records_sha256,
-            }
-        )
-        dataset_id = f"ofd_{sha256_text(identity)[:24]}"
-        records_path = self.root / f"{dataset_id}.jsonl"
-        manifest_path = self.root / f"{dataset_id}.manifest.json"
-
-        if records_path.exists():
-            if sha256_file(records_path) != records_sha256:
-                raise RuntimeError("immutable order-flow dataset collision")
-        else:
-            records_path.write_text(records_text, encoding="utf-8")
-
-        manifest = OrderFlowDatasetManifest(
-            dataset_id=dataset_id,
-            symbol=symbol,
-            source=source,
-            record_count=len(records),
-            first_trade_id=records[0].aggregate_trade_id if records else None,
-            last_trade_id=records[-1].aggregate_trade_id if records else None,
-            start_ms=records[0].timestamp_ms if records else None,
-            end_ms=records[-1].timestamp_ms if records else None,
-            sequence_gap_count=sequence_gap_count(records),
-            records_sha256=records_sha256,
-            records_path=str(records_path),
-        )
-        manifest_text = canonical_json(manifest.as_dict())
-        if (
-            manifest_path.exists()
-            and manifest_path.read_text(encoding="utf-8") != manifest_text
-        ):
-            raise RuntimeError("immutable order-flow manifest collision")
-        manifest_path.write_text(manifest_text, encoding="utf-8")
-        return manifest
+        return self.write_records(symbol=symbol, records=records, source=source)
