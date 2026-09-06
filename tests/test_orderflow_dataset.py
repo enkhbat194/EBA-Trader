@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+import eba_trader.footprint_dataset as footprint_dataset_module
 from eba_trader.footprint_dataset import FootprintDatasetBuilder
 from eba_trader.orderflow import AggressorSide
 from eba_trader.orderflow_dataset import (
@@ -147,6 +148,61 @@ def test_empty_middle_window_is_neutral() -> None:
     assert rows[1].total_volume == 0.0
     assert rows[1].delta == 0.0
     assert rows[1].poc_price is None
+
+
+def test_footprint_builder_only_passes_current_window_trades_to_expensive_steps(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    window_count = 12
+    payloads: list[dict[str, object]] = []
+    aggregate_id = 1
+    for window in range(window_count):
+        payloads.append(_trade(aggregate_id, window * 1000 + 100))
+        aggregate_id += 1
+        payloads.append(
+            _trade(
+                aggregate_id,
+                window * 1000 + 700,
+                buyer_is_maker=True,
+            )
+        )
+        aggregate_id += 1
+    records = normalize_aggregate_trades(tuple(payloads))
+    builder = FootprintDatasetBuilder(window_ms=1000, price_bucket=1.0)
+
+    aggregate_sizes: list[int] = []
+    response_sizes: list[int] = []
+    original_aggregate = builder.aggregator.aggregate
+    original_response = footprint_dataset_module.executed_flow_response
+
+    def counted_aggregate(events, *, start_ms: int, end_ms: int):
+        aggregate_sizes.append(len(events))
+        return original_aggregate(events, start_ms=start_ms, end_ms=end_ms)
+
+    def counted_response(records_arg, levels, *, start_ms: int, end_ms: int, price_step: float):
+        response_sizes.append(len(records_arg))
+        return original_response(
+            records_arg,
+            levels,
+            start_ms=start_ms,
+            end_ms=end_ms,
+            price_step=price_step,
+        )
+
+    monkeypatch.setattr(builder.aggregator, "aggregate", counted_aggregate)
+    monkeypatch.setattr(footprint_dataset_module, "executed_flow_response", counted_response)
+
+    rows = builder.build(
+        (record for record in records),
+        start_ms=0,
+        end_ms=window_count * 1000,
+    )
+
+    assert len(rows) == window_count
+    assert aggregate_sizes == [2] * window_count
+    assert response_sizes == [2] * window_count
+    assert sum(aggregate_sizes) == len(records)
+    assert sum(response_sizes) == len(records)
 
 
 def test_footprint_range_must_align_exactly_to_window() -> None:

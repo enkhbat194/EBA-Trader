@@ -10,8 +10,8 @@ from .footprint_dataset import FootprintDatasetBuilder
 from .history import INTERVAL_MS, Candle, load_csv, validate_interval_window
 from .orderflow_alignment import align_closed_footprints_to_candles
 from .orderflow_dataset import (
+    iter_orderflow_records,
     load_orderflow_manifest,
-    load_orderflow_records,
     require_research_ready,
 )
 from .orderflow_divergence import price_delta_divergence
@@ -252,7 +252,7 @@ def materialize_orderflow_feature_dataset(
             "order-flow acquisition does not cover the prior closed footprint plus candle range"
         )
 
-    records = load_orderflow_records(orderflow_manifest.records_path)
+    records = iter_orderflow_records(orderflow_manifest.records_path)
     footprints = FootprintDatasetBuilder(
         window_ms=step,
         price_bucket=price_bucket,
