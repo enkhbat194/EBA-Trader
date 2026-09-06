@@ -6,7 +6,6 @@ import json
 import sys
 import traceback
 from datetime import UTC, datetime
-from pathlib import Path
 
 from eba_trader.strategy_factory_v2_authorized import (
     STATUS_SCHEMA,
@@ -38,7 +37,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Run/resume the explicitly authorized Strategy Factory v2 D0 campaign until the "
-            "immutable D0 survivor outcome is frozen or the bounded per-invocation cycle budget ends."
+            "immutable D0 survivor outcome is frozen or the bounded per-invocation cycle "
+            "budget ends."
         )
     )
     parser.add_argument("--authorization", required=True)

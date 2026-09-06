@@ -225,7 +225,10 @@ def advance(*, state_path: Path, ledger_path: Path) -> dict[str, Any]:
                 "passed": False,
                 "recoveryProved": True,
                 "restartCompletedAt": _now(),
-                "message": "OPEN and restart recovery proved; waiting for post-restart management/CLOSE",
+                "message": (
+                    "OPEN and restart recovery proved; waiting for "
+                    "post-restart management/CLOSE"
+                ),
             }
         )
         _atomic_write(state_path, state)
@@ -286,7 +289,10 @@ def advance(*, state_path: Path, ledger_path: Path) -> dict[str, Any]:
                     "phase": "PASS",
                     "passed": bool(state.get("recoveryProved") and (mark_seen or close_seen)),
                     "closedAt": (row or {}).get("closed_at"),
-                    "message": "OPEN -> restart recovery -> post-restart MARK/CLOSE persistence proved",
+                    "message": (
+                        "OPEN -> restart recovery -> post-restart "
+                        "MARK/CLOSE persistence proved"
+                    ),
                 }
             )
         else:
