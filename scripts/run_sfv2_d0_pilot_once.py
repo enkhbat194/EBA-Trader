@@ -44,7 +44,9 @@ def main() -> int:
         "reusedTerminalTrialCount": result.reused_terminal_trial_count,
         "completeCandidateCount": result.accounting.complete_candidate_count,
         "rejectedCandidateCount": result.accounting.rejected_candidate_count,
-        "behaviorallyEligibleCandidateCount": result.accounting.behaviorally_eligible_candidate_count,
+        "behaviorallyEligibleCandidateCount": (
+            result.accounting.behaviorally_eligible_candidate_count
+        ),
         "behavioralClusterCount": result.accounting.behavioral_cluster_count,
         "behavioralRepresentativeCount": len(result.report.representative_candidate_ids),
         "stoppedForComputeBudget": result.stopped_for_compute_budget,
