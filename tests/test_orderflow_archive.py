@@ -13,6 +13,7 @@ from eba_trader.orderflow_acquisition import write_acquisition_manifest
 from eba_trader.orderflow_archive import (
     USDM_DAILY_AGG_TRADES_ROOT,
     fetch_binance_usdm_agg_trades_archive,
+    materialize_binance_usdm_agg_trades_archive_dataset,
     usdm_daily_agg_trades_url,
 )
 from eba_trader.orderflow_dataset import OrderFlowDatasetWriter, require_research_ready
@@ -105,6 +106,86 @@ def test_archive_reader_verifies_checksum_and_spans_midnight() -> None:
         second_url + ".CHECKSUM",
         second_url,
     ]
+
+
+def test_streamed_archive_dataset_matches_existing_canonical_identity(tmp_path: Path) -> None:
+    url, archive, checksum = _archive_blob(
+        "BTCUSDT",
+        date(2026, 8, 1),
+        [
+            [10, "50000.0", "0.1", 10, 10, _ms("2026-08-01T00:00:01Z"), "false"],
+            [11, "50001.0", "0.2", 11, 11, _ms("2026-08-01T00:00:20Z"), "true"],
+            [12, "50002.0", "0.3", 12, 12, _ms("2026-08-01T00:00:50Z"), "false"],
+        ],
+    )
+
+    def fetch(request_url: str) -> bytes:
+        if request_url == url:
+            return archive
+        if request_url == url + ".CHECKSUM":
+            return checksum
+        raise AssertionError(request_url)
+
+    start_ms = _ms("2026-08-01T00:00:00Z")
+    end_ms = _ms("2026-08-01T00:01:00Z")
+    existing = fetch_binance_usdm_agg_trades_archive(
+        "BTCUSDT",
+        start_ms,
+        end_ms,
+        fetch_bytes=fetch,
+    )
+    expected = OrderFlowDatasetWriter(tmp_path / "expected").write(
+        symbol="BTCUSDT",
+        payloads=existing.payloads,
+        source="binance_usd_m_futures_aggTrades_public_archive",
+    )
+    streamed, requests = materialize_binance_usdm_agg_trades_archive_dataset(
+        "BTCUSDT",
+        start_ms,
+        end_ms,
+        writer=OrderFlowDatasetWriter(tmp_path / "streamed"),
+        fetch_bytes=fetch,
+    )
+
+    assert streamed.dataset_id == expected.dataset_id
+    assert streamed.records_sha256 == expected.records_sha256
+    assert streamed.record_count == expected.record_count == 3
+    assert streamed.first_trade_id == expected.first_trade_id == 10
+    assert streamed.last_trade_id == expected.last_trade_id == 12
+    assert streamed.sequence_gap_count == expected.sequence_gap_count == 0
+    assert len(requests) == 1
+    assert requests[0].endpoint == url
+    assert requests[0].mode == "archive_daily_verified"
+    require_research_ready(streamed)
+
+
+def test_streamed_archive_fails_closed_if_official_rows_are_out_of_order(
+    tmp_path: Path,
+) -> None:
+    url, archive, checksum = _archive_blob(
+        "BTCUSDT",
+        date(2026, 8, 1),
+        [
+            [11, "50001", "1", 11, 11, _ms("2026-08-01T00:00:20Z"), "false"],
+            [10, "50000", "1", 10, 10, _ms("2026-08-01T00:00:30Z"), "false"],
+        ],
+    )
+
+    def fetch(request_url: str) -> bytes:
+        if request_url == url:
+            return archive
+        if request_url == url + ".CHECKSUM":
+            return checksum
+        raise AssertionError(request_url)
+
+    with pytest.raises(ValueError, match="strictly increasing"):
+        materialize_binance_usdm_agg_trades_archive_dataset(
+            "BTCUSDT",
+            _ms("2026-08-01T00:00:00Z"),
+            _ms("2026-08-01T00:01:00Z"),
+            writer=OrderFlowDatasetWriter(tmp_path),
+            fetch_bytes=fetch,
+        )
 
 
 def test_archive_reader_fails_closed_on_checksum_mismatch() -> None:
